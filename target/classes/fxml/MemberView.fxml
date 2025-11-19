@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.MemberController"
+      spacing="16" style="-fx-padding: 24;">
+
+    <HBox alignment="CENTER_LEFT" spacing="16">
+        <Label text="Gestion des membres" styleClass="section-title"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TextField fx:id="searchField" promptText="Rechercher..." prefWidth="250"/>
+        <Button text="Importer Excel" onAction="#handleImportExcel" styleClass="secondary-button"/>
+        <Button text="Télécharger Modèle" onAction="#handleExportTemplate" styleClass="secondary-button"/>
+        <Button text="Nouveau Membre" onAction="#handleAdd" styleClass="primary-button"/>
+    </HBox>
+
+    <TableView fx:id="memberTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colId" text="ID" prefWidth="50" minWidth="50" maxWidth="80"/>
+            <TableColumn fx:id="colFirstName" text="Prénom" minWidth="100"/>
+            <TableColumn fx:id="colLastName" text="Nom" minWidth="100"/>
+            <TableColumn fx:id="colEmail" text="Email" minWidth="150"/>
+            <TableColumn fx:id="colPhone" text="Téléphone" minWidth="100"/>
+            <TableColumn fx:id="colRole" text="Rôle" minWidth="100"/>
+            <TableColumn fx:id="colJoinDate" text="Date d'adhésion" minWidth="100"/>
+            <TableColumn fx:id="colActive" text="Actif" prefWidth="80" minWidth="60" maxWidth="100"/>
+        </columns>
+    </TableView>
+
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Détails" onAction="#handleDetails" styleClass="secondary-button"/>
+        <Button text="Modifier" onAction="#handleEdit" styleClass="secondary-button"/>
+        <Button text="Supprimer" onAction="#handleDelete" styleClass="danger-button"/>
+        <Button text="Actualiser" onAction="#handleRefresh" styleClass="secondary-button"/>
+    </HBox>
+
+</VBox>

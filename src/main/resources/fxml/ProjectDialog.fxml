@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.ProjectDialogController"
+      spacing="16" prefWidth="500" style="-fx-padding: 24;">
+
+    <Label text="Informations du projet" styleClass="dialog-title"/>
+
+    <GridPane hgap="12" vgap="12">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="30"/>
+            <ColumnConstraints percentWidth="70"/>
+        </columnConstraints>
+
+        <Label text="Nom*" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+        <TextField fx:id="txtName" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+        <Label text="Description" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+        <TextArea fx:id="txtDescription" GridPane.columnIndex="1" GridPane.rowIndex="1" prefRowCount="3"/>
+
+        <Label text="Date de début" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+        <DatePicker fx:id="dpStartDate" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="Infinity"/>
+
+        <Label text="Date de fin" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+        <DatePicker fx:id="dpEndDate" GridPane.columnIndex="1" GridPane.rowIndex="3" maxWidth="Infinity"/>
+
+        <Label text="Responsable" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+        <ComboBox fx:id="cbManager" GridPane.columnIndex="1" GridPane.rowIndex="4" maxWidth="Infinity"/>
+
+        <Label text="Budget actuel" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+        <TextField fx:id="txtBudget" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+
+        <Label text="Budget cible*" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+        <TextField fx:id="txtTargetBudget" GridPane.columnIndex="1" GridPane.rowIndex="6"/>
+
+        <Label text="Budget de cotisation cible (CFA)" GridPane.columnIndex="0" GridPane.rowIndex="7"/>
+        <TextField fx:id="txtContributionTarget" GridPane.columnIndex="1" GridPane.rowIndex="7" promptText="0.00"/>
+
+        <Label text="Statut" GridPane.columnIndex="0" GridPane.rowIndex="8"/>
+        <ComboBox fx:id="cbStatus" GridPane.columnIndex="1" GridPane.rowIndex="8" maxWidth="Infinity"/>
+    </GridPane>
+
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button"/>
+        <Button text="Enregistrer" onAction="#handleSave" styleClass="primary-button"/>
+    </HBox>
+
+</VBox>

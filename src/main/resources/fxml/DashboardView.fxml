@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.chart.*?>
+
+<ScrollPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.nasroul.controller.DashboardController"
+            fitToWidth="true">
+
+    <VBox spacing="24" style="-fx-padding: 24;">
+
+        <Label text="Tableau de bord" styleClass="section-title"/>
+
+        <!-- Première ligne de cartes -->
+        <HBox spacing="16">
+            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                <Label text="Total membres" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+                <Label fx:id="totalMembersLabel" text="0" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #0d1117;"/>
+            </VBox>
+
+            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                <Label text="Événements actifs" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+                <Label fx:id="totalEventsLabel" text="0" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #0969da;"/>
+            </VBox>
+
+            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                <Label text="Projets actifs" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+                <Label fx:id="totalProjectsLabel" text="0" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #8250df;"/>
+            </VBox>
+        </HBox>
+
+        <!-- Deuxième ligne de cartes -->
+        <HBox spacing="16">
+            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                <Label text="Total dépenses" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+                <Label fx:id="totalExpensesLabel" text="0 CFA" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #cf222e;"/>
+            </VBox>
+
+            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                <Label text="Montant en caisse" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+                <Label fx:id="cashOnHandLabel" text="0 CFA" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #1a7f37;"/>
+            </VBox>
+        </HBox>
+
+        <!-- Troisième ligne de cartes - Cotisations -->
+        <HBox spacing="16">
+            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                <Label text="Cotisations payées" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+                <Label fx:id="lblTotalPaid" text="0 CFA" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #1a7f37;"/>
+            </VBox>
+
+            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                <Label text="Cotisations en attente" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+                <Label fx:id="lblTotalPending" text="0 CFA" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #bf8700;"/>
+            </VBox>
+
+            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                <Label text="Contributeurs" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+                <Label fx:id="lblContributorsCount" text="0" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #0969da;"/>
+            </VBox>
+
+            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                <Label text="Taux de participation" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+                <Label fx:id="lblParticipationRate" text="0%" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #8250df;"/>
+            </VBox>
+        </HBox>
+
+        <VBox styleClass="content-card" spacing="16">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <Label text="Progression des cotisations par événement" styleClass="section-subtitle"/>
+            <BarChart fx:id="contributionBarChart" legendVisible="true" prefHeight="300">
+                <xAxis>
+                    <CategoryAxis label="Événements" side="BOTTOM"/>
+                </xAxis>
+                <yAxis>
+                    <NumberAxis label="Montant (CFA)" side="LEFT"/>
+                </yAxis>
+            </BarChart>
+        </VBox>
+
+        <HBox spacing="16">
+            <VBox HBox.hgrow="ALWAYS" styleClass="content-card" spacing="16">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                <Label text="Événements par statut" styleClass="section-subtitle"/>
+                <PieChart fx:id="eventsPieChart" legendVisible="true" labelsVisible="false" prefHeight="280"/>
+            </VBox>
+
+            <VBox HBox.hgrow="ALWAYS" styleClass="content-card" spacing="16">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                <Label text="Projets par statut" styleClass="section-subtitle"/>
+                <PieChart fx:id="projectsPieChart" legendVisible="true" labelsVisible="false" prefHeight="280"/>
+            </VBox>
+        </HBox>
+
+        <VBox styleClass="content-card" spacing="16">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <HBox alignment="CENTER_LEFT" spacing="16">
+                <Label text="Actions rapides" styleClass="section-subtitle"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button text="Nouveau membre" onAction="#handleNewMember" styleClass="primary-button"/>
+                <Button text="Nouvel événement" onAction="#handleNewEvent" styleClass="primary-button"/>
+                <Button text="Nouveau projet" onAction="#handleNewProject" styleClass="primary-button"/>
+                <Button text="Nouvelle cotisation" onAction="#handleNewContribution" styleClass="primary-button"/>
+            </HBox>
+        </VBox>
+
+    </VBox>
+</ScrollPane>

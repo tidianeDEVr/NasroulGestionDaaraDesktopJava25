@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.GroupController"
+      spacing="16" style="-fx-padding: 24;">
+
+    <HBox alignment="CENTER_LEFT" spacing="16">
+        <Label text="Gestion des groupes" styleClass="section-title"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button text="Nouveau Groupe" onAction="#handleAdd" styleClass="primary-button"/>
+    </HBox>
+
+    <TableView fx:id="groupTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colId" text="ID" prefWidth="50" minWidth="50" maxWidth="80"/>
+            <TableColumn fx:id="colName" text="Nom" minWidth="150"/>
+            <TableColumn fx:id="colDescription" text="Description" minWidth="200"/>
+            <TableColumn fx:id="colMemberCount" text="Nombre Membres" minWidth="120"/>
+            <TableColumn fx:id="colActive" text="Actif" prefWidth="80" minWidth="80" maxWidth="100"/>
+        </columns>
+    </TableView>
+
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Modifier" onAction="#handleEdit" styleClass="secondary-button"/>
+        <Button text="Supprimer" onAction="#handleDelete" styleClass="danger-button"/>
+        <Button text="Actualiser" onAction="#handleRefresh" styleClass="secondary-button"/>
+    </HBox>
+
+</VBox>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.ExpenseDialogController"
+      spacing="16" prefWidth="550" style="-fx-padding: 24;">
+
+    <Label text="Informations de la dépense" styleClass="dialog-title"/>
+
+    <GridPane hgap="12" vgap="12">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="35"/>
+            <ColumnConstraints percentWidth="65"/>
+        </columnConstraints>
+
+        <Label text="Description*" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+        <TextField fx:id="txtDescription" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+        <Label text="Montant (CFA)*" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+        <TextField fx:id="txtAmount" GridPane.columnIndex="1" GridPane.rowIndex="1"
+                   promptText="0.00"/>
+
+        <Label text="Date*" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+        <DatePicker fx:id="datePicker" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+        <Label text="Catégorie" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+        <ComboBox fx:id="cbCategory" GridPane.columnIndex="1" GridPane.rowIndex="3"
+                  promptText="Sélectionner une catégorie" maxWidth="Infinity"/>
+
+        <Label text="Type d'Entité*" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+        <ComboBox fx:id="cbEntityType" GridPane.columnIndex="1" GridPane.rowIndex="4"
+                  promptText="Sélectionner le type" maxWidth="Infinity"/>
+
+        <Label text="Entité*" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+        <ComboBox fx:id="cbEntity" GridPane.columnIndex="1" GridPane.rowIndex="5"
+                  promptText="Sélectionner une entité" maxWidth="Infinity"/>
+
+        <Label text="Membre" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+        <ComboBox fx:id="cbMember" GridPane.columnIndex="1" GridPane.rowIndex="6"
+                  promptText="Sélectionner un membre (optionnel)" maxWidth="Infinity"/>
+    </GridPane>
+
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button"/>
+        <Button text="Enregistrer" onAction="#handleSave" styleClass="primary-button"/>
+    </HBox>
+
+</VBox>

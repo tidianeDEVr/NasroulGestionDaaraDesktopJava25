@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.ContributionController"
+      spacing="16" style="-fx-padding: 24;">
+
+    <HBox alignment="CENTER_LEFT" spacing="16">
+        <Label text="Gestion des cotisations" styleClass="section-title"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button text="Nouvelle cotisation" onAction="#handleAddContribution" styleClass="primary-button"/>
+    </HBox>
+
+    <TableView fx:id="contributionTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colMember" text="Membre" prefWidth="150"/>
+            <TableColumn fx:id="colEntityType" text="Type" prefWidth="100"/>
+            <TableColumn fx:id="colEntityName" text="Événement/Projet" prefWidth="150"/>
+            <TableColumn fx:id="colAmount" text="Montant (CFA)" prefWidth="120"/>
+            <TableColumn fx:id="colDate" text="Date" prefWidth="100"/>
+            <TableColumn fx:id="colStatus" text="Statut" prefWidth="100"/>
+            <TableColumn fx:id="colPaymentMethod" text="Méthode de paiement" prefWidth="150"/>
+        </columns>
+    </TableView>
+
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Modifier" onAction="#handleEditContribution" styleClass="secondary-button"/>
+        <Button text="Supprimer" onAction="#handleDeleteContribution" styleClass="danger-button"/>
+        <Button text="Actualiser" onAction="#handleRefresh" styleClass="secondary-button"/>
+    </HBox>
+
+</VBox>

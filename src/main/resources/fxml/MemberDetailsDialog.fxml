@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml" fx:controller="com.nasroul.controller.MemberDetailsDialogController"
+      spacing="16" prefWidth="800" prefHeight="600" style="-fx-padding: 24;">
+
+    <HBox alignment="CENTER_LEFT" spacing="16">
+        <Label text="Détails du membre" style="-fx-font-size: 18px; -fx-font-weight: 700;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+    </HBox>
+
+    <!-- Member Info Section with Avatar -->
+    <HBox spacing="24" styleClass="content-card" style="-fx-padding: 20;">
+        <!-- Avatar -->
+        <VBox alignment="CENTER" spacing="8">
+            <StackPane fx:id="avatarContainer" prefWidth="120" prefHeight="120">
+                <ImageView fx:id="avatarImageView" fitWidth="120" fitHeight="120" preserveRatio="true"
+                           style="-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 10, 0, 0, 2);"/>
+            </StackPane>
+            <Label fx:id="lblMemberName" text="Nom du membre" style="-fx-font-size: 14px; -fx-font-weight: 700;"/>
+        </VBox>
+
+        <!-- Member Details Grid -->
+        <GridPane hgap="16" vgap="12" HBox.hgrow="ALWAYS">
+            <columnConstraints>
+                <ColumnConstraints minWidth="100" prefWidth="120"/>
+                <ColumnConstraints hgrow="ALWAYS"/>
+            </columnConstraints>
+
+            <Label text="Email :" GridPane.columnIndex="0" GridPane.rowIndex="0" style="-fx-text-fill: #57606a;"/>
+            <Label fx:id="lblEmail" text="-" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+            <Label text="Téléphone :" GridPane.columnIndex="0" GridPane.rowIndex="1" style="-fx-text-fill: #57606a;"/>
+            <Label fx:id="lblPhone" text="-" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+            <Label text="Date de naissance :" GridPane.columnIndex="0" GridPane.rowIndex="2" style="-fx-text-fill: #57606a;"/>
+            <Label fx:id="lblBirthDate" text="-" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+            <Label text="Date d'adhésion :" GridPane.columnIndex="0" GridPane.rowIndex="3" style="-fx-text-fill: #57606a;"/>
+            <Label fx:id="lblJoinDate" text="-" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+
+            <Label text="Rôle :" GridPane.columnIndex="0" GridPane.rowIndex="4" style="-fx-text-fill: #57606a;"/>
+            <Label fx:id="lblRole" text="-" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+
+            <Label text="Groupe :" GridPane.columnIndex="0" GridPane.rowIndex="5" style="-fx-text-fill: #57606a;"/>
+            <Label fx:id="lblGroup" text="-" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+
+            <Label text="Adresse :" GridPane.columnIndex="0" GridPane.rowIndex="6" style="-fx-text-fill: #57606a;"/>
+            <Label fx:id="lblAddress" text="-" GridPane.columnIndex="1" GridPane.rowIndex="6"/>
+        </GridPane>
+    </HBox>
+
+    <!-- Contribution Statistics -->
+    <HBox spacing="16">
+        <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <Label text="Total cotisé" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+            <Label fx:id="lblTotalContributed" text="0 CFA" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-text-fill: #1a7f37;"/>
+        </VBox>
+
+        <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <Label text="Cotisations payées" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+            <Label fx:id="lblTotalPaid" text="0 CFA" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-text-fill: #1a7f37;"/>
+        </VBox>
+
+        <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <Label text="En attente" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+            <Label fx:id="lblTotalPending" text="0 CFA" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-text-fill: #bf8700;"/>
+        </VBox>
+
+        <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <Label text="Nombre de cotisations" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
+            <Label fx:id="lblContributionCount" text="0" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-text-fill: #0969da;"/>
+        </VBox>
+    </HBox>
+
+    <!-- Contribution History -->
+    <VBox VBox.vgrow="ALWAYS" spacing="12" styleClass="content-card" style="-fx-padding: 20;">
+        <HBox alignment="CENTER_LEFT" spacing="16">
+            <Label text="Historique des cotisations" style="-fx-font-size: 14px; -fx-font-weight: 700;"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label text="Filtrer par :"/>
+            <ComboBox fx:id="cbFilterType" promptText="Tous" prefWidth="120"/>
+            <ComboBox fx:id="cbFilterEntity" promptText="Sélectionner" prefWidth="200"/>
+        </HBox>
+
+        <TableView fx:id="contributionTable" VBox.vgrow="ALWAYS">
+            <columns>
+                <TableColumn fx:id="colType" text="Type" prefWidth="100"/>
+                <TableColumn fx:id="colEntity" text="Événement/Projet" prefWidth="200"/>
+                <TableColumn fx:id="colAmount" text="Montant (CFA)" prefWidth="120"/>
+                <TableColumn fx:id="colDate" text="Date" prefWidth="100"/>
+                <TableColumn fx:id="colStatus" text="Statut" prefWidth="100"/>
+                <TableColumn fx:id="colPaymentMethod" text="Méthode de paiement" prefWidth="150"/>
+            </columns>
+        </TableView>
+    </VBox>
+
+    <!-- Action Buttons -->
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Fermer" onAction="#handleClose" styleClass="secondary-button" prefWidth="100"/>
+    </HBox>
+
+</VBox>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.image.ImageView?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.MemberDialogController"
+      spacing="16" prefWidth="500" style="-fx-padding: 24;">
+
+    <Label text="Informations du membre" styleClass="dialog-title"/>
+
+    <GridPane hgap="12" vgap="12">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="30"/>
+            <ColumnConstraints percentWidth="70"/>
+        </columnConstraints>
+
+        <Label text="Prénom*" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+        <TextField fx:id="txtFirstName" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+        <Label text="Nom*" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+        <TextField fx:id="txtLastName" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+        <Label text="Email" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+        <TextField fx:id="txtEmail" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+        <Label text="Téléphone" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+        <TextField fx:id="txtPhone" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+
+        <Label text="Date de naissance" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+        <DatePicker fx:id="dpBirthDate" GridPane.columnIndex="1" GridPane.rowIndex="4" maxWidth="Infinity"/>
+
+        <Label text="Adresse" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+        <TextArea fx:id="txtAddress" GridPane.columnIndex="1" GridPane.rowIndex="5" prefRowCount="2"/>
+
+        <Label text="Date d'adhésion*" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+        <DatePicker fx:id="dpJoinDate" GridPane.columnIndex="1" GridPane.rowIndex="6" maxWidth="Infinity"/>
+
+        <Label text="Rôle" GridPane.columnIndex="0" GridPane.rowIndex="7"/>
+        <TextField fx:id="txtRole" GridPane.columnIndex="1" GridPane.rowIndex="7"/>
+
+        <Label text="Groupe" GridPane.columnIndex="0" GridPane.rowIndex="8"/>
+        <ComboBox fx:id="cbGroup" GridPane.columnIndex="1" GridPane.rowIndex="8" maxWidth="Infinity"/>
+
+        <Label text="Avatar" GridPane.columnIndex="0" GridPane.rowIndex="9"/>
+        <HBox spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="9" alignment="CENTER_LEFT">
+            <ImageView fx:id="avatarView" fitWidth="80" fitHeight="80" preserveRatio="true"
+                       style="-fx-border-color: #d0d7de; -fx-border-width: 1;"/>
+            <Button text="Choisir..." onAction="#handleChooseAvatar" styleClass="secondary-button"/>
+            <Button text="Supprimer" onAction="#handleRemoveAvatar" styleClass="secondary-button"/>
+        </HBox>
+
+        <Label text="Actif" GridPane.columnIndex="0" GridPane.rowIndex="10"/>
+        <CheckBox fx:id="cbActive" GridPane.columnIndex="1" GridPane.rowIndex="10"/>
+    </GridPane>
+
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button"/>
+        <Button text="Enregistrer" onAction="#handleSave" styleClass="primary-button"/>
+    </HBox>
+
+</VBox>

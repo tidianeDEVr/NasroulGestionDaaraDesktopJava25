@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.EventController"
+      spacing="16" style="-fx-padding: 24;">
+
+    <HBox alignment="CENTER_LEFT" spacing="16">
+        <Label text="Gestion d'événements" styleClass="section-title"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button text="Import Excel" onAction="#handleImportExcel" styleClass="secondary-button"/>
+        <Button text="Export Template" onAction="#handleExportTemplate" styleClass="secondary-button"/>
+        <Button text="Nouvel événement" onAction="#handleAdd" styleClass="primary-button"/>
+    </HBox>
+
+    <TableView fx:id="eventTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colId" text="ID" prefWidth="50"/>
+            <TableColumn fx:id="colName" text="Nom" prefWidth="200"/>
+            <TableColumn fx:id="colStartDate" text="Date de début" prefWidth="150"/>
+            <TableColumn fx:id="colLocation" text="Lieu" prefWidth="150"/>
+            <TableColumn fx:id="colStatus" text="Statut" prefWidth="100"/>
+            <TableColumn fx:id="colTargetBudget" text="Budget cible" prefWidth="120"/>
+            <TableColumn fx:id="colCurrentBudget" text="Budget en cours" prefWidth="120"/>
+        </columns>
+    </TableView>
+
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Voir dépenses" onAction="#handleViewExpenses" styleClass="secondary-button"/>
+        <Button text="Modifier" onAction="#handleEdit" styleClass="secondary-button"/>
+        <Button text="Supprimer" onAction="#handleDelete" styleClass="danger-button"/>
+        <Button text="Actualiser" onAction="#handleRefresh" styleClass="secondary-button"/>
+    </HBox>
+
+</VBox>

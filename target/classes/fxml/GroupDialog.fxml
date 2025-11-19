@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.GroupDialogController"
+      spacing="16" prefWidth="500" style="-fx-padding: 24;">
+
+    <Label text="Informations du groupe" styleClass="dialog-title"/>
+
+    <GridPane hgap="12" vgap="12">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="35"/>
+            <ColumnConstraints percentWidth="65"/>
+        </columnConstraints>
+
+        <Label text="Nom*" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+        <TextField fx:id="txtName" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+        <Label text="Description" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+        <TextArea fx:id="txtDescription" GridPane.columnIndex="1" GridPane.rowIndex="1" prefRowCount="3"/>
+
+        <Label text="Actif" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+        <CheckBox fx:id="cbActive" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+    </GridPane>
+
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button"/>
+        <Button text="Enregistrer" onAction="#handleSave" styleClass="primary-button"/>
+    </HBox>
+
+</VBox>
