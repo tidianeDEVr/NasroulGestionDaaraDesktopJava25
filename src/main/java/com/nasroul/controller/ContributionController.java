@@ -119,7 +119,6 @@ public class ContributionController {
             new SimpleStringProperty(getPaymentMethodLabel(data.getValue().getPaymentMethod())));
     }
 
-    // Méthodes de traduction
     private String getEntityTypeLabel(String code) {
         if (code == null) return "N/A";
         return switch (code) {

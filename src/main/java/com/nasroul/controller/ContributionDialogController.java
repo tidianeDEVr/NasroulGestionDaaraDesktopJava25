@@ -399,55 +399,55 @@ public class ContributionDialogController {
 
     // Méthodes de conversion entre français et codes
     private String getEntityTypeCode(String frenchLabel) {
-        switch (frenchLabel) {
-            case "Événement": return "EVENT";
-            case "Projet": return "PROJECT";
-            default: return frenchLabel;
-        }
+        return switch (frenchLabel) {
+            case "Événement" -> "EVENT";
+            case "Projet" -> "PROJECT";
+            default -> frenchLabel;
+        };
     }
 
     private String getEntityTypeLabel(String code) {
-        switch (code) {
-            case "EVENT": return "Événement";
-            case "PROJECT": return "Projet";
-            default: return code;
-        }
+        return switch (code) {
+            case "EVENT" -> "Événement";
+            case "PROJECT" -> "Projet";
+            default -> code;
+        };
     }
 
     private String getStatusCode(String frenchLabel) {
-        switch (frenchLabel) {
-            case "Payé": return "PAID";
-            case "En attente": return "PENDING";
-            default: return frenchLabel;
-        }
+        return switch (frenchLabel) {
+            case "Payé" -> "PAID";
+            case "En attente" -> "PENDING";
+            default -> frenchLabel;
+        };
     }
 
     private String getStatusLabel(String code) {
-        switch (code) {
-            case "PAID": return "Payé";
-            case "PENDING": return "En attente";
-            default: return code;
-        }
+        return switch (code) {
+            case "PAID" -> "Payé";
+            case "PENDING" -> "En attente";
+            default -> code;
+        };
     }
 
     private String getPaymentMethodCode(String frenchLabel) {
-        switch (frenchLabel) {
-            case "Espèces": return "CASH";
-            case "Mobile Money": return "MOBILE_MONEY";
-            case "Virement bancaire": return "BANK_TRANSFER";
-            case "Chèque": return "CHECK";
-            default: return frenchLabel;
-        }
+        return switch (frenchLabel) {
+            case "Espèces" -> "CASH";
+            case "Mobile Money" -> "MOBILE_MONEY";
+            case "Virement bancaire" -> "BANK_TRANSFER";
+            case "Chèque" -> "CHECK";
+            default -> frenchLabel;
+        };
     }
 
     private String getPaymentMethodLabel(String code) {
         if (code == null) return null;
-        switch (code) {
-            case "CASH": return "Espèces";
-            case "MOBILE_MONEY": return "Mobile Money";
-            case "BANK_TRANSFER": return "Virement bancaire";
-            case "CHECK": return "Chèque";
-            default: return code;
-        }
+        return switch (code) {
+            case "CASH" -> "Espèces";
+            case "MOBILE_MONEY" -> "Mobile Money";
+            case "BANK_TRANSFER" -> "Virement bancaire";
+            case "CHECK" -> "Chèque";
+            default -> code;
+        };
     }
 }
