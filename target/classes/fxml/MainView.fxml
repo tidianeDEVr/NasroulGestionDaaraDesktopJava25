@@ -68,7 +68,7 @@
         <HBox styleClass="status-bar" alignment="CENTER_LEFT" spacing="16">
             <Label fx:id="statusLabel" text="Ready" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
             <Region HBox.hgrow="ALWAYS"/>
-            <Label text="Djeureudjeuf Borom Touba" style="-fx-text-fill: #000000; -fx-font-size: 12px; -fx-font-weight: 700;"/>
+            <Label text="Djeureudjeuf Borom Touba" style="-fx-text-fill: #000000; -fx-font-size: 12px;"/>
         </HBox>
     </bottom>
 

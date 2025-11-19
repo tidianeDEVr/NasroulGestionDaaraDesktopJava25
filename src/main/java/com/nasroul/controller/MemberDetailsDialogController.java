@@ -107,6 +107,7 @@ public class MemberDetailsDialogController {
             new javafx.beans.property.SimpleStringProperty(getPaymentMethodLabel(cellData.getValue().getPaymentMethod())));
 
         contributionTable.setItems(filteredContributions);
+        contributionTable.setMinHeight(200);
     }
 
     private void setupFilters() {

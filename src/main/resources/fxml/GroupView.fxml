@@ -12,7 +12,7 @@
     <HBox alignment="CENTER_LEFT" spacing="16">
         <Label text="Gestion des groupes" styleClass="section-title"/>
         <Region HBox.hgrow="ALWAYS"/>
-        <Button text="Nouveau Groupe" onAction="#handleAdd" styleClass="primary-button"/>
+        <Button text="Nouveau groupe" onAction="#handleAdd" styleClass="primary-button"/>
     </HBox>
 
     <TableView fx:id="groupTable" VBox.vgrow="ALWAYS">
