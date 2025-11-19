@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.PaymentGroupController"
+      spacing="16" style="-fx-padding: 24;">
+
+    <HBox alignment="CENTER_LEFT" spacing="16">
+        <Label text="Objectifs de cotisation" styleClass="section-title"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button text="Nouvel objectif" onAction="#handleAdd" styleClass="primary-button"/>
+    </HBox>
+
+    <TableView fx:id="paymentGroupTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colId" text="ID" prefWidth="50"/>
+            <TableColumn fx:id="colGroup" text="Groupe" prefWidth="180"/>
+            <TableColumn fx:id="colEntityType" text="Type" prefWidth="120"/>
+            <TableColumn fx:id="colEntity" text="Événement/Projet" prefWidth="250"/>
+            <TableColumn fx:id="colAmount" text="Montant par membre" prefWidth="150"/>
+        </columns>
+    </TableView>
+
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Modifier" onAction="#handleEdit" styleClass="secondary-button"/>
+        <Button text="Supprimer" onAction="#handleDelete" styleClass="danger-button"/>
+        <Button text="Actualiser" onAction="#handleRefresh" styleClass="secondary-button"/>
+    </HBox>
+
+</VBox>

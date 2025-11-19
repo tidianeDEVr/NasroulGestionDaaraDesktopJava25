@@ -15,7 +15,6 @@ public class ProjectDialogController {
 
     @FXML private TextField txtName;
     @FXML private TextArea txtDescription;
-    @FXML private DatePicker dpStartDate;
     @FXML private DatePicker dpEndDate;
     @FXML private ComboBox<Member> cbManager;
     @FXML private TextField txtBudget;
@@ -33,8 +32,8 @@ public class ProjectDialogController {
 
     public void initialize() {
         // Populate status options
-        cbStatus.getItems().addAll("PLANNING", "IN_PROGRESS", "COMPLETED", "ON_HOLD", "CANCELLED");
-        cbStatus.setValue("PLANNING");
+        cbStatus.getItems().addAll("Planification", "En cours", "Terminé", "En attente", "Annulé");
+        cbStatus.setValue("Planification");
 
         // Load members for manager dropdown
         loadMembers();
@@ -73,15 +72,11 @@ public class ProjectDialogController {
             txtName.setText(project.getName());
             txtDescription.setText(project.getDescription());
 
-            if (project.getStartDate() != null) {
-                dpStartDate.setValue(project.getStartDate());
-            }
-
             if (project.getEndDate() != null) {
                 dpEndDate.setValue(project.getEndDate());
             }
 
-            cbStatus.setValue(project.getStatus());
+            cbStatus.setValue(translateStatusToFrench(project.getStatus()));
 
             if (project.getBudget() != null) {
                 txtBudget.setText(project.getBudget().toString());
@@ -162,13 +157,6 @@ public class ProjectDialogController {
             }
         }
 
-        // Validate dates
-        if (dpStartDate.getValue() != null && dpEndDate.getValue() != null &&
-            dpEndDate.getValue().isBefore(dpStartDate.getValue())) {
-            showError("La date de fin ne peut pas être avant la date de début");
-            return;
-        }
-
         // Update project object
         if (project == null) {
             project = new Project();
@@ -176,9 +164,9 @@ public class ProjectDialogController {
 
         project.setName(txtName.getText().trim());
         project.setDescription(txtDescription.getText().trim().isEmpty() ? null : txtDescription.getText().trim());
-        project.setStartDate(dpStartDate.getValue());
+        project.setStartDate(null); // Date de début supprimée
         project.setEndDate(dpEndDate.getValue());
-        project.setStatus(cbStatus.getValue());
+        project.setStatus(translateStatusToEnglish(cbStatus.getValue()));
         project.setBudget(budget);
         project.setTargetBudget(targetBudget);
         project.setContributionTarget(contributionTarget);
@@ -204,6 +192,30 @@ public class ProjectDialogController {
 
     public Project getProject() {
         return project;
+    }
+
+    private String translateStatusToFrench(String status) {
+        if (status == null) return "Planification";
+        switch (status) {
+            case "PLANNING": return "Planification";
+            case "ONGOING": return "En cours";
+            case "COMPLETED": return "Terminé";
+            case "ON_HOLD": return "En attente";
+            case "CANCELLED": return "Annulé";
+            default: return status;
+        }
+    }
+
+    private String translateStatusToEnglish(String status) {
+        if (status == null) return "PLANNING";
+        switch (status) {
+            case "Planification": return "PLANNING";
+            case "En cours": return "ONGOING";
+            case "Terminé": return "COMPLETED";
+            case "En attente": return "ON_HOLD";
+            case "Annulé": return "CANCELLED";
+            default: return status;
+        }
     }
 
     private void showError(String message) {

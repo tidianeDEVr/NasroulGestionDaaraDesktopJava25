@@ -198,20 +198,44 @@ public class ContributionDialogController {
         this.contribution = contribution;
 
         if (contribution != null) {
-            // Mode édition
             try {
                 Member member = memberService.getMemberById(contribution.getMemberId());
-                cbMember.setValue(member);
+                // Trouver le membre correspondant dans la liste déjà chargée
+                cbMember.getItems().stream()
+                    .filter(m -> m.getId().equals(member.getId()))
+                    .findFirst()
+                    .ifPresent(cbMember::setValue);
 
                 cbEntityType.setValue(getEntityTypeLabel(contribution.getEntityType()));
 
-                if ("EVENT".equals(contribution.getEntityType())) {
-                    Event event = eventService.getEventById(contribution.getEntityId());
-                    cbEntity.setValue(event);
-                } else if ("PROJECT".equals(contribution.getEntityType())) {
-                    var project = projectService.getProjectById(contribution.getEntityId());
-                    cbEntity.setValue(project);
-                }
+                javafx.application.Platform.runLater(() -> {
+                    try {
+                        if ("EVENT".equals(contribution.getEntityType())) {
+                            Event event = eventService.getEventById(contribution.getEntityId());
+                            for (Object item : cbEntity.getItems()) {
+                                if (item instanceof Event && ((Event) item).getId().equals(event.getId())) {
+                                    cbEntity.setValue(item);
+                                    break;
+                                }
+                            }
+                        } else if ("PROJECT".equals(contribution.getEntityType())) {
+                            var project = projectService.getProjectById(contribution.getEntityId());
+                            for (Object item : cbEntity.getItems()) {
+                                try {
+                                    Integer itemId = (Integer) item.getClass().getMethod("getId").invoke(item);
+                                    Integer projectId = (Integer) project.getClass().getMethod("getId").invoke(project);
+                                    if (itemId.equals(projectId)) {
+                                        cbEntity.setValue(item);
+                                        break;
+                                    }
+                                } catch (Exception e) {
+                                }
+                            }
+                        }
+                    } catch (SQLException e) {
+                        showError("Erreur", "Impossible de charger l'entité: " + e.getMessage());
+                    }
+                });
 
                 txtAmount.setText(String.valueOf(contribution.getAmount()));
                 dpDate.setValue(contribution.getDate());

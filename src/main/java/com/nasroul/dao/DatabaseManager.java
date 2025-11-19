@@ -118,6 +118,17 @@ public class DatabaseManager {
                 )
             """);
 
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS payment_groups (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    group_id INTEGER NOT NULL,
+                    entity_type TEXT NOT NULL,
+                    entity_id INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    FOREIGN KEY (group_id) REFERENCES groups(id)
+                )
+            """);
+
             System.out.println("Database initialized successfully");
 
         } catch (SQLException e) {

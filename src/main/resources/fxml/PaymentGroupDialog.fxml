@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.PaymentGroupDialogController"
+      spacing="16" prefWidth="550" style="-fx-padding: 24;">
+
+    <Label text="Objectif de cotisation par membre" styleClass="dialog-title"/>
+
+    <GridPane hgap="12" vgap="12">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="35"/>
+            <ColumnConstraints percentWidth="65"/>
+        </columnConstraints>
+
+        <Label text="Groupe*" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+        <ComboBox fx:id="cbGroup" GridPane.columnIndex="1" GridPane.rowIndex="0" maxWidth="Infinity"/>
+
+        <Label text="Type*" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+        <ComboBox fx:id="cbEntityType" GridPane.columnIndex="1" GridPane.rowIndex="1" maxWidth="Infinity"/>
+
+        <Label text="Événement/Projet*" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+        <ComboBox fx:id="cbEntity" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="Infinity"/>
+
+        <Label text="Montant par membre (CFA)*" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+        <TextField fx:id="txtAmount" GridPane.columnIndex="1" GridPane.rowIndex="3" promptText="0.00"/>
+    </GridPane>
+
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button"/>
+        <Button text="Enregistrer" onAction="#handleSave" styleClass="primary-button"/>
+    </HBox>
+
+</VBox>

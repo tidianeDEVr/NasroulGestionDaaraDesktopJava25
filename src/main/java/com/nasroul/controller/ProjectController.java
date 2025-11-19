@@ -30,7 +30,7 @@ public class ProjectController {
     @FXML
     private TableView<Project> projectTable;
     @FXML
-    private TableColumn<Project, String> colId, colName, colStartDate, colEndDate, colBudget, colStatus, colManager;
+    private TableColumn<Project, String> colId, colName, colEndDate, colBudget, colStatus, colManager;
 
     private final ProjectService projectService;
     private final ExpenseService expenseService;
@@ -49,16 +49,26 @@ public class ProjectController {
 
         colId.setCellValueFactory(data -> new SimpleStringProperty(String.valueOf(data.getValue().getId())));
         colName.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getName()));
-        colStartDate.setCellValueFactory(data -> new SimpleStringProperty(
-            data.getValue().getStartDate() != null ? data.getValue().getStartDate().format(formatter) : ""));
         colEndDate.setCellValueFactory(data -> new SimpleStringProperty(
             data.getValue().getEndDate() != null ? data.getValue().getEndDate().format(formatter) : ""));
         colBudget.setCellValueFactory(data -> new SimpleStringProperty(numberFormat.format(data.getValue().getBudget()) + " CFA"));
-        colStatus.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getStatus()));
+        colStatus.setCellValueFactory(data -> new SimpleStringProperty(translateStatus(data.getValue().getStatus())));
         colManager.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getManagerName()));
 
         projectTable.setItems(projectList);
         loadProjects();
+    }
+
+    private String translateStatus(String status) {
+        if (status == null) return "";
+        switch (status) {
+            case "PLANNING": return "Planification";
+            case "ONGOING": return "En cours";
+            case "COMPLETED": return "Terminé";
+            case "ON_HOLD": return "En attente";
+            case "CANCELLED": return "Annulé";
+            default: return status;
+        }
     }
 
     private void loadProjects() {

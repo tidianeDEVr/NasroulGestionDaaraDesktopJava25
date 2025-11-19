@@ -80,7 +80,7 @@ public class MemberController {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
             return new SimpleStringProperty(data.getValue().getJoinDate().format(formatter));
         });
-        colActive.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().isActive() ? "Yes" : "No"));
+        colActive.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().isActive() ? "Oui" : "Non"));
     }
 
     private void loadMembers() {
