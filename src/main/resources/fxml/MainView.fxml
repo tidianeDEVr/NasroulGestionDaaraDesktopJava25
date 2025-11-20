@@ -57,9 +57,8 @@
 
             <Label text="SYSTÈME" style="-fx-font-size: 11px; -fx-text-fill: #57606a; -fx-padding: 8 12 4 12; -fx-font-weight: 600;"/>
 
-            <Button fx:id="btnSync" text="🔄 Synchroniser" onAction="#handleSync"
-                    styleClass="menu-button-sync" maxWidth="Infinity"
-                    style="-fx-background-color: #2196f3; -fx-text-fill: white; -fx-font-weight: bold;"/>
+            <Button fx:id="btnSync" text="Synchroniser" onAction="#handleSync"
+                    styleClass="menu-button-sync" maxWidth="Infinity"/>
 
             <Button text="Quitter" onAction="#handleExit"
                     styleClass="menu-button-exit" maxWidth="Infinity"/>
