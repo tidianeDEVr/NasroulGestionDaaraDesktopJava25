@@ -29,8 +29,21 @@ public class EventDAO {
             pstmt.setString(4, event.getEndDate() != null ? event.getEndDate().toString() : null);
             pstmt.setString(5, event.getLocation());
             pstmt.setString(6, event.getStatus());
-            pstmt.setObject(7, event.getOrganizerId());
-            pstmt.setObject(8, event.getMaxCapacity());
+
+            // Handle nullable organizer_id - SQLite JDBC doesn't support setObject for nulls
+            if (event.getOrganizerId() != null) {
+                pstmt.setInt(7, event.getOrganizerId());
+            } else {
+                pstmt.setNull(7, Types.INTEGER);
+            }
+
+            // Handle nullable max_capacity - SQLite JDBC doesn't support setObject for nulls
+            if (event.getMaxCapacity() != null) {
+                pstmt.setInt(8, event.getMaxCapacity());
+            } else {
+                pstmt.setNull(8, Types.INTEGER);
+            }
+
             pstmt.setDouble(9, event.getContributionTarget() != null ? event.getContributionTarget() : 0.0);
             pstmt.setBoolean(10, event.isActive());
 
@@ -106,8 +119,21 @@ public class EventDAO {
             pstmt.setString(4, event.getEndDate() != null ? event.getEndDate().toString() : null);
             pstmt.setString(5, event.getLocation());
             pstmt.setString(6, event.getStatus());
-            pstmt.setObject(7, event.getOrganizerId());
-            pstmt.setObject(8, event.getMaxCapacity());
+
+            // Handle nullable organizer_id - SQLite JDBC doesn't support setObject for nulls
+            if (event.getOrganizerId() != null) {
+                pstmt.setInt(7, event.getOrganizerId());
+            } else {
+                pstmt.setNull(7, Types.INTEGER);
+            }
+
+            // Handle nullable max_capacity - SQLite JDBC doesn't support setObject for nulls
+            if (event.getMaxCapacity() != null) {
+                pstmt.setInt(8, event.getMaxCapacity());
+            } else {
+                pstmt.setNull(8, Types.INTEGER);
+            }
+
             pstmt.setDouble(9, event.getContributionTarget() != null ? event.getContributionTarget() : 0.0);
             pstmt.setBoolean(10, event.isActive());
             pstmt.setInt(11, event.getId());
