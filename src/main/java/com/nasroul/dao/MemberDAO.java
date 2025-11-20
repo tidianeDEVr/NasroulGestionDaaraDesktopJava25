@@ -16,8 +16,9 @@ public class MemberDAO {
 
     public void create(Member member) throws SQLException {
         String sql = """
-            INSERT INTO members (first_name, last_name, email, phone, birth_date, address, join_date, role, avatar, active, group_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO members (first_name, last_name, email, phone, birth_date, address, join_date, role, avatar, active, group_id,
+                                created_at, updated_at, last_modified_by, sync_status, sync_version)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?, 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -33,7 +34,16 @@ public class MemberDAO {
             pstmt.setString(8, member.getRole());
             pstmt.setBytes(9, member.getAvatar());
             pstmt.setInt(10, member.isActive() ? 1 : 0);
-            pstmt.setObject(11, member.getGroupId());
+
+            // Handle nullable group_id - SQLite JDBC doesn't support setObject for nulls
+            if (member.getGroupId() != null) {
+                pstmt.setInt(11, member.getGroupId());
+            } else {
+                pstmt.setNull(11, Types.INTEGER);
+            }
+
+            // Sync metadata
+            pstmt.setString(12, member.getLastModifiedBy() != null ? member.getLastModifiedBy() : "system");
 
             pstmt.executeUpdate();
 
@@ -77,6 +87,7 @@ public class MemberDAO {
             SELECT m.*, g.name AS group_name
             FROM members m
             LEFT JOIN `groups` g ON m.group_id = g.id
+            WHERE m.deleted_at IS NULL
             ORDER BY m.last_name, m.first_name
             """;
 
@@ -98,7 +109,7 @@ public class MemberDAO {
             SELECT m.*, g.name AS group_name
             FROM members m
             LEFT JOIN `groups` g ON m.group_id = g.id
-            WHERE m.active = 1
+            WHERE m.active = 1 AND m.deleted_at IS NULL
             ORDER BY m.last_name, m.first_name
             """;
 
@@ -118,7 +129,9 @@ public class MemberDAO {
         String sql = """
             UPDATE members
             SET first_name = ?, last_name = ?, email = ?, phone = ?, birth_date = ?,
-                address = ?, join_date = ?, role = ?, avatar = ?, active = ?, group_id = ?
+                address = ?, join_date = ?, role = ?, avatar = ?, active = ?, group_id = ?,
+                updated_at = datetime('now'), last_modified_by = ?, sync_status = 'PENDING',
+                sync_version = sync_version + 1
             WHERE id = ?
             """;
 
@@ -135,8 +148,17 @@ public class MemberDAO {
             pstmt.setString(8, member.getRole());
             pstmt.setBytes(9, member.getAvatar());
             pstmt.setInt(10, member.isActive() ? 1 : 0);
-            pstmt.setObject(11, member.getGroupId());
-            pstmt.setInt(12, member.getId());
+
+            // Handle nullable group_id - SQLite JDBC doesn't support setObject for nulls
+            if (member.getGroupId() != null) {
+                pstmt.setInt(11, member.getGroupId());
+            } else {
+                pstmt.setNull(11, Types.INTEGER);
+            }
+
+            // Sync metadata
+            pstmt.setString(12, member.getLastModifiedBy() != null ? member.getLastModifiedBy() : "system");
+            pstmt.setInt(13, member.getId());
 
             pstmt.executeUpdate();
 
@@ -149,7 +171,12 @@ public class MemberDAO {
     }
 
     public void delete(int id) throws SQLException {
-        String sql = "DELETE FROM members WHERE id = ?";
+        // Soft delete - mark as deleted instead of physical deletion
+        String sql = """
+            UPDATE members
+            SET deleted_at = datetime('now'), sync_status = 'PENDING', sync_version = sync_version + 1
+            WHERE id = ?
+            """;
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -248,7 +275,7 @@ public class MemberDAO {
             SELECT DISTINCT m.*, NULL AS group_name
             FROM members m
             INNER JOIN member_groups mg ON m.id = mg.member_id
-            WHERE mg.group_id = ?
+            WHERE mg.group_id = ? AND m.deleted_at IS NULL
             ORDER BY m.last_name, m.first_name
             """;
 
