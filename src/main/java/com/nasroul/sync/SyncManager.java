@@ -298,13 +298,13 @@ public class SyncManager {
     }
 
     private void markAsSynced(String tableName, int recordId) throws SQLException {
-        String sql = "UPDATE `" + tableName + "` SET sync_status = 'SYNCED', last_sync_at = ? WHERE id = ?";
+        // Use SQLite's datetime('now') function instead of setObject with LocalDateTime
+        String sql = "UPDATE `" + tableName + "` SET sync_status = 'SYNCED', last_sync_at = datetime('now') WHERE id = ?";
 
         try (Connection conn = dbManager.getSQLiteConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setObject(1, LocalDateTime.now());
-            pstmt.setInt(2, recordId);
+            pstmt.setInt(1, recordId);
             pstmt.executeUpdate();
         }
     }
@@ -328,8 +328,17 @@ public class SyncManager {
              ResultSet rs = stmt.executeQuery(sql)) {
 
             if (rs.next()) {
-                Timestamp ts = rs.getTimestamp(1);
-                return ts != null ? ts.toLocalDateTime() : null;
+                // SQLite stores datetime as TEXT - get as String and parse
+                String dateStr = rs.getString(1);
+                if (dateStr != null && !dateStr.isEmpty()) {
+                    try {
+                        // Parse SQLite datetime format: 'YYYY-MM-DD HH:MM:SS'
+                        return LocalDateTime.parse(dateStr.replace(" ", "T"));
+                    } catch (Exception e) {
+                        System.err.println("Failed to parse last sync time: " + dateStr);
+                        return null;
+                    }
+                }
             }
         }
 
