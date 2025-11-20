@@ -223,7 +223,7 @@ public class ConflictResolutionDialog extends Stage {
     /**
      * Show dialog and wait for user decision
      */
-    public ConflictResolution showAndWait() {
+    public ConflictResolution showAndGetResolution() {
         super.showAndWait();
         return resolution;
     }
