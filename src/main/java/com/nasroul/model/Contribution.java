@@ -1,8 +1,10 @@
 package com.nasroul.model;
 
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 
-public class Contribution {
+public class Contribution extends SyncableEntity {
     private Integer id;
     private Integer memberId;
     private String memberName;
@@ -16,8 +18,23 @@ public class Contribution {
     private String notes;
 
     public Contribution() {
+        super();
         this.status = "PENDING";
         this.date = LocalDate.now();
+    }
+
+    @Override
+    public Map<String, Object> getFieldValuesForHash() {
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("memberId", memberId);
+        fields.put("entityType", entityType);
+        fields.put("entityId", entityId);
+        fields.put("amount", amount);
+        fields.put("date", date);
+        fields.put("status", status);
+        fields.put("paymentMethod", paymentMethod);
+        fields.put("notes", notes);
+        return fields;
     }
 
     public Integer getId() {

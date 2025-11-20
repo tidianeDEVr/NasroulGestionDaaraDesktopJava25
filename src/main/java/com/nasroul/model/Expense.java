@@ -1,8 +1,10 @@
 package com.nasroul.model;
 
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 
-public class Expense {
+public class Expense extends SyncableEntity {
     private Integer id;
     private String description;
     private Double amount;
@@ -15,8 +17,22 @@ public class Expense {
     private String memberName;
 
     public Expense() {
+        super();
         this.date = LocalDate.now();
         this.amount = 0.0;
+    }
+
+    @Override
+    public Map<String, Object> getFieldValuesForHash() {
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("description", description);
+        fields.put("amount", amount);
+        fields.put("date", date);
+        fields.put("category", category);
+        fields.put("entityType", entityType);
+        fields.put("entityId", entityId);
+        fields.put("memberId", memberId);
+        return fields;
     }
 
     public Integer getId() {
