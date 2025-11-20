@@ -267,34 +267,155 @@ public class SyncManager {
         return pushedCount;
     }
 
-    // Helper methods (simplified - would need full implementation for each entity type)
+    // Helper methods for entity operations
 
     private SyncableEntity getLocalEntity(String tableName, int recordId) throws SQLException {
-        // TODO: Implement entity retrieval based on table name
-        return null; // Placeholder
+        String sql = "SELECT * FROM `" + tableName + "` WHERE id = ?";
+
+        try (Connection conn = dbManager.getSQLiteConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, recordId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return GenericSyncableEntity.fromResultSet(tableName, rs);
+                }
+            }
+        }
+
+        return null;
     }
 
     private SyncableEntity getRemoteEntity(String tableName, int recordId) throws SQLException {
-        // TODO: Implement remote entity retrieval
-        return null; // Placeholder
+        String sql = "SELECT * FROM `" + tableName + "` WHERE id = ?";
+
+        try (Connection conn = dbManager.getMySQLConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, recordId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return GenericSyncableEntity.fromResultSet(tableName, rs);
+                }
+            }
+        }
+
+        return null;
     }
 
     private SyncableEntity extractEntity(String tableName, ResultSet rs) throws SQLException {
-        // TODO: Implement entity extraction based on table name
-        return null; // Placeholder
+        return GenericSyncableEntity.fromResultSet(tableName, rs);
     }
 
     private void updateLocalEntity(String tableName, SyncableEntity entity) throws SQLException {
-        // TODO: Implement using DAOs - simplified placeholder for now
-        // This should use the appropriate DAO (GroupDAO, MemberDAO, etc.) instead of generic SQL
+        if (!(entity instanceof GenericSyncableEntity)) {
+            throw new SQLException("Entity must be GenericSyncableEntity");
+        }
+
+        GenericSyncableEntity genericEntity = (GenericSyncableEntity) entity;
+        Map<String, Object> fields = genericEntity.getAllFields();
+
+        // Build dynamic UPDATE SQL
+        StringBuilder sql = new StringBuilder("UPDATE `").append(tableName).append("` SET ");
+        List<String> setClauses = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+
+        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+            if (!entry.getKey().equals("id")) {  // Don't update ID
+                setClauses.add(entry.getKey() + " = ?");
+                values.add(entry.getValue());
+            }
+        }
+
+        sql.append(String.join(", ", setClauses));
+        sql.append(", sync_status = 'SYNCED', last_sync_at = datetime('now') WHERE id = ?");
+
+        try (Connection conn = dbManager.getSQLiteConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql.toString())) {
+
+            int paramIndex = 1;
+            for (Object value : values) {
+                pstmt.setObject(paramIndex++, value);
+            }
+            pstmt.setInt(paramIndex, genericEntity.getId());
+
+            pstmt.executeUpdate();
+        }
     }
 
     private void updateRemoteEntity(String tableName, SyncableEntity entity) throws SQLException {
-        // TODO: Implement remote update
+        if (!(entity instanceof GenericSyncableEntity)) {
+            throw new SQLException("Entity must be GenericSyncableEntity");
+        }
+
+        GenericSyncableEntity genericEntity = (GenericSyncableEntity) entity;
+        Map<String, Object> fields = genericEntity.getAllFields();
+
+        // Build dynamic UPDATE SQL for MySQL
+        StringBuilder sql = new StringBuilder("UPDATE `").append(tableName).append("` SET ");
+        List<String> setClauses = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+
+        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+            if (!entry.getKey().equals("id")) {  // Don't update ID
+                setClauses.add("`" + entry.getKey() + "` = ?");
+                values.add(entry.getValue());
+            }
+        }
+
+        sql.append(String.join(", ", setClauses));
+        sql.append(" WHERE id = ?");
+
+        try (Connection conn = dbManager.getMySQLConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql.toString())) {
+
+            int paramIndex = 1;
+            for (Object value : values) {
+                pstmt.setObject(paramIndex++, value);
+            }
+            pstmt.setInt(paramIndex, genericEntity.getId());
+
+            pstmt.executeUpdate();
+        }
     }
 
     private void insertRemoteEntity(String tableName, SyncableEntity entity) throws SQLException {
-        // TODO: Implement remote insert
+        if (!(entity instanceof GenericSyncableEntity)) {
+            throw new SQLException("Entity must be GenericSyncableEntity");
+        }
+
+        GenericSyncableEntity genericEntity = (GenericSyncableEntity) entity;
+        Map<String, Object> fields = genericEntity.getAllFields();
+
+        // Build dynamic INSERT SQL for MySQL
+        StringBuilder sql = new StringBuilder("INSERT INTO `").append(tableName).append("` (");
+        List<String> columns = new ArrayList<>();
+        List<String> placeholders = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+
+        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+            if (!entry.getKey().equals("id")) {  // Skip auto-increment ID
+                columns.add("`" + entry.getKey() + "`");
+                placeholders.add("?");
+                values.add(entry.getValue());
+            }
+        }
+
+        sql.append(String.join(", ", columns));
+        sql.append(") VALUES (");
+        sql.append(String.join(", ", placeholders));
+        sql.append(")");
+
+        try (Connection conn = dbManager.getMySQLConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql.toString())) {
+
+            int paramIndex = 1;
+            for (Object value : values) {
+                pstmt.setObject(paramIndex++, value);
+            }
+
+            pstmt.executeUpdate();
+        }
     }
 
     private void markAsSynced(String tableName, int recordId) throws SQLException {
