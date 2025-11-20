@@ -27,16 +27,42 @@ public class DatabaseManager {
         return instance;
     }
 
+    /**
+     * Get connection - ALWAYS returns SQLite for offline-first architecture
+     * MySQL is ONLY used by SyncManager via getMySQLConnection()
+     */
     public Connection getConnection() throws SQLException {
-        if ("mysql".equalsIgnoreCase(dbType)) {
-            return DriverManager.getConnection(
-                config.getMySQLConnectionUrl(),
-                config.getMySQLUsername(),
-                config.getMySQLPassword()
-            );
-        } else {
-            // SQLite
-            return DriverManager.getConnection("jdbc:sqlite:" + config.getSQLitePath());
+        // OFFLINE-FIRST: Always use SQLite as primary database
+        return getSQLiteConnection();
+    }
+
+    /**
+     * Get SQLite connection (local, primary database)
+     */
+    public Connection getSQLiteConnection() throws SQLException {
+        return DriverManager.getConnection("jdbc:sqlite:" + config.getSQLitePath());
+    }
+
+    /**
+     * Get MySQL connection (remote, sync target only)
+     * Used ONLY by SyncManager for synchronization
+     */
+    public Connection getMySQLConnection() throws SQLException {
+        return DriverManager.getConnection(
+            config.getMySQLConnectionUrl(),
+            config.getMySQLUsername(),
+            config.getMySQLPassword()
+        );
+    }
+
+    /**
+     * Check if MySQL is available for sync
+     */
+    public boolean isMySQLAvailable() {
+        try (Connection conn = getMySQLConnection()) {
+            return conn != null && !conn.isClosed();
+        } catch (SQLException e) {
+            return false;
         }
     }
 
@@ -49,21 +75,33 @@ public class DatabaseManager {
     }
 
     private void initializeDatabase() {
-        try (Connection conn = getConnection();
+        try (Connection conn = getSQLiteConnection();
              Statement stmt = conn.createStatement()) {
 
-            if ("mysql".equalsIgnoreCase(dbType)) {
-                createTablesMySQL(stmt);
-            } else {
-                createTablesSQLite(stmt);
-            }
+            // OFFLINE-FIRST: Always initialize SQLite (local database)
+            createTablesSQLite(stmt);
+            createSyncTablesSQLite(stmt);
 
-            System.out.println("Database initialized successfully");
+            System.out.println("SQLite database initialized successfully (offline-first)");
             connectionError = null;
+
+            // Also initialize MySQL if available (for sync)
+            if (isMySQLAvailable()) {
+                try (Connection mysqlConn = getMySQLConnection();
+                     Statement mysqlStmt = mysqlConn.createStatement()) {
+                    createTablesMySQL(mysqlStmt);
+                    createSyncTablesMySQL(mysqlStmt);
+                    System.out.println("MySQL database also initialized (for sync)");
+                } catch (SQLException e) {
+                    System.out.println("MySQL not available (offline mode): " + e.getMessage());
+                }
+            } else {
+                System.out.println("MySQL not configured - running in offline mode only");
+            }
 
         } catch (SQLException e) {
             connectionError = e.getMessage();
-            System.err.println("Database initialization failed: " + e.getMessage());
+            System.err.println("SQLite database initialization failed: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -290,6 +328,86 @@ public class DatabaseManager {
                 PRIMARY KEY (member_id, group_id),
                 FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
                 FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+            )
+        """);
+    }
+
+    private void createSyncTablesMySQL(Statement stmt) throws SQLException {
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS sync_metadata (
+                table_name VARCHAR(255) NOT NULL,
+                record_id INT NOT NULL,
+                sync_version INT DEFAULT 1,
+                local_hash VARCHAR(255),
+                remote_hash VARCHAR(255),
+                last_sync_at DATETIME,
+                sync_status VARCHAR(50) DEFAULT 'PENDING',
+                conflict_resolution TEXT,
+                PRIMARY KEY (table_name, record_id)
+            )
+        """);
+
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS sync_log (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                sync_session_id VARCHAR(255) NOT NULL,
+                table_name VARCHAR(255) NOT NULL,
+                record_id INT NOT NULL,
+                operation VARCHAR(50) NOT NULL,
+                sync_direction VARCHAR(50) NOT NULL,
+                status VARCHAR(50) NOT NULL,
+                error_message TEXT,
+                synced_at DATETIME NOT NULL
+            )
+        """);
+
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS sync_devices (
+                device_id VARCHAR(255) PRIMARY KEY,
+                device_name VARCHAR(255) NOT NULL,
+                user_name VARCHAR(255),
+                last_sync_at DATETIME,
+                is_active INT DEFAULT 1
+            )
+        """);
+    }
+
+    private void createSyncTablesSQLite(Statement stmt) throws SQLException {
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS sync_metadata (
+                table_name TEXT NOT NULL,
+                record_id INTEGER NOT NULL,
+                sync_version INTEGER DEFAULT 1,
+                local_hash TEXT,
+                remote_hash TEXT,
+                last_sync_at TEXT,
+                sync_status TEXT DEFAULT 'PENDING',
+                conflict_resolution TEXT,
+                PRIMARY KEY (table_name, record_id)
+            )
+        """);
+
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS sync_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sync_session_id TEXT NOT NULL,
+                table_name TEXT NOT NULL,
+                record_id INTEGER NOT NULL,
+                operation TEXT NOT NULL,
+                sync_direction TEXT NOT NULL,
+                status TEXT NOT NULL,
+                error_message TEXT,
+                synced_at TEXT NOT NULL
+            )
+        """);
+
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS sync_devices (
+                device_id TEXT PRIMARY KEY,
+                device_name TEXT NOT NULL,
+                user_name TEXT,
+                last_sync_at TEXT,
+                is_active INTEGER DEFAULT 1
             )
         """);
     }

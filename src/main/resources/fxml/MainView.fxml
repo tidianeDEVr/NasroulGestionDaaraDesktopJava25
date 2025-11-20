@@ -55,6 +55,12 @@
 
             <Region VBox.vgrow="ALWAYS"/>
 
+            <Label text="SYSTÈME" style="-fx-font-size: 11px; -fx-text-fill: #57606a; -fx-padding: 8 12 4 12; -fx-font-weight: 600;"/>
+
+            <Button fx:id="btnSync" text="🔄 Synchroniser" onAction="#handleSync"
+                    styleClass="menu-button-sync" maxWidth="Infinity"
+                    style="-fx-background-color: #2196f3; -fx-text-fill: white; -fx-font-weight: bold;"/>
+
             <Button text="Quitter" onAction="#handleExit"
                     styleClass="menu-button-exit" maxWidth="Infinity"/>
         </VBox>
@@ -68,6 +74,7 @@
         <HBox styleClass="status-bar" alignment="CENTER_LEFT" spacing="16">
             <Label fx:id="statusLabel" text="Ready" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
             <Region HBox.hgrow="ALWAYS"/>
+            <Label fx:id="syncStatusLabel" text="Dernier sync: Jamais" style="-fx-text-fill: #666; -fx-font-size: 12px; -fx-padding: 0 8;"/>
             <Label text="Djeureudjeuf Borom Touba" style="-fx-text-fill: #000000; -fx-font-size: 12px;"/>
         </HBox>
     </bottom>
