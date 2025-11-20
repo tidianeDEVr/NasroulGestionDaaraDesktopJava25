@@ -362,13 +362,13 @@ public class MemberDetailsDialogController {
 
     private String getPaymentMethodLabel(String code) {
         if (code == null) return "N/A";
-        switch (code) {
-            case "CASH": return "Espèces";
-            case "MOBILE_MONEY": return "Mobile Money";
-            case "BANK_TRANSFER": return "Virement bancaire";
-            case "CHECK": return "Chèque";
-            default: return code;
-        }
+        return switch (code) {
+            case "CASH" -> "Espèces";
+            case "WAVE" -> "Wave";
+            case "ORANGE_MONEY" -> "Orange Money";
+            case "BANK_TRANSFER" -> "Virement";
+            default -> code;
+        };
     }
 
     @FXML

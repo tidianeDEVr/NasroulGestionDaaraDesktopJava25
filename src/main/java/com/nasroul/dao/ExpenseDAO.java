@@ -44,9 +44,13 @@ public class ExpenseDAO {
 
     public Expense findById(int id) throws SQLException {
         String sql = """
-            SELECT e.*, m.first_name || ' ' || m.last_name AS member_name
+            SELECT e.*,
+                   m.first_name || ' ' || m.last_name AS member_name,
+                   COALESCE(ev.name, pr.name) AS entity_name
             FROM expenses e
             LEFT JOIN members m ON e.member_id = m.id
+            LEFT JOIN events ev ON e.entity_type = 'EVENT' AND e.entity_id = ev.id
+            LEFT JOIN projects pr ON e.entity_type = 'PROJECT' AND e.entity_id = pr.id
             WHERE e.id = ?
             """;
 
@@ -67,9 +71,13 @@ public class ExpenseDAO {
     public List<Expense> findAll() throws SQLException {
         List<Expense> expenses = new ArrayList<>();
         String sql = """
-            SELECT e.*, m.first_name || ' ' || m.last_name AS member_name
+            SELECT e.*,
+                   m.first_name || ' ' || m.last_name AS member_name,
+                   COALESCE(ev.name, pr.name) AS entity_name
             FROM expenses e
             LEFT JOIN members m ON e.member_id = m.id
+            LEFT JOIN events ev ON e.entity_type = 'EVENT' AND e.entity_id = ev.id
+            LEFT JOIN projects pr ON e.entity_type = 'PROJECT' AND e.entity_id = pr.id
             ORDER BY e.date DESC
             """;
 
@@ -88,9 +96,13 @@ public class ExpenseDAO {
     public List<Expense> findByEntity(String entityType, int entityId) throws SQLException {
         List<Expense> expenses = new ArrayList<>();
         String sql = """
-            SELECT e.*, m.first_name || ' ' || m.last_name AS member_name
+            SELECT e.*,
+                   m.first_name || ' ' || m.last_name AS member_name,
+                   COALESCE(ev.name, pr.name) AS entity_name
             FROM expenses e
             LEFT JOIN members m ON e.member_id = m.id
+            LEFT JOIN events ev ON e.entity_type = 'EVENT' AND e.entity_id = ev.id
+            LEFT JOIN projects pr ON e.entity_type = 'PROJECT' AND e.entity_id = pr.id
             WHERE e.entity_type = ? AND e.entity_id = ?
             ORDER BY e.date DESC
             """;
@@ -159,6 +171,7 @@ public class ExpenseDAO {
         expense.setMemberId(rs.wasNull() ? null : memberId);
 
         expense.setMemberName(rs.getString("member_name"));
+        expense.setEntityName(rs.getString("entity_name"));
 
         return expense;
     }

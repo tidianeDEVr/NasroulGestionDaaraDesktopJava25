@@ -4,6 +4,7 @@ import com.nasroul.model.Expense;
 import com.nasroul.model.Project;
 import com.nasroul.service.ExpenseService;
 import com.nasroul.service.ProjectService;
+import com.nasroul.service.ContributionService;
 import com.nasroul.util.ExcelUtil;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -30,15 +31,17 @@ public class ProjectController {
     @FXML
     private TableView<Project> projectTable;
     @FXML
-    private TableColumn<Project, String> colId, colName, colEndDate, colBudget, colStatus, colManager;
+    private TableColumn<Project, String> colId, colName, colEndDate, colBudget, colCurrentBudget, colStatus, colManager;
 
     private final ProjectService projectService;
     private final ExpenseService expenseService;
+    private final ContributionService contributionService;
     private final ObservableList<Project> projectList;
 
     public ProjectController() {
         this.projectService = new ProjectService();
         this.expenseService = new ExpenseService();
+        this.contributionService = new ContributionService();
         this.projectList = FXCollections.observableArrayList();
     }
 
@@ -52,6 +55,15 @@ public class ProjectController {
         colEndDate.setCellValueFactory(data -> new SimpleStringProperty(
             data.getValue().getEndDate() != null ? data.getValue().getEndDate().format(formatter) : ""));
         colBudget.setCellValueFactory(data -> new SimpleStringProperty(numberFormat.format(data.getValue().getBudget()) + " CFA"));
+        colCurrentBudget.setCellValueFactory(data -> {
+            try {
+                Double total = contributionService.getTotalByEntity("PROJECT", data.getValue().getId());
+                double currentBudget = total != null ? total : 0.0;
+                return new SimpleStringProperty(numberFormat.format(currentBudget) + " CFA");
+            } catch (SQLException e) {
+                return new SimpleStringProperty("0 CFA");
+            }
+        });
         colStatus.setCellValueFactory(data -> new SimpleStringProperty(translateStatus(data.getValue().getStatus())));
         colManager.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getManagerName()));
 
@@ -157,6 +169,35 @@ public class ProjectController {
     @FXML
     private void handleRefresh() {
         loadProjects();
+    }
+
+    @FXML
+    private void handleSendSMS() {
+        Project selectedProject = projectTable.getSelectionModel().getSelectedItem();
+        if (selectedProject == null) {
+            showWarning("Aucune sélection", "Veuillez sélectionner un projet pour envoyer des SMS");
+            return;
+        }
+
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/SMSCampaignDialog.fxml"));
+            Scene scene = new Scene(loader.load());
+
+            SMSCampaignDialogController controller = loader.getController();
+            controller.setEntity("PROJECT", selectedProject.getId(), selectedProject.getName());
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Campagne SMS - " + selectedProject.getName());
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(projectTable.getScene().getWindow());
+            dialogStage.setScene(scene);
+            dialogStage.setResizable(false);
+
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            showError("Erreur", "Impossible d'ouvrir le dialogue SMS: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     @FXML

@@ -1,6 +1,8 @@
 package com.nasroul.model;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Member {
     private Integer id;
@@ -14,12 +16,16 @@ public class Member {
     private String role;
     private byte[] avatar;
     private boolean active;
-    private Integer groupId;
-    private String groupName;
+    private Integer groupId; // Deprecated - kept for backward compatibility
+    private String groupName; // Deprecated - kept for backward compatibility
+    private List<Integer> groupIds; // New: multiple groups
+    private List<String> groupNames; // New: for display
 
     public Member() {
         this.active = true;
         this.joinDate = LocalDate.now();
+        this.groupIds = new ArrayList<>();
+        this.groupNames = new ArrayList<>();
     }
 
     public Integer getId() {
@@ -128,5 +134,27 @@ public class Member {
 
     public String getFullName() {
         return firstName + " " + lastName;
+    }
+
+    public List<Integer> getGroupIds() {
+        return groupIds;
+    }
+
+    public void setGroupIds(List<Integer> groupIds) {
+        this.groupIds = groupIds != null ? groupIds : new ArrayList<>();
+    }
+
+    public List<String> getGroupNames() {
+        return groupNames;
+    }
+
+    public void setGroupNames(List<String> groupNames) {
+        this.groupNames = groupNames != null ? groupNames : new ArrayList<>();
+    }
+
+    public String getGroupNamesAsString() {
+        return groupNames != null && !groupNames.isEmpty()
+            ? String.join(", ", groupNames)
+            : "";
     }
 }

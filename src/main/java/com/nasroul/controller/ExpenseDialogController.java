@@ -80,7 +80,7 @@ public class ExpenseDialogController {
             // Select the entity
             if (expense.getEntityId() != null) {
                 cbEntity.getItems().stream()
-                    .filter(item -> item.id.equals(expense.getEntityId()))
+                    .filter(item -> item.id != null && item.id.equals(expense.getEntityId()))
                     .findFirst()
                     .ifPresent(cbEntity::setValue);
             }
@@ -88,7 +88,7 @@ public class ExpenseDialogController {
             // Select the member
             if (expense.getMemberId() != null) {
                 cbMember.getItems().stream()
-                    .filter(item -> item.id.equals(expense.getMemberId()))
+                    .filter(item -> item.id != null && item.id.equals(expense.getMemberId()))
                     .findFirst()
                     .ifPresent(cbMember::setValue);
             }

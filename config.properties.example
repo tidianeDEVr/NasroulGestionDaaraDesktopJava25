@@ -1,0 +1,15 @@
+# SMS Configuration Example
+# Copy this file to config.properties and fill in your actual credentials
+
+# SMS Account ID from lafricamobile.com
+sms.account.id=YOUR_ACCOUNT_ID
+
+# SMS Account Password
+sms.password=YOUR_PASSWORD
+
+# SMS Sender Name (max 11 characters)
+sms.sender=YOUR_SENDER
+
+# SMS API URLs (usually don't need to change these)
+sms.api.url=https://lamsms.lafricamobile.com/api
+sms.credits.url=https://lamsms.lafricamobile.com/credits

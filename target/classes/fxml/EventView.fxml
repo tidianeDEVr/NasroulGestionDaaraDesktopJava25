@@ -29,6 +29,7 @@
     </TableView>
 
     <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Envoyer SMS" onAction="#handleSendSMS" styleClass="primary-button"/>
         <Button text="Voir dépenses" onAction="#handleViewExpenses" styleClass="secondary-button"/>
         <Button text="Modifier" onAction="#handleEdit" styleClass="secondary-button"/>
         <Button text="Supprimer" onAction="#handleDelete" styleClass="danger-button"/>

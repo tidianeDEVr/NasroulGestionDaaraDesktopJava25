@@ -43,7 +43,15 @@ public class PaymentGroupController {
         NumberFormat numberFormat = NumberFormat.getInstance(Locale.FRANCE);
 
         colId.setCellValueFactory(data -> new SimpleStringProperty(String.valueOf(data.getValue().getId())));
-        colGroup.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getGroupName()));
+        colGroup.setCellValueFactory(data -> {
+            PaymentGroup pg = data.getValue();
+            String groupName = pg.getGroupName() != null ? pg.getGroupName() : "";
+            String entityName = pg.getEntityName() != null ? pg.getEntityName() : "";
+            if (!groupName.isEmpty() && !entityName.isEmpty()) {
+                return new SimpleStringProperty(groupName + " - " + entityName);
+            }
+            return new SimpleStringProperty(groupName);
+        });
         colEntityType.setCellValueFactory(data -> new SimpleStringProperty(translateEntityType(data.getValue().getEntityType())));
         colEntity.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getEntityName()));
         colAmount.setCellValueFactory(data -> new SimpleStringProperty(numberFormat.format(data.getValue().getAmount()) + " CFA"));

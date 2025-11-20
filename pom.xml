@@ -2,71 +2,133 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+  <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.nasroul</groupId>
-    <artifactId>AssociationManager</artifactId>
-    <version>1.0-SNAPSHOT</version>
+  <groupId>com.nasroul</groupId>
+  <artifactId>AssociationManager</artifactId>
+  <version>1.0-SNAPSHOT</version>
 
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <javafx.version>21.0.1</javafx.version>
-        <exec.mainClass>com.nasroul.AssociationApp</exec.mainClass>
-    </properties>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <javafx.version>21.0.1</javafx.version>
+    <exec.mainClass>com.nasroul.AssociationApp</exec.mainClass>
+    <!-- par défaut, override via profile -->
+    <javafx.platform>win</javafx.platform>
+  </properties>
 
-    <dependencies>
-        <!-- JavaFX -->
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-controls</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-fxml</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-swing</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
+  <dependencies>
+    <!-- JavaFX modules : NOTE le classifier est ajouté dans les profiles via ${javafx.platform} -->
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-controls</artifactId>
+      <version>${javafx.version}</version>
+      <classifier>${javafx.platform}</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-fxml</artifactId>
+      <version>${javafx.version}</version>
+      <classifier>${javafx.platform}</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-swing</artifactId>
+      <version>${javafx.version}</version>
+      <classifier>${javafx.platform}</classifier>
+    </dependency>
 
-        <!-- SQLite JDBC -->
-        <dependency>
-            <groupId>org.xerial</groupId>
-            <artifactId>sqlite-jdbc</artifactId>
-            <version>3.44.1.0</version>
-        </dependency>
+    <!-- SQLite JDBC -->
+    <dependency>
+      <groupId>org.xerial</groupId>
+      <artifactId>sqlite-jdbc</artifactId>
+      <version>3.44.1.0</version>
+    </dependency>
 
-        <!-- Apache POI for Excel -->
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi-ooxml</artifactId>
-            <version>5.2.5</version>
-        </dependency>
-    </dependencies>
+    <!-- Apache POI for Excel -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.5</version>
+    </dependency>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
-            </plugin>
-            <plugin>
-                <groupId>org.openjfx</groupId>
-                <artifactId>javafx-maven-plugin</artifactId>
-                <version>0.0.8</version>
-                <configuration>
-                    <mainClass>${exec.mainClass}</mainClass>
-                    <options>
-                        <option>--enable-native-access=javafx.graphics,ALL-UNNAMED</option>
-                    </options>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+    <!-- Unirest for HTTP requests -->
+    <dependency>
+      <groupId>com.konghq</groupId>
+      <artifactId>unirest-java</artifactId>
+      <version>3.14.5</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Compiler -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version>
+      </plugin>
+
+      <!-- JavaFX plugin (utile pour dev/run via mvn javafx:run) -->
+      <plugin>
+        <groupId>org.openjfx</groupId>
+        <artifactId>javafx-maven-plugin</artifactId>
+        <version>0.0.8</version>
+        <configuration>
+          <mainClass>${exec.mainClass}</mainClass>
+          <options>
+            <option>--enable-native-access=javafx.graphics,ALL-UNNAMED</option>
+          </options>
+        </configuration>
+      </plugin>
+
+      <!-- Shade : création du fat jar -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.4.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>${exec.mainClass}</mainClass>
+                </transformer>
+              </transformers>
+              <!-- Exclude platform-independent javafx mock (rare), garder les natives fournies par classifier -->
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <!-- Profiles par plateforme : ajuste le classifier JavaFX -->
+  <profiles>
+    <profile>
+      <id>windows</id>
+      <properties>
+        <javafx.platform>win</javafx.platform>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>linux</id>
+      <properties>
+        <javafx.platform>linux</javafx.platform>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>mac</id>
+      <properties>
+        <!-- Pour mac Intel : mac ; pour mac M1/M2 (aarch64) utilisez mac-aarch64 -->
+        <javafx.platform>mac</javafx.platform>
+      </properties>
+    </profile>
+  </profiles>
 </project>

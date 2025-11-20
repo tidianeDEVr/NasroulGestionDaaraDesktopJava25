@@ -19,15 +19,17 @@
     <TableView fx:id="projectTable" VBox.vgrow="ALWAYS">
         <columns>
             <TableColumn fx:id="colId" text="ID" prefWidth="50"/>
-            <TableColumn fx:id="colName" text="Nom" prefWidth="250"/>
+            <TableColumn fx:id="colName" text="Nom" prefWidth="200"/>
             <TableColumn fx:id="colEndDate" text="Date de fin" prefWidth="120"/>
             <TableColumn fx:id="colBudget" text="Budget" prefWidth="120"/>
+            <TableColumn fx:id="colCurrentBudget" text="Cotisations collectées" prefWidth="150"/>
             <TableColumn fx:id="colStatus" text="Statut" prefWidth="120"/>
-            <TableColumn fx:id="colManager" text="Responsable" prefWidth="180"/>
+            <TableColumn fx:id="colManager" text="Responsable" prefWidth="150"/>
         </columns>
     </TableView>
 
     <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Envoyer SMS" onAction="#handleSendSMS" styleClass="primary-button"/>
         <Button text="Voir dépenses" onAction="#handleViewExpenses" styleClass="secondary-button"/>
         <Button text="Modifier" onAction="#handleEdit" styleClass="secondary-button"/>
         <Button text="Supprimer" onAction="#handleDelete" styleClass="danger-button"/>

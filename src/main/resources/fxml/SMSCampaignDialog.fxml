@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.SMSCampaignDialogController"
+      spacing="16" prefWidth="600" style="-fx-padding: 24;">
+
+    <Label text="Campagne SMS de rappel" styleClass="dialog-title"/>
+    <Label fx:id="lblEntityInfo" text="" style="-fx-text-fill: #656d76; -fx-font-size: 12px; -fx-font-style: italic;"/>
+
+    <GridPane hgap="12" vgap="12">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="30"/>
+            <ColumnConstraints percentWidth="70"/>
+        </columnConstraints>
+
+        <Label text="Groupe cible*" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+        <ComboBox fx:id="cbGroup" GridPane.columnIndex="1" GridPane.rowIndex="0" maxWidth="Infinity"/>
+
+        <Label text="Nombre de destinataires" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+        <Label fx:id="lblRecipientCount" text="0" GridPane.columnIndex="1" GridPane.rowIndex="1"
+               style="-fx-font-weight: bold; -fx-text-fill: #0969da;"/>
+
+        <Label text="Solde SMS disponible" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+        <Label fx:id="lblSMSBalance" text="Vérification..." GridPane.columnIndex="1" GridPane.rowIndex="2"
+               style="-fx-font-weight: bold;"/>
+
+        <VBox spacing="8" GridPane.columnIndex="0" GridPane.rowIndex="3" GridPane.columnSpan="2">
+            <Label text="Message*" style="-fx-font-weight: bold;"/>
+            <Label fx:id="lblVariables" text="Variables disponibles : {nom}, {prenom}, {montant_restant}"
+                   style="-fx-text-fill: #656d76; -fx-font-size: 11px;"/>
+            <TextArea fx:id="txtMessage" prefRowCount="6" promptText="Bonjour {prenom} {nom}, il vous reste {montant_restant} CFA à payer..."/>
+            <Label fx:id="lblCharCount" text="0 caractères"
+                   style="-fx-text-fill: #656d76; -fx-font-size: 11px;"/>
+        </VBox>
+    </GridPane>
+
+    <Separator/>
+
+    <VBox spacing="8">
+        <Label text="Aperçu du premier message :" style="-fx-font-weight: bold;"/>
+        <TextArea fx:id="txtPreview" editable="false" prefRowCount="3"
+                  style="-fx-background-color: #f6f8fa; -fx-border-color: #d0d7de;"/>
+    </VBox>
+
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button"/>
+        <Button fx:id="btnSend" text="Envoyer" onAction="#handleSend" styleClass="primary-button"/>
+    </HBox>
+
+</VBox>

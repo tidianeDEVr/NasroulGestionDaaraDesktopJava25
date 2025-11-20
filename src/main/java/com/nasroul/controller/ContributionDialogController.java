@@ -77,7 +77,7 @@ public class ContributionDialogController {
         cbStatus.getItems().addAll("Payé", "En attente");
 
         // Méthodes de paiement
-        cbPaymentMethod.getItems().addAll("Espèces", "Mobile Money", "Virement bancaire", "Chèque");
+        cbPaymentMethod.getItems().addAll("Espèces", "Wave", "Orange Money", "Virement");
 
         // Charger les membres
         try {
@@ -206,36 +206,87 @@ public class ContributionDialogController {
                     .findFirst()
                     .ifPresent(cbMember::setValue);
 
-                cbEntityType.setValue(getEntityTypeLabel(contribution.getEntityType()));
+                // Charger d'abord les événements/projets AVANT de définir le type
+                String entityType = contribution.getEntityType();
+                if ("EVENT".equals(entityType)) {
+                    List<Event> events = eventService.getAllEvents();
+                    cbEntity.getItems().clear();
+                    cbEntity.getItems().addAll(events);
+                    cbEntity.setCellFactory(param -> new ListCell<Object>() {
+                        @Override
+                        protected void updateItem(Object item, boolean empty) {
+                            super.updateItem(item, empty);
+                            setText(empty || item == null ? null : ((Event) item).getName());
+                        }
+                    });
+                    cbEntity.setButtonCell(new ListCell<Object>() {
+                        @Override
+                        protected void updateItem(Object item, boolean empty) {
+                            super.updateItem(item, empty);
+                            setText(empty || item == null ? null : ((Event) item).getName());
+                        }
+                    });
 
-                javafx.application.Platform.runLater(() -> {
-                    try {
-                        if ("EVENT".equals(contribution.getEntityType())) {
-                            Event event = eventService.getEventById(contribution.getEntityId());
-                            for (Object item : cbEntity.getItems()) {
-                                if (item instanceof Event && ((Event) item).getId().equals(event.getId())) {
-                                    cbEntity.setValue(item);
-                                    break;
-                                }
-                            }
-                        } else if ("PROJECT".equals(contribution.getEntityType())) {
-                            var project = projectService.getProjectById(contribution.getEntityId());
-                            for (Object item : cbEntity.getItems()) {
+                    // Sélectionner l'événement correspondant
+                    Event event = eventService.getEventById(contribution.getEntityId());
+                    for (Object item : cbEntity.getItems()) {
+                        if (item instanceof Event && ((Event) item).getId().equals(event.getId())) {
+                            cbEntity.setValue(item);
+                            break;
+                        }
+                    }
+                } else if ("PROJECT".equals(entityType)) {
+                    var projects = projectService.getAllProjects();
+                    cbEntity.getItems().clear();
+                    cbEntity.getItems().addAll(projects);
+                    cbEntity.setCellFactory(param -> new ListCell<Object>() {
+                        @Override
+                        protected void updateItem(Object item, boolean empty) {
+                            super.updateItem(item, empty);
+                            if (empty || item == null) {
+                                setText(null);
+                            } else {
                                 try {
-                                    Integer itemId = (Integer) item.getClass().getMethod("getId").invoke(item);
-                                    Integer projectId = (Integer) project.getClass().getMethod("getId").invoke(project);
-                                    if (itemId.equals(projectId)) {
-                                        cbEntity.setValue(item);
-                                        break;
-                                    }
+                                    setText((String) item.getClass().getMethod("getName").invoke(item));
                                 } catch (Exception e) {
+                                    setText(item.toString());
                                 }
                             }
                         }
-                    } catch (SQLException e) {
-                        showError("Erreur", "Impossible de charger l'entité: " + e.getMessage());
+                    });
+                    cbEntity.setButtonCell(new ListCell<Object>() {
+                        @Override
+                        protected void updateItem(Object item, boolean empty) {
+                            super.updateItem(item, empty);
+                            if (empty || item == null) {
+                                setText(null);
+                            } else {
+                                try {
+                                    setText((String) item.getClass().getMethod("getName").invoke(item));
+                                } catch (Exception e) {
+                                    setText(item.toString());
+                                }
+                            }
+                        }
+                    });
+
+                    // Sélectionner le projet correspondant
+                    var project = projectService.getProjectById(contribution.getEntityId());
+                    for (Object item : cbEntity.getItems()) {
+                        try {
+                            Integer itemId = (Integer) item.getClass().getMethod("getId").invoke(item);
+                            Integer projectId = (Integer) project.getClass().getMethod("getId").invoke(project);
+                            if (itemId.equals(projectId)) {
+                                cbEntity.setValue(item);
+                                break;
+                            }
+                        } catch (Exception e) {
+                        }
                     }
-                });
+                }
+
+                // Maintenant définir le type d'entité (cela ne déclenchera plus de rechargement)
+                cbEntityType.setValue(getEntityTypeLabel(entityType));
 
                 txtAmount.setText(String.valueOf(contribution.getAmount()));
                 dpDate.setValue(contribution.getDate());
@@ -457,9 +508,9 @@ public class ContributionDialogController {
     private String getPaymentMethodCode(String frenchLabel) {
         return switch (frenchLabel) {
             case "Espèces" -> "CASH";
-            case "Mobile Money" -> "MOBILE_MONEY";
-            case "Virement bancaire" -> "BANK_TRANSFER";
-            case "Chèque" -> "CHECK";
+            case "Wave" -> "WAVE";
+            case "Orange Money" -> "ORANGE_MONEY";
+            case "Virement" -> "BANK_TRANSFER";
             default -> frenchLabel;
         };
     }
@@ -468,9 +519,9 @@ public class ContributionDialogController {
         if (code == null) return null;
         return switch (code) {
             case "CASH" -> "Espèces";
-            case "MOBILE_MONEY" -> "Mobile Money";
-            case "BANK_TRANSFER" -> "Virement bancaire";
-            case "CHECK" -> "Chèque";
+            case "WAVE" -> "Wave";
+            case "ORANGE_MONEY" -> "Orange Money";
+            case "BANK_TRANSFER" -> "Virement";
             default -> code;
         };
     }

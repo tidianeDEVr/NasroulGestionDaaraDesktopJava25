@@ -11,6 +11,7 @@
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/model/Group.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/service/EventService.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/dao/PaymentGroupDAO.java
+/Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/service/SMSService.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/dao/GroupDAO.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/service/ExpenseService.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/controller/PaymentGroupController.java
@@ -26,9 +27,11 @@
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/service/MemberService.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/model/Contribution.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/model/Project.java
+/Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/controller/SMSCampaignDialogController.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/dao/ContributionDAO.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/model/Expense.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/model/Event.java
+/Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/util/ConfigManager.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/controller/MainController.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/model/PaymentGroup.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/dao/ExpenseDAO.java

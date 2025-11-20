@@ -129,6 +129,16 @@ public class DatabaseManager {
                 )
             """);
 
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS member_groups (
+                    member_id INTEGER NOT NULL,
+                    group_id INTEGER NOT NULL,
+                    PRIMARY KEY (member_id, group_id),
+                    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+                    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+                )
+            """);
+
             System.out.println("Database initialized successfully");
 
         } catch (SQLException e) {

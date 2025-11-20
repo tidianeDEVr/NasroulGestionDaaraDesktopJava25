@@ -15,7 +15,9 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class MemberDialogController {
 
@@ -45,7 +47,7 @@ public class MemberDialogController {
         cbActive.setSelected(true);
         dpJoinDate.setValue(LocalDate.now());
 
-        // Load groups for dropdown
+        // Load groups for ComboBox
         loadGroups();
 
         // Set custom cell factory to display group names
@@ -89,12 +91,14 @@ public class MemberDialogController {
             txtRole.setText(member.getRole() != null ? member.getRole() : "");
             cbActive.setSelected(member.isActive());
 
-            // Select group if exists
+            // Select group if exists (use first group for backward compatibility)
             if (member.getGroupId() != null) {
-                cbGroup.getItems().stream()
-                    .filter(g -> g.getId().equals(member.getGroupId()))
-                    .findFirst()
-                    .ifPresent(cbGroup::setValue);
+                for (Group group : cbGroup.getItems()) {
+                    if (group.getId().equals(member.getGroupId())) {
+                        cbGroup.getSelectionModel().select(group);
+                        break;
+                    }
+                }
             }
 
             // Load avatar if exists
@@ -173,12 +177,24 @@ public class MemberDialogController {
         member.setAvatar(avatarData);
 
         // Set group
-        if (cbGroup.getValue() != null) {
-            member.setGroupId(cbGroup.getValue().getId());
-            member.setGroupName(cbGroup.getValue().getName());
+        Group selectedGroup = cbGroup.getSelectionModel().getSelectedItem();
+        if (selectedGroup != null) {
+            member.setGroupId(selectedGroup.getId());
+            member.setGroupName(selectedGroup.getName());
+
+            // Also set for multi-group support (single group in list)
+            List<Integer> groupIds = new ArrayList<>();
+            groupIds.add(selectedGroup.getId());
+            List<String> groupNames = new ArrayList<>();
+            groupNames.add(selectedGroup.getName());
+
+            member.setGroupIds(groupIds);
+            member.setGroupNames(groupNames);
         } else {
             member.setGroupId(null);
             member.setGroupName(null);
+            member.setGroupIds(new ArrayList<>());
+            member.setGroupNames(new ArrayList<>());
         }
 
         saved = true;

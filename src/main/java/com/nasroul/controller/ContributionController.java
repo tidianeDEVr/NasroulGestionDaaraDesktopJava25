@@ -141,9 +141,9 @@ public class ContributionController {
         if (code == null) return "N/A";
         return switch (code) {
             case "CASH" -> "Espèces";
-            case "MOBILE_MONEY" -> "Mobile Money";
-            case "BANK_TRANSFER" -> "Virement bancaire";
-            case "CHECK" -> "Chèque";
+            case "WAVE" -> "Wave";
+            case "ORANGE_MONEY" -> "Orange Money";
+            case "BANK_TRANSFER" -> "Virement";
             default -> code;
         };
     }

@@ -4,6 +4,7 @@ import com.nasroul.model.Event;
 import com.nasroul.model.Expense;
 import com.nasroul.service.EventService;
 import com.nasroul.service.ExpenseService;
+import com.nasroul.service.ContributionService;
 import com.nasroul.util.ExcelUtil;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -34,11 +35,13 @@ public class EventController {
 
     private final EventService eventService;
     private final ExpenseService expenseService;
+    private final ContributionService contributionService;
     private final ObservableList<Event> eventList;
 
     public EventController() {
         this.eventService = new EventService();
         this.expenseService = new ExpenseService();
+        this.contributionService = new ContributionService();
         this.eventList = FXCollections.observableArrayList();
     }
 
@@ -56,10 +59,8 @@ public class EventController {
             new SimpleStringProperty(numberFormat.format(data.getValue().getContributionTarget()) + " CFA"));
         colCurrentBudget.setCellValueFactory(data -> {
             try {
-                double currentBudget = expenseService.getAllExpenses().stream()
-                    .filter(e -> "EVENT".equals(e.getEntityType()) && e.getEntityId().equals(data.getValue().getId()))
-                    .mapToDouble(Expense::getAmount)
-                    .sum();
+                Double total = contributionService.getTotalByEntity("EVENT", data.getValue().getId());
+                double currentBudget = total != null ? total : 0.0;
                 return new SimpleStringProperty(numberFormat.format(currentBudget) + " CFA");
             } catch (SQLException e) {
                 return new SimpleStringProperty("0 CFA");
@@ -172,6 +173,35 @@ public class EventController {
     @FXML
     private void handleRefresh() {
         loadEvents();
+    }
+
+    @FXML
+    private void handleSendSMS() {
+        Event selectedEvent = eventTable.getSelectionModel().getSelectedItem();
+        if (selectedEvent == null) {
+            showWarning("Aucune sélection", "Veuillez sélectionner un événement pour envoyer des SMS");
+            return;
+        }
+
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/SMSCampaignDialog.fxml"));
+            Scene scene = new Scene(loader.load());
+
+            SMSCampaignDialogController controller = loader.getController();
+            controller.setEntity("EVENT", selectedEvent.getId(), selectedEvent.getName());
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Campagne SMS - " + selectedEvent.getName());
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(eventTable.getScene().getWindow());
+            dialogStage.setScene(scene);
+            dialogStage.setResizable(false);
+
+            dialogStage.showAndWait();
+        } catch (IOException e) {
+            showError("Erreur", "Impossible d'ouvrir le dialogue SMS: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     @FXML

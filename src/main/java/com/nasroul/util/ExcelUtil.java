@@ -18,7 +18,8 @@ public class ExcelUtil {
 
             Row headerRow = sheet.createRow(0);
             String[] headers = {"First Name*", "Last Name*", "Email", "Phone", "Birth Date (YYYY-MM-DD)",
-                              "Address", "Join Date (YYYY-MM-DD)*", "Role", "Active (true/false)"};
+                              "Address", "Join Date (YYYY-MM-DD)*", "Role", "Active (true/false)",
+                              "Group IDs (comma-separated)"};
 
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
@@ -42,7 +43,8 @@ public class ExcelUtil {
 
             Row headerRow = sheet.createRow(0);
             String[] headers = {"Name*", "Description", "Start Date (YYYY-MM-DDTHH:MM:SS)*",
-                              "End Date (YYYY-MM-DDTHH:MM:SS)", "Location", "Status", "Organizer ID"};
+                              "End Date (YYYY-MM-DDTHH:MM:SS)", "Location", "Status", "Organizer ID",
+                              "Max Capacity", "Active (true/false)", "Contribution Target"};
 
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
@@ -66,7 +68,8 @@ public class ExcelUtil {
 
             Row headerRow = sheet.createRow(0);
             String[] headers = {"Name*", "Description", "Start Date (YYYY-MM-DD)",
-                              "End Date (YYYY-MM-DD)", "Status", "Budget", "Manager ID"};
+                              "End Date (YYYY-MM-DD)", "Status", "Budget", "Target Budget",
+                              "Manager ID", "Contribution Target"};
 
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
@@ -143,6 +146,19 @@ public class ExcelUtil {
                 String active = getCellValueAsString(row.getCell(8));
                 member.setActive(active == null || !active.equalsIgnoreCase("false"));
 
+                // Group IDs (comma-separated)
+                String groupIds = getCellValueAsString(row.getCell(9));
+                if (groupIds != null && !groupIds.isEmpty()) {
+                    List<Integer> groupIdList = new ArrayList<>();
+                    for (String id : groupIds.split(",")) {
+                        id = id.trim();
+                        if (!id.isEmpty()) {
+                            groupIdList.add(Integer.parseInt(id));
+                        }
+                    }
+                    member.setGroupIds(groupIdList);
+                }
+
                 members.add(member);
             }
         }
@@ -182,6 +198,19 @@ public class ExcelUtil {
                 String organizerId = getCellValueAsString(row.getCell(6));
                 if (organizerId != null && !organizerId.isEmpty()) {
                     event.setOrganizerId(Integer.parseInt(organizerId));
+                }
+
+                String maxCapacity = getCellValueAsString(row.getCell(7));
+                if (maxCapacity != null && !maxCapacity.isEmpty()) {
+                    event.setMaxCapacity(Integer.parseInt(maxCapacity));
+                }
+
+                String active = getCellValueAsString(row.getCell(8));
+                event.setActive(active == null || !active.equalsIgnoreCase("false"));
+
+                String contributionTarget = getCellValueAsString(row.getCell(9));
+                if (contributionTarget != null && !contributionTarget.isEmpty()) {
+                    event.setContributionTarget(Double.parseDouble(contributionTarget));
                 }
 
                 events.add(event);
@@ -224,9 +253,19 @@ public class ExcelUtil {
                     project.setBudget(Double.parseDouble(budget));
                 }
 
-                String managerId = getCellValueAsString(row.getCell(6));
+                String targetBudget = getCellValueAsString(row.getCell(6));
+                if (targetBudget != null && !targetBudget.isEmpty()) {
+                    project.setTargetBudget(Double.parseDouble(targetBudget));
+                }
+
+                String managerId = getCellValueAsString(row.getCell(7));
                 if (managerId != null && !managerId.isEmpty()) {
                     project.setManagerId(Integer.parseInt(managerId));
+                }
+
+                String contributionTarget = getCellValueAsString(row.getCell(8));
+                if (contributionTarget != null && !contributionTarget.isEmpty()) {
+                    project.setContributionTarget(Double.parseDouble(contributionTarget));
                 }
 
                 projects.add(project);

@@ -41,6 +41,10 @@ public class MemberDAO {
                  ResultSet rs = idStmt.executeQuery()) {
                 if (rs.next()) {
                     member.setId(rs.getInt(1));
+                    // Insert member_groups associations
+                    if (member.getGroupIds() != null && !member.getGroupIds().isEmpty()) {
+                        saveMemberGroups(conn, member.getId(), member.getGroupIds());
+                    }
                 }
             }
         }
@@ -136,6 +140,12 @@ public class MemberDAO {
             pstmt.setInt(12, member.getId());
 
             pstmt.executeUpdate();
+
+            // Update member_groups associations
+            deleteMemberGroups(conn, member.getId());
+            if (member.getGroupIds() != null && !member.getGroupIds().isEmpty()) {
+                saveMemberGroups(conn, member.getId(), member.getGroupIds());
+            }
         }
     }
 
@@ -171,6 +181,89 @@ public class MemberDAO {
         member.setGroupId(rs.wasNull() ? null : groupId);
         member.setGroupName(rs.getString("group_name"));
 
+        // Load member groups
+        try {
+            loadMemberGroups(member);
+        } catch (SQLException e) {
+            // Continue without groups if there's an error
+        }
+
         return member;
+    }
+
+    private void loadMemberGroups(Member member) throws SQLException {
+        String sql = """
+            SELECT mg.group_id, g.name
+            FROM member_groups mg
+            LEFT JOIN groups g ON mg.group_id = g.id
+            WHERE mg.member_id = ?
+            """;
+
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, member.getId());
+            try (ResultSet rs = pstmt.executeQuery()) {
+                List<Integer> groupIds = new ArrayList<>();
+                List<String> groupNames = new ArrayList<>();
+
+                while (rs.next()) {
+                    groupIds.add(rs.getInt("group_id"));
+                    String name = rs.getString("name");
+                    if (name != null) {
+                        groupNames.add(name);
+                    }
+                }
+
+                member.setGroupIds(groupIds);
+                member.setGroupNames(groupNames);
+            }
+        }
+    }
+
+    private void saveMemberGroups(Connection conn, Integer memberId, List<Integer> groupIds) throws SQLException {
+        String sql = "INSERT INTO member_groups (member_id, group_id) VALUES (?, ?)";
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            for (Integer groupId : groupIds) {
+                pstmt.setInt(1, memberId);
+                pstmt.setInt(2, groupId);
+                pstmt.addBatch();
+            }
+            pstmt.executeBatch();
+        }
+    }
+
+    private void deleteMemberGroups(Connection conn, Integer memberId) throws SQLException {
+        String sql = "DELETE FROM member_groups WHERE member_id = ?";
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, memberId);
+            pstmt.executeUpdate();
+        }
+    }
+
+    public List<Member> findByGroupId(int groupId) throws SQLException {
+        List<Member> members = new ArrayList<>();
+        String sql = """
+            SELECT DISTINCT m.*, NULL AS group_name
+            FROM members m
+            INNER JOIN member_groups mg ON m.id = mg.member_id
+            WHERE mg.group_id = ?
+            ORDER BY m.last_name, m.first_name
+            """;
+
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, groupId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    members.add(extractMember(rs));
+                }
+            }
+        }
+
+        return members;
     }
 }

@@ -33,15 +33,6 @@ import java.util.stream.Collectors;
 public class DashboardController {
 
     @FXML
-    private Label totalMembersLabel;
-
-    @FXML
-    private Label totalEventsLabel;
-
-    @FXML
-    private Label totalProjectsLabel;
-
-    @FXML
     private Label totalExpensesLabel;
 
     @FXML
@@ -54,10 +45,10 @@ public class DashboardController {
     private Label lblTotalPending;
 
     @FXML
-    private Label lblContributorsCount;
+    private Label lblTotalExpected;
 
     @FXML
-    private Label lblParticipationRate;
+    private Label lblCollectionRate;
 
     @FXML
     private BarChart<String, Number> contributionBarChart;
@@ -68,11 +59,15 @@ public class DashboardController {
     @FXML
     private PieChart projectsPieChart;
 
+    @FXML
+    private PieChart paymentMethodsPieChart;
+
     private final MemberService memberService;
     private final EventService eventService;
     private final ProjectService projectService;
     private final ExpenseService expenseService;
     private final com.nasroul.service.ContributionService contributionService;
+    private final com.nasroul.service.PaymentGroupService paymentGroupService;
 
     public DashboardController() {
         this.memberService = new MemberService();
@@ -80,6 +75,7 @@ public class DashboardController {
         this.projectService = new ProjectService();
         this.expenseService = new ExpenseService();
         this.contributionService = new com.nasroul.service.ContributionService();
+        this.paymentGroupService = new com.nasroul.service.PaymentGroupService();
     }
 
     @FXML
@@ -89,14 +85,8 @@ public class DashboardController {
 
     private void loadDashboardData() {
         try {
-            int totalMembers = memberService.getActiveMembers().size();
-            totalMembersLabel.setText(String.valueOf(totalMembers));
-
             List<Event> events = eventService.getAllEvents();
-            totalEventsLabel.setText(String.valueOf(events.size()));
-
             List<Project> projects = projectService.getAllProjects();
-            totalProjectsLabel.setText(String.valueOf(projects.size()));
 
             List<Expense> expenses = expenseService.getAllExpenses();
             double totalExpenses = expenses.stream().mapToDouble(Expense::getAmount).sum();
@@ -110,6 +100,7 @@ public class DashboardController {
 
             loadEventsPieChart(events);
             loadProjectsPieChart(projects);
+            loadPaymentMethodsPieChart();
             loadContributionStatistics();
             loadContributionChart();
 
@@ -135,15 +126,13 @@ public class DashboardController {
             .sum();
         lblTotalPending.setText(formatter.format(totalPending) + " CFA");
 
-        long contributorsCount = contributions.stream()
-            .map(Contribution::getMemberId)
-            .distinct()
-            .count();
-        lblContributorsCount.setText(String.valueOf(contributorsCount));
+        // Montant total attendu (objectifs de cotisation)
+        double totalExpected = paymentGroupService.getTotalExpectedAmount();
+        lblTotalExpected.setText(formatter.format(totalExpected) + " CFA");
 
-        int totalMembers = memberService.getActiveMembers().size();
-        double participationRate = totalMembers > 0 ? (contributorsCount * 100.0 / totalMembers) : 0;
-        lblParticipationRate.setText(String.format("%.1f%%", participationRate));
+        // Taux de recouvrement = (Cotisations payées / Montant attendu) × 100
+        double collectionRate = totalExpected > 0 ? (totalPaid / totalExpected * 100.0) : 0;
+        lblCollectionRate.setText(String.format("%.1f%%", collectionRate));
     }
 
     private void loadContributionChart() throws SQLException {
@@ -220,6 +209,38 @@ public class DashboardController {
         applyPieChartColors(pieChartData);
     }
 
+    private void loadPaymentMethodsPieChart() {
+        try {
+            List<Contribution> contributions = contributionService.getAllContributions();
+
+            // Grouper par méthode de paiement et compter
+            Map<String, Long> contributionsByMethod = contributions.stream()
+                .filter(c -> "PAID".equals(c.getStatus())) // Seulement les cotisations payées
+                .collect(Collectors.groupingBy(Contribution::getPaymentMethod, Collectors.counting()));
+
+            ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
+
+            contributionsByMethod.forEach((method, count) -> {
+                String translatedMethod = translatePaymentMethod(method);
+                pieChartData.add(new PieChart.Data(translatedMethod + " (" + count + ")", count));
+            });
+
+            if (pieChartData.isEmpty()) {
+                pieChartData.add(new PieChart.Data("Aucune donnée", 1));
+            }
+
+            paymentMethodsPieChart.setData(pieChartData);
+            paymentMethodsPieChart.setTitle("");
+            paymentMethodsPieChart.setLegendVisible(true);
+
+            // Appliquer des couleurs pour les méthodes de paiement
+            applyPaymentMethodColors(pieChartData);
+        } catch (SQLException e) {
+            System.err.println("Error loading payment methods chart: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
     private void applyPieChartColors(ObservableList<PieChart.Data> pieChartData) {
         // Attendre que le graphique soit rendu pour appliquer les couleurs
         javafx.application.Platform.runLater(() -> {
@@ -262,6 +283,44 @@ public class DashboardController {
         }
     }
 
+    private String translatePaymentMethod(String method) {
+        if (method == null) return "Non spécifié";
+        return switch (method) {
+            case "CASH" -> "Espèces";
+            case "WAVE" -> "Wave";
+            case "ORANGE_MONEY" -> "Orange Money";
+            case "BANK_TRANSFER" -> "Virement";
+            default -> method;
+        };
+    }
+
+    private void applyPaymentMethodColors(ObservableList<PieChart.Data> pieChartData) {
+        javafx.application.Platform.runLater(() -> {
+            for (PieChart.Data data : pieChartData) {
+                String dataName = data.getName();
+                String color = getColorForPaymentMethod(dataName);
+
+                if (data.getNode() != null) {
+                    data.getNode().setStyle("-fx-pie-color: " + color + ";");
+                }
+            }
+        });
+    }
+
+    private String getColorForPaymentMethod(String methodLabel) {
+        if (methodLabel.startsWith("Espèces")) {
+            return "#1a7f37"; // Vert
+        } else if (methodLabel.startsWith("Wave")) {
+            return "#0969da"; // Bleu
+        } else if (methodLabel.startsWith("Orange Money")) {
+            return "#fb8500"; // Orange
+        } else if (methodLabel.startsWith("Virement")) {
+            return "#8250df"; // Violet
+        } else {
+            return "#6e7781"; // Gris par défaut
+        }
+    }
+
     @FXML
     private void handleNewMember() {
         try {
@@ -274,7 +333,7 @@ public class DashboardController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Nouveau membre");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(totalMembersLabel.getScene().getWindow());
+            dialogStage.initOwner(totalExpensesLabel.getScene().getWindow());
             dialogStage.setScene(scene);
             dialogStage.setResizable(false);
 
@@ -308,7 +367,7 @@ public class DashboardController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Nouvel événement");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(totalMembersLabel.getScene().getWindow());
+            dialogStage.initOwner(totalExpensesLabel.getScene().getWindow());
             dialogStage.setScene(scene);
             dialogStage.setResizable(false);
 
@@ -342,7 +401,7 @@ public class DashboardController {
             Stage dialogStage = new Stage();
             dialogStage.setTitle("Nouveau projet");
             dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(totalMembersLabel.getScene().getWindow());
+            dialogStage.initOwner(totalExpensesLabel.getScene().getWindow());
             dialogStage.setScene(scene);
             dialogStage.setResizable(false);
 
@@ -374,7 +433,7 @@ public class DashboardController {
             controller.setDialogStage(new Stage());
             controller.getDialogStage().setTitle("Nouvelle cotisation");
             controller.getDialogStage().initModality(Modality.WINDOW_MODAL);
-            controller.getDialogStage().initOwner(totalMembersLabel.getScene().getWindow());
+            controller.getDialogStage().initOwner(totalExpensesLabel.getScene().getWindow());
             controller.getDialogStage().setScene(new Scene(root));
             controller.getDialogStage().showAndWait();
 
