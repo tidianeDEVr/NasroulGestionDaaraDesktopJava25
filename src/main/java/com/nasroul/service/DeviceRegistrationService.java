@@ -44,6 +44,74 @@ public class DeviceRegistrationService {
         } else {
             insertDeviceRegistration();
         }
+
+        // Also register in MySQL for cross-device visibility
+        registerDeviceMySQL();
+    }
+
+    /**
+     * Register device in MySQL (for cross-device sync)
+     */
+    public void registerDeviceMySQL() throws SQLException {
+        // Check if MySQL is available
+        if (!dbManager.isMySQLAvailable()) {
+            return; // Skip if MySQL not available
+        }
+
+        if (isDeviceRegisteredMySQL()) {
+            updateDeviceRegistrationMySQL();
+        } else {
+            insertDeviceRegistrationMySQL();
+        }
+    }
+
+    private boolean isDeviceRegisteredMySQL() throws SQLException {
+        String sql = "SELECT COUNT(*) FROM sync_devices WHERE device_id = ?";
+
+        try (Connection conn = dbManager.getMySQLConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, currentDeviceId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        }
+    }
+
+    private void insertDeviceRegistrationMySQL() throws SQLException {
+        String sql = """
+            INSERT INTO sync_devices (device_id, device_name, user_name, last_sync_at, is_active)
+            VALUES (?, ?, ?, NOW(), 1)
+            """;
+
+        try (Connection conn = dbManager.getMySQLConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, currentDeviceId);
+            pstmt.setString(2, deviceName);
+            pstmt.setString(3, userName);
+
+            pstmt.executeUpdate();
+        }
+    }
+
+    private void updateDeviceRegistrationMySQL() throws SQLException {
+        String sql = """
+            UPDATE sync_devices
+            SET device_name = ?, user_name = ?, last_sync_at = NOW(), is_active = 1
+            WHERE device_id = ?
+            """;
+
+        try (Connection conn = dbManager.getMySQLConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, deviceName);
+            pstmt.setString(2, userName);
+            pstmt.setString(3, currentDeviceId);
+
+            pstmt.executeUpdate();
+        }
     }
 
     /**
@@ -66,7 +134,7 @@ public class DeviceRegistrationService {
     private void insertDeviceRegistration() throws SQLException {
         String sql = """
             INSERT INTO sync_devices (device_id, device_name, user_name, last_sync_at, is_active)
-            VALUES (?, ?, ?, ?, 1)
+            VALUES (?, ?, ?, datetime('now'), 1)
             """;
 
         try (Connection conn = dbManager.getSQLiteConnection();
@@ -75,7 +143,6 @@ public class DeviceRegistrationService {
             pstmt.setString(1, currentDeviceId);
             pstmt.setString(2, deviceName);
             pstmt.setString(3, userName);
-            pstmt.setObject(4, LocalDateTime.now());
 
             pstmt.executeUpdate();
         }
@@ -84,7 +151,7 @@ public class DeviceRegistrationService {
     private void updateDeviceRegistration() throws SQLException {
         String sql = """
             UPDATE sync_devices
-            SET device_name = ?, user_name = ?, last_sync_at = ?, is_active = 1
+            SET device_name = ?, user_name = ?, last_sync_at = datetime('now'), is_active = 1
             WHERE device_id = ?
             """;
 
@@ -93,8 +160,7 @@ public class DeviceRegistrationService {
 
             pstmt.setString(1, deviceName);
             pstmt.setString(2, userName);
-            pstmt.setObject(3, LocalDateTime.now());
-            pstmt.setString(4, currentDeviceId);
+            pstmt.setString(3, currentDeviceId);
 
             pstmt.executeUpdate();
         }
@@ -104,13 +170,31 @@ public class DeviceRegistrationService {
      * Update last sync time for current device
      */
     public void updateLastSyncTime() throws SQLException {
-        String sql = "UPDATE sync_devices SET last_sync_at = ? WHERE device_id = ?";
+        String sql = "UPDATE sync_devices SET last_sync_at = datetime('now') WHERE device_id = ?";
 
         try (Connection conn = dbManager.getSQLiteConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setObject(1, LocalDateTime.now());
-            pstmt.setString(2, currentDeviceId);
+            pstmt.setString(1, currentDeviceId);
+
+            pstmt.executeUpdate();
+        }
+
+        // Also update in MySQL
+        updateLastSyncTimeMySQL();
+    }
+
+    private void updateLastSyncTimeMySQL() throws SQLException {
+        if (!dbManager.isMySQLAvailable()) {
+            return;
+        }
+
+        String sql = "UPDATE sync_devices SET last_sync_at = NOW() WHERE device_id = ?";
+
+        try (Connection conn = dbManager.getMySQLConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, currentDeviceId);
 
             pstmt.executeUpdate();
         }
@@ -203,9 +287,14 @@ public class DeviceRegistrationService {
         info.setUserName(rs.getString("user_name"));
         info.setActive(rs.getBoolean("is_active"));
 
-        Timestamp lastSync = rs.getTimestamp("last_sync_at");
-        if (lastSync != null) {
-            info.setLastSyncAt(lastSync.toLocalDateTime());
+        // SQLite stores datetime as TEXT - parse manually
+        String lastSyncStr = rs.getString("last_sync_at");
+        if (lastSyncStr != null && !lastSyncStr.isEmpty()) {
+            try {
+                info.setLastSyncAt(LocalDateTime.parse(lastSyncStr.replace(" ", "T")));
+            } catch (Exception e) {
+                // Ignore parsing errors
+            }
         }
 
         return info;
