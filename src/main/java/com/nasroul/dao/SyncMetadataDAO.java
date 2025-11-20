@@ -264,6 +264,11 @@ public class SyncMetadataDAO {
         SyncMetadata meta = new SyncMetadata();
         meta.setTableName(rs.getString("table_name"));
         meta.setRecordId(rs.getInt("record_id"));
+
+        // Extract remote_id (can be null)
+        int remoteId = rs.getInt("remote_id");
+        meta.setRemoteId(rs.wasNull() ? null : remoteId);
+
         meta.setSyncVersion(rs.getInt("sync_version"));
         meta.setLocalHash(rs.getString("local_hash"));
         meta.setRemoteHash(rs.getString("remote_hash"));
@@ -284,6 +289,11 @@ public class SyncMetadataDAO {
         SyncMetadata meta = new SyncMetadata();
         meta.setTableName(rs.getString("table_name"));
         meta.setRecordId(rs.getInt("record_id"));
+
+        // Extract remote_id (can be null)
+        int remoteId = rs.getInt("remote_id");
+        meta.setRemoteId(rs.wasNull() ? null : remoteId);
+
         meta.setSyncVersion(rs.getInt("sync_version"));
         meta.setLocalHash(rs.getString("local_hash"));
         meta.setRemoteHash(rs.getString("remote_hash"));
@@ -305,11 +315,74 @@ public class SyncMetadataDAO {
     }
 
     /**
+     * Set the remote ID for a local record
+     */
+    public void setRemoteId(String tableName, int localId, int remoteId) throws SQLException {
+        String sql = "UPDATE sync_metadata SET remote_id = ? WHERE table_name = ? AND record_id = ?";
+
+        try (Connection conn = dbManager.getSQLiteConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, remoteId);
+            pstmt.setString(2, tableName);
+            pstmt.setInt(3, localId);
+
+            pstmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Get remote ID for a local record
+     */
+    public Integer getRemoteId(String tableName, int localId) throws SQLException {
+        String sql = "SELECT remote_id FROM sync_metadata WHERE table_name = ? AND record_id = ?";
+
+        try (Connection conn = dbManager.getSQLiteConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, tableName);
+            pstmt.setInt(2, localId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    int remoteId = rs.getInt("remote_id");
+                    return rs.wasNull() ? null : remoteId;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get local ID for a remote record
+     */
+    public Integer getLocalIdByRemoteId(String tableName, int remoteId) throws SQLException {
+        String sql = "SELECT record_id FROM sync_metadata WHERE table_name = ? AND remote_id = ?";
+
+        try (Connection conn = dbManager.getSQLiteConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, tableName);
+            pstmt.setInt(2, remoteId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("record_id");
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Inner class representing sync metadata
      */
     public static class SyncMetadata {
         private String tableName;
         private int recordId;
+        private Integer remoteId;  // MySQL ID (can be null for new records)
         private int syncVersion;
         private String localHash;
         private String remoteHash;
@@ -323,6 +396,9 @@ public class SyncMetadataDAO {
 
         public int getRecordId() { return recordId; }
         public void setRecordId(int recordId) { this.recordId = recordId; }
+
+        public Integer getRemoteId() { return remoteId; }
+        public void setRemoteId(Integer remoteId) { this.remoteId = remoteId; }
 
         public int getSyncVersion() { return syncVersion; }
         public void setSyncVersion(int syncVersion) { this.syncVersion = syncVersion; }
