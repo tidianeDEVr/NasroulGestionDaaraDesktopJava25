@@ -82,6 +82,9 @@ public class DatabaseManager {
             createTablesSQLite(stmt);
             createSyncTablesSQLite(stmt);
 
+            // MIGRATION: Add sync columns to existing tables
+            migrateSyncColumns(stmt);
+
             System.out.println("SQLite database initialized successfully (offline-first)");
             connectionError = null;
 
@@ -91,6 +94,7 @@ public class DatabaseManager {
                      Statement mysqlStmt = mysqlConn.createStatement()) {
                     createTablesMySQL(mysqlStmt);
                     createSyncTablesMySQL(mysqlStmt);
+                    migrateSyncColumnsMySQL(mysqlStmt);
                     System.out.println("MySQL database also initialized (for sync)");
                 } catch (SQLException e) {
                     System.out.println("MySQL not available (offline mode): " + e.getMessage());
@@ -410,5 +414,69 @@ public class DatabaseManager {
                 is_active INTEGER DEFAULT 1
             )
         """);
+    }
+
+    /**
+     * Migrate existing tables to add sync columns (SQLite)
+     */
+    private void migrateSyncColumns(Statement stmt) throws SQLException {
+        String[] tables = {"groups", "members", "events", "projects", "expenses", "contributions", "payment_groups"};
+
+        for (String table : tables) {
+            try {
+                // Try to add each sync column (will fail silently if already exists)
+                addColumnIfNotExists(stmt, table, "created_at", "TEXT");
+                addColumnIfNotExists(stmt, table, "updated_at", "TEXT");
+                addColumnIfNotExists(stmt, table, "deleted_at", "TEXT");
+                addColumnIfNotExists(stmt, table, "last_modified_by", "TEXT");
+                addColumnIfNotExists(stmt, table, "sync_status", "TEXT DEFAULT 'PENDING'");
+                addColumnIfNotExists(stmt, table, "sync_version", "INTEGER DEFAULT 1");
+                addColumnIfNotExists(stmt, table, "last_sync_at", "TEXT");
+            } catch (SQLException e) {
+                // Column might already exist, continue
+                System.out.println("Migration for table " + table + ": " + e.getMessage());
+            }
+        }
+        System.out.println("Sync columns migration completed for SQLite");
+    }
+
+    /**
+     * Migrate existing tables to add sync columns (MySQL)
+     */
+    private void migrateSyncColumnsMySQL(Statement stmt) throws SQLException {
+        String[] tables = {"groups", "members", "events", "projects", "expenses", "contributions", "payment_groups"};
+
+        for (String table : tables) {
+            try {
+                addColumnIfNotExistsMySQL(stmt, table, "created_at", "DATETIME");
+                addColumnIfNotExistsMySQL(stmt, table, "updated_at", "DATETIME");
+                addColumnIfNotExistsMySQL(stmt, table, "deleted_at", "DATETIME");
+                addColumnIfNotExistsMySQL(stmt, table, "last_modified_by", "VARCHAR(255)");
+                addColumnIfNotExistsMySQL(stmt, table, "sync_status", "VARCHAR(50) DEFAULT 'PENDING'");
+                addColumnIfNotExistsMySQL(stmt, table, "sync_version", "INT DEFAULT 1");
+                addColumnIfNotExistsMySQL(stmt, table, "last_sync_at", "DATETIME");
+            } catch (SQLException e) {
+                System.out.println("Migration for table " + table + ": " + e.getMessage());
+            }
+        }
+        System.out.println("Sync columns migration completed for MySQL");
+    }
+
+    private void addColumnIfNotExists(Statement stmt, String table, String column, String type) {
+        try {
+            stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
+            System.out.println("Added column " + column + " to table " + table);
+        } catch (SQLException e) {
+            // Column already exists or other error - ignore
+        }
+    }
+
+    private void addColumnIfNotExistsMySQL(Statement stmt, String table, String column, String type) {
+        try {
+            stmt.execute("ALTER TABLE `" + table + "` ADD COLUMN `" + column + "` " + type);
+            System.out.println("Added column " + column + " to table " + table);
+        } catch (SQLException e) {
+            // Column already exists or other error - ignore
+        }
     }
 }
