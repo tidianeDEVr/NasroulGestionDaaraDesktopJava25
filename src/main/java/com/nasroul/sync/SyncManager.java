@@ -154,14 +154,22 @@ public class SyncManager {
                             }
                         }
 
-                        // Update sync metadata
+                        // Update sync metadata in BOTH SQLite (local) AND MySQL (remote)
+                        String hash = remoteEntity.calculateHash();
                         syncMetadataDAO.save(tableName, recordId,
                                 remoteEntity.getSyncVersion(),
-                                remoteEntity.calculateHash(),
-                                remoteEntity.calculateHash(),
-                                "SYNCED");
+                                hash, hash, "SYNCED");
+
+                        // CRITICAL: Also save to MySQL so other devices can see sync state
+                        syncMetadataDAO.saveMySQLMetadata(tableName, recordId,
+                                remoteEntity.getSyncVersion(),
+                                hash, hash, "SYNCED");
 
                         syncLogDAO.log(currentSyncSession, tableName, recordId,
+                                "UPDATE", "PULL", "SUCCESS", null);
+
+                        // Also log to MySQL
+                        syncLogDAO.logMySQL(currentSyncSession, tableName, recordId,
                                 "UPDATE", "PULL", "SUCCESS", null);
 
                     } catch (Exception e) {
@@ -255,7 +263,22 @@ public class SyncManager {
                     // Update local sync status
                     markAsSynced(tableName, recordId);
 
+                    // Update sync metadata in BOTH SQLite AND MySQL
+                    String hash = localEntity.calculateHash();
+                    syncMetadataDAO.save(tableName, recordId,
+                            localEntity.getSyncVersion(),
+                            hash, hash, "SYNCED");
+
+                    // CRITICAL: Also save to MySQL so other devices can see sync state
+                    syncMetadataDAO.saveMySQLMetadata(tableName, recordId,
+                            localEntity.getSyncVersion(),
+                            hash, hash, "SYNCED");
+
                     syncLogDAO.log(currentSyncSession, tableName, recordId,
+                            "UPDATE", "PUSH", "SUCCESS", null);
+
+                    // Also log to MySQL
+                    syncLogDAO.logMySQL(currentSyncSession, tableName, recordId,
                             "UPDATE", "PUSH", "SUCCESS", null);
 
                 } catch (Exception e) {

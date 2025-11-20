@@ -28,7 +28,7 @@ public class SyncLogDAO {
             INSERT INTO sync_log
             (sync_session_id, table_name, record_id, operation,
              sync_direction, status, error_message, synced_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
             """;
 
         try (Connection conn = dbManager.getSQLiteConnection();
@@ -41,7 +41,39 @@ public class SyncLogDAO {
             pstmt.setString(5, syncDirection);
             pstmt.setString(6, status);
             pstmt.setString(7, errorMessage);
-            pstmt.setObject(8, LocalDateTime.now());
+
+            pstmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Log a sync operation to MySQL (for cross-device visibility)
+     */
+    public void logMySQL(String syncSessionId, String tableName, int recordId,
+                         String operation, String syncDirection, String status,
+                         String errorMessage) throws SQLException {
+        // Check if MySQL is available
+        if (!dbManager.isMySQLAvailable()) {
+            return; // Skip if MySQL not available
+        }
+
+        String sql = """
+            INSERT INTO sync_log
+            (sync_session_id, table_name, record_id, operation,
+             sync_direction, status, error_message, synced_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+            """;
+
+        try (Connection conn = dbManager.getMySQLConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, syncSessionId);
+            pstmt.setString(2, tableName);
+            pstmt.setInt(3, recordId);
+            pstmt.setString(4, operation);
+            pstmt.setString(5, syncDirection);
+            pstmt.setString(6, status);
+            pstmt.setString(7, errorMessage);
 
             pstmt.executeUpdate();
         }
@@ -121,14 +153,13 @@ public class SyncLogDAO {
      * Clean old sync logs (keep only last N days)
      */
     public void cleanOldLogs(int daysToKeep) throws SQLException {
-        String sql = "DELETE FROM sync_log WHERE synced_at < ?";
-
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(daysToKeep);
+        // Use SQLite date function instead of setObject with LocalDateTime
+        String sql = "DELETE FROM sync_log WHERE synced_at < datetime('now', '-' || ? || ' days')";
 
         try (Connection conn = dbManager.getSQLiteConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setObject(1, cutoff);
+            pstmt.setInt(1, daysToKeep);
             pstmt.executeUpdate();
         }
     }
@@ -144,8 +175,15 @@ public class SyncLogDAO {
         log.setStatus(rs.getString("status"));
         log.setErrorMessage(rs.getString("error_message"));
 
-        Timestamp syncedAt = rs.getTimestamp("synced_at");
-        if (syncedAt != null) log.setSyncedAt(syncedAt.toLocalDateTime());
+        // SQLite stores datetime as TEXT - parse manually
+        String syncedAtStr = rs.getString("synced_at");
+        if (syncedAtStr != null && !syncedAtStr.isEmpty()) {
+            try {
+                log.setSyncedAt(LocalDateTime.parse(syncedAtStr.replace(" ", "T")));
+            } catch (Exception e) {
+                // Ignore parsing errors
+            }
+        }
 
         return log;
     }
