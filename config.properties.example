@@ -1,6 +1,23 @@
-# SMS Configuration Example
+# Configuration Example
 # Copy this file to config.properties and fill in your actual credentials
 
+# ===== Database Configuration =====
+# Database type: mysql or sqlite
+db.type=mysql
+
+# MySQL Configuration (used when db.type=mysql)
+db.mysql.host=localhost
+db.mysql.port=3306
+db.mysql.database=association_manager
+db.mysql.username=YOUR_DB_USERNAME
+db.mysql.password=YOUR_DB_PASSWORD
+db.mysql.useSSL=false
+db.mysql.serverTimezone=UTC
+
+# SQLite Configuration (used when db.type=sqlite)
+db.sqlite.path=association.db
+
+# ===== SMS Configuration =====
 # SMS Account ID from lafricamobile.com
 sms.account.id=YOUR_ACCOUNT_ID
 

@@ -21,7 +21,7 @@ public class ContributionDAO {
             """;
 
         try (Connection conn = dbManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             pstmt.setInt(1, contribution.getMemberId());
             pstmt.setString(2, contribution.getEntityType());
@@ -34,8 +34,7 @@ public class ContributionDAO {
 
             pstmt.executeUpdate();
 
-            try (PreparedStatement idStmt = conn.prepareStatement("SELECT last_insert_rowid()");
-                 ResultSet rs = idStmt.executeQuery()) {
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
                 if (rs.next()) {
                     contribution.setId(rs.getInt(1));
                 }

@@ -28,6 +28,7 @@ com/nasroul/controller/PaymentGroupController.class
 com/nasroul/dao/MemberDAO.class
 com/nasroul/controller/EventController.class
 com/nasroul/controller/MemberDialogController$1.class
+com/nasroul/controller/SplashScreenController.class
 com/nasroul/controller/ProjectController.class
 com/nasroul/controller/ContributionDialogController$2.class
 com/nasroul/service/ContributionService.class
@@ -61,6 +62,7 @@ com/nasroul/controller/ProjectDialogController.class
 com/nasroul/model/Group.class
 com/nasroul/dao/ProjectDAO.class
 com/nasroul/controller/ContributionController.class
+com/nasroul/controller/SplashScreenController$1.class
 com/nasroul/controller/PaymentGroupDialogController$1.class
 com/nasroul/controller/MemberDetailsDialogController$5.class
 com/nasroul/controller/SMSCampaignDialogController$2.class

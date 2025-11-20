@@ -21,7 +21,7 @@ public class ProjectDAO {
             """;
 
         try (Connection conn = dbManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             pstmt.setString(1, project.getName());
             pstmt.setString(2, project.getDescription());
@@ -34,8 +34,7 @@ public class ProjectDAO {
 
             pstmt.executeUpdate();
 
-            try (PreparedStatement idStmt = conn.prepareStatement("SELECT last_insert_rowid()");
-                 ResultSet rs = idStmt.executeQuery()) {
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
                 if (rs.next()) {
                     project.setId(rs.getInt(1));
                 }

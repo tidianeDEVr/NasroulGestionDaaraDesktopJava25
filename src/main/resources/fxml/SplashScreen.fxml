@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox alignment="CENTER" prefHeight="400.0" prefWidth="600.0" spacing="20.0" style="-fx-background-color: white;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.nasroul.controller.SplashScreenController">
+    <padding>
+        <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
+    </padding>
+
+    <ImageView fx:id="logoImageView" fitHeight="150.0" fitWidth="150.0" pickOnBounds="true" preserveRatio="true">
+        <image>
+            <Image url="@../images/logo.png" />
+        </image>
+    </ImageView>
+
+    <Label text="Application de gestion" textAlignment="CENTER">
+        <font>
+            <Font name="System Bold" size="28.0" />
+        </font>
+    </Label>
+
+    <Label fx:id="statusLabel" text="Connexion à la base de données..." textAlignment="CENTER" wrapText="true">
+        <font>
+            <Font size="14.0" />
+        </font>
+    </Label>
+
+    <ProgressBar fx:id="progressBar" prefWidth="300.0" progress="0.0" />
+
+    <Label fx:id="errorLabel" style="-fx-text-fill: #d32f2f;" textAlignment="CENTER" visible="false" wrapText="true">
+        <font>
+            <Font size="12.0" />
+        </font>
+    </Label>
+</VBox>

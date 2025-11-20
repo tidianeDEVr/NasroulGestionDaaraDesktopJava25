@@ -15,12 +15,12 @@ public class GroupDAO {
 
     public void create(Group group) throws SQLException {
         String sql = """
-            INSERT INTO groups (name, description, active)
+            INSERT INTO `groups` (name, description, active)
             VALUES (?, ?, ?)
             """;
 
         try (Connection conn = dbManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             pstmt.setString(1, group.getName());
             pstmt.setString(2, group.getDescription());
@@ -28,8 +28,7 @@ public class GroupDAO {
 
             pstmt.executeUpdate();
 
-            try (PreparedStatement idStmt = conn.prepareStatement("SELECT last_insert_rowid()");
-                 ResultSet rs = idStmt.executeQuery()) {
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
                 if (rs.next()) {
                     group.setId(rs.getInt(1));
                 }
@@ -38,7 +37,7 @@ public class GroupDAO {
     }
 
     public Group findById(int id) throws SQLException {
-        String sql = "SELECT * FROM groups WHERE id = ?";
+        String sql = "SELECT * FROM `groups` WHERE id = ?";
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -56,7 +55,7 @@ public class GroupDAO {
 
     public List<Group> findAll() throws SQLException {
         List<Group> groups = new ArrayList<>();
-        String sql = "SELECT * FROM groups ORDER BY name";
+        String sql = "SELECT * FROM `groups` ORDER BY name";
 
         try (Connection conn = dbManager.getConnection();
              Statement stmt = conn.createStatement();
@@ -72,7 +71,7 @@ public class GroupDAO {
 
     public List<Group> findActive() throws SQLException {
         List<Group> groups = new ArrayList<>();
-        String sql = "SELECT * FROM groups WHERE active = 1 ORDER BY name";
+        String sql = "SELECT * FROM `groups` WHERE active = 1 ORDER BY name";
 
         try (Connection conn = dbManager.getConnection();
              Statement stmt = conn.createStatement();
@@ -88,7 +87,7 @@ public class GroupDAO {
 
     public void update(Group group) throws SQLException {
         String sql = """
-            UPDATE groups
+            UPDATE `groups`
             SET name = ?, description = ?, active = ?
             WHERE id = ?
             """;
@@ -106,7 +105,7 @@ public class GroupDAO {
     }
 
     public void delete(int id) throws SQLException {
-        String sql = "DELETE FROM groups WHERE id = ?";
+        String sql = "DELETE FROM `groups` WHERE id = ?";
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {

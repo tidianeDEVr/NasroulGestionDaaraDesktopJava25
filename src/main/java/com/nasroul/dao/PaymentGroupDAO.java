@@ -43,7 +43,7 @@ public class PaymentGroupDAO {
                    g.name AS group_name,
                    COALESCE(e.name, p.name) AS entity_name
             FROM payment_groups pg
-            LEFT JOIN groups g ON pg.group_id = g.id
+            LEFT JOIN `groups` g ON pg.group_id = g.id
             LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id
             LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id
             WHERE pg.id = ?
@@ -69,7 +69,7 @@ public class PaymentGroupDAO {
                    g.name AS group_name,
                    COALESCE(e.name, p.name) AS entity_name
             FROM payment_groups pg
-            LEFT JOIN groups g ON pg.group_id = g.id
+            LEFT JOIN `groups` g ON pg.group_id = g.id
             LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id
             LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id
             ORDER BY pg.id DESC
@@ -95,7 +95,7 @@ public class PaymentGroupDAO {
                    g.name AS group_name,
                    COALESCE(e.name, p.name) AS entity_name
             FROM payment_groups pg
-            LEFT JOIN groups g ON pg.group_id = g.id
+            LEFT JOIN `groups` g ON pg.group_id = g.id
             LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id
             LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id
             WHERE pg.group_id = ?
@@ -125,7 +125,7 @@ public class PaymentGroupDAO {
                    g.name AS group_name,
                    COALESCE(e.name, p.name) AS entity_name
             FROM payment_groups pg
-            LEFT JOIN groups g ON pg.group_id = g.id
+            LEFT JOIN `groups` g ON pg.group_id = g.id
             LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id
             LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id
             WHERE pg.entity_type = ? AND pg.entity_id = ?

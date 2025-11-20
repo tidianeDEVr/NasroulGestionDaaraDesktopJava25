@@ -52,6 +52,53 @@ public class ConfigManager {
         return properties.getProperty(key, defaultValue);
     }
 
+    // Database Configuration getters
+    public String getDbType() {
+        return getProperty("db.type", "sqlite");
+    }
+
+    public String getMySQLHost() {
+        return getProperty("db.mysql.host", "localhost");
+    }
+
+    public String getMySQLPort() {
+        return getProperty("db.mysql.port", "3306");
+    }
+
+    public String getMySQLDatabase() {
+        return getProperty("db.mysql.database", "association_manager");
+    }
+
+    public String getMySQLUsername() {
+        return getProperty("db.mysql.username", "");
+    }
+
+    public String getMySQLPassword() {
+        return getProperty("db.mysql.password", "");
+    }
+
+    public String getMySQLUseSSL() {
+        return getProperty("db.mysql.useSSL", "false");
+    }
+
+    public String getMySQLServerTimezone() {
+        return getProperty("db.mysql.serverTimezone", "UTC");
+    }
+
+    public String getSQLitePath() {
+        return getProperty("db.sqlite.path", "association.db");
+    }
+
+    public String getMySQLConnectionUrl() {
+        return String.format("jdbc:mysql://%s:%s/%s?useSSL=%s&serverTimezone=%s&allowPublicKeyRetrieval=true",
+            getMySQLHost(),
+            getMySQLPort(),
+            getMySQLDatabase(),
+            getMySQLUseSSL(),
+            getMySQLServerTimezone()
+        );
+    }
+
     // SMS Configuration getters
     public String getSmsAccountId() {
         return getProperty("sms.account.id", "");

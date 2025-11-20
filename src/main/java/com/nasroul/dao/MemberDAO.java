@@ -21,7 +21,7 @@ public class MemberDAO {
             """;
 
         try (Connection conn = dbManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             pstmt.setString(1, member.getFirstName());
             pstmt.setString(2, member.getLastName());
@@ -37,8 +37,7 @@ public class MemberDAO {
 
             pstmt.executeUpdate();
 
-            try (PreparedStatement idStmt = conn.prepareStatement("SELECT last_insert_rowid()");
-                 ResultSet rs = idStmt.executeQuery()) {
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
                 if (rs.next()) {
                     member.setId(rs.getInt(1));
                     // Insert member_groups associations
@@ -54,7 +53,7 @@ public class MemberDAO {
         String sql = """
             SELECT m.*, g.name AS group_name
             FROM members m
-            LEFT JOIN groups g ON m.group_id = g.id
+            LEFT JOIN `groups` g ON m.group_id = g.id
             WHERE m.id = ?
             """;
 
@@ -77,7 +76,7 @@ public class MemberDAO {
         String sql = """
             SELECT m.*, g.name AS group_name
             FROM members m
-            LEFT JOIN groups g ON m.group_id = g.id
+            LEFT JOIN `groups` g ON m.group_id = g.id
             ORDER BY m.last_name, m.first_name
             """;
 
@@ -98,7 +97,7 @@ public class MemberDAO {
         String sql = """
             SELECT m.*, g.name AS group_name
             FROM members m
-            LEFT JOIN groups g ON m.group_id = g.id
+            LEFT JOIN `groups` g ON m.group_id = g.id
             WHERE m.active = 1
             ORDER BY m.last_name, m.first_name
             """;
@@ -195,7 +194,7 @@ public class MemberDAO {
         String sql = """
             SELECT mg.group_id, g.name
             FROM member_groups mg
-            LEFT JOIN groups g ON mg.group_id = g.id
+            LEFT JOIN `groups` g ON mg.group_id = g.id
             WHERE mg.member_id = ?
             """;
 
