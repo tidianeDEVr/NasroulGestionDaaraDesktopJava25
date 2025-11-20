@@ -28,25 +28,24 @@ public class DatabaseManager {
     }
 
     /**
-     * Get connection based on configured database type (for backward compatibility)
+     * Get connection - ALWAYS returns SQLite for offline-first architecture
+     * MySQL is ONLY used by SyncManager via getMySQLConnection()
      */
     public Connection getConnection() throws SQLException {
-        if ("mysql".equalsIgnoreCase(dbType)) {
-            return getMySQLConnection();
-        } else {
-            return getSQLiteConnection();
-        }
+        // OFFLINE-FIRST: Always use SQLite as primary database
+        return getSQLiteConnection();
     }
 
     /**
-     * Always get SQLite connection (local, offline-first)
+     * Get SQLite connection (local, primary database)
      */
     public Connection getSQLiteConnection() throws SQLException {
         return DriverManager.getConnection("jdbc:sqlite:" + config.getSQLitePath());
     }
 
     /**
-     * Always get MySQL connection (remote, sync target)
+     * Get MySQL connection (remote, sync target only)
+     * Used ONLY by SyncManager for synchronization
      */
     public Connection getMySQLConnection() throws SQLException {
         return DriverManager.getConnection(
@@ -57,7 +56,7 @@ public class DatabaseManager {
     }
 
     /**
-     * Check if MySQL is configured and available
+     * Check if MySQL is available for sync
      */
     public boolean isMySQLAvailable() {
         try (Connection conn = getMySQLConnection()) {
@@ -76,23 +75,33 @@ public class DatabaseManager {
     }
 
     private void initializeDatabase() {
-        try (Connection conn = getConnection();
+        try (Connection conn = getSQLiteConnection();
              Statement stmt = conn.createStatement()) {
 
-            if ("mysql".equalsIgnoreCase(dbType)) {
-                createTablesMySQL(stmt);
-                createSyncTablesMySQL(stmt);
-            } else {
-                createTablesSQLite(stmt);
-                createSyncTablesSQLite(stmt);
-            }
+            // OFFLINE-FIRST: Always initialize SQLite (local database)
+            createTablesSQLite(stmt);
+            createSyncTablesSQLite(stmt);
 
-            System.out.println("Database initialized successfully");
+            System.out.println("SQLite database initialized successfully (offline-first)");
             connectionError = null;
+
+            // Also initialize MySQL if available (for sync)
+            if (isMySQLAvailable()) {
+                try (Connection mysqlConn = getMySQLConnection();
+                     Statement mysqlStmt = mysqlConn.createStatement()) {
+                    createTablesMySQL(mysqlStmt);
+                    createSyncTablesMySQL(mysqlStmt);
+                    System.out.println("MySQL database also initialized (for sync)");
+                } catch (SQLException e) {
+                    System.out.println("MySQL not available (offline mode): " + e.getMessage());
+                }
+            } else {
+                System.out.println("MySQL not configured - running in offline mode only");
+            }
 
         } catch (SQLException e) {
             connectionError = e.getMessage();
-            System.err.println("Database initialization failed: " + e.getMessage());
+            System.err.println("SQLite database initialization failed: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -104,14 +113,7 @@ public class DatabaseManager {
                 `name` VARCHAR(255) NOT NULL UNIQUE,
                 `description` TEXT,
                 `active` INT DEFAULT 1,
-                `contribution_target` DOUBLE DEFAULT 0,
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                `deleted_at` TIMESTAMP NULL,
-                `last_modified_by` VARCHAR(255),
-                `sync_status` VARCHAR(50) DEFAULT 'PENDING',
-                `sync_version` INT DEFAULT 1,
-                `last_sync_at` TIMESTAMP NULL
+                `contribution_target` DOUBLE DEFAULT 0
             )
         """);
 
@@ -129,13 +131,6 @@ public class DatabaseManager {
                 `avatar` LONGBLOB,
                 `active` INT DEFAULT 1,
                 `group_id` INT,
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                `deleted_at` TIMESTAMP NULL,
-                `last_modified_by` VARCHAR(255),
-                `sync_status` VARCHAR(50) DEFAULT 'PENDING',
-                `sync_version` INT DEFAULT 1,
-                `last_sync_at` TIMESTAMP NULL,
                 FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`)
             )
         """);
@@ -153,13 +148,6 @@ public class DatabaseManager {
                 `max_capacity` INT,
                 `active` INT DEFAULT 1,
                 `contribution_target` DOUBLE DEFAULT 0,
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                `deleted_at` TIMESTAMP NULL,
-                `last_modified_by` VARCHAR(255),
-                `sync_status` VARCHAR(50) DEFAULT 'PENDING',
-                `sync_version` INT DEFAULT 1,
-                `last_sync_at` TIMESTAMP NULL,
                 FOREIGN KEY (`organizer_id`) REFERENCES `members`(`id`)
             )
         """);
@@ -176,13 +164,6 @@ public class DatabaseManager {
                 `target_budget` DOUBLE DEFAULT 0,
                 `manager_id` INT,
                 `contribution_target` DOUBLE DEFAULT 0,
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                `deleted_at` TIMESTAMP NULL,
-                `last_modified_by` VARCHAR(255),
-                `sync_status` VARCHAR(50) DEFAULT 'PENDING',
-                `sync_version` INT DEFAULT 1,
-                `last_sync_at` TIMESTAMP NULL,
                 FOREIGN KEY (`manager_id`) REFERENCES `members`(`id`)
             )
         """);
@@ -197,13 +178,6 @@ public class DatabaseManager {
                 `entity_type` VARCHAR(255) NOT NULL,
                 `entity_id` INT NOT NULL,
                 `member_id` INT,
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                `deleted_at` TIMESTAMP NULL,
-                `last_modified_by` VARCHAR(255),
-                `sync_status` VARCHAR(50) DEFAULT 'PENDING',
-                `sync_version` INT DEFAULT 1,
-                `last_sync_at` TIMESTAMP NULL,
                 FOREIGN KEY (`member_id`) REFERENCES `members`(`id`)
             )
         """);
@@ -219,13 +193,6 @@ public class DatabaseManager {
                 `status` VARCHAR(255) DEFAULT 'PENDING',
                 `payment_method` VARCHAR(255),
                 `notes` TEXT,
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                `deleted_at` TIMESTAMP NULL,
-                `last_modified_by` VARCHAR(255),
-                `sync_status` VARCHAR(50) DEFAULT 'PENDING',
-                `sync_version` INT DEFAULT 1,
-                `last_sync_at` TIMESTAMP NULL,
                 FOREIGN KEY (`member_id`) REFERENCES `members`(`id`)
             )
         """);
@@ -237,13 +204,6 @@ public class DatabaseManager {
                 `entity_type` VARCHAR(255) NOT NULL,
                 `entity_id` INT NOT NULL,
                 `amount` DOUBLE NOT NULL,
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                `deleted_at` TIMESTAMP NULL,
-                `last_modified_by` VARCHAR(255),
-                `sync_status` VARCHAR(50) DEFAULT 'PENDING',
-                `sync_version` INT DEFAULT 1,
-                `last_sync_at` TIMESTAMP NULL,
                 FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`)
             )
         """);
@@ -252,60 +212,9 @@ public class DatabaseManager {
             CREATE TABLE IF NOT EXISTS `member_groups` (
                 `member_id` INT NOT NULL,
                 `group_id` INT NOT NULL,
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                `deleted_at` TIMESTAMP NULL,
-                `last_modified_by` VARCHAR(255),
-                `sync_status` VARCHAR(50) DEFAULT 'PENDING',
-                `sync_version` INT DEFAULT 1,
-                `last_sync_at` TIMESTAMP NULL,
                 PRIMARY KEY (`member_id`, `group_id`),
                 FOREIGN KEY (`member_id`) REFERENCES `members`(`id`) ON DELETE CASCADE,
                 FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON DELETE CASCADE
-            )
-        """);
-    }
-
-    private void createSyncTablesMySQL(Statement stmt) throws SQLException {
-        stmt.execute("""
-            CREATE TABLE IF NOT EXISTS `sync_metadata` (
-                `id` INT PRIMARY KEY AUTO_INCREMENT,
-                `table_name` VARCHAR(255) NOT NULL,
-                `record_id` INT NOT NULL,
-                `sync_version` INT DEFAULT 1,
-                `local_hash` VARCHAR(64),
-                `remote_hash` VARCHAR(64),
-                `last_sync_at` TIMESTAMP NULL,
-                `sync_status` VARCHAR(50) DEFAULT 'PENDING',
-                `conflict_resolution` VARCHAR(50),
-                UNIQUE KEY `unique_record` (`table_name`, `record_id`)
-            )
-        """);
-
-        stmt.execute("""
-            CREATE TABLE IF NOT EXISTS `sync_log` (
-                `id` INT PRIMARY KEY AUTO_INCREMENT,
-                `sync_session_id` VARCHAR(255) NOT NULL,
-                `table_name` VARCHAR(255) NOT NULL,
-                `record_id` INT NOT NULL,
-                `operation` VARCHAR(50) NOT NULL,
-                `status` VARCHAR(50) NOT NULL,
-                `error_message` TEXT,
-                `sync_direction` VARCHAR(50),
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                `completed_at` TIMESTAMP NULL
-            )
-        """);
-
-        stmt.execute("""
-            CREATE TABLE IF NOT EXISTS `sync_devices` (
-                `id` INT PRIMARY KEY AUTO_INCREMENT,
-                `device_id` VARCHAR(255) NOT NULL UNIQUE,
-                `device_name` VARCHAR(255) NOT NULL,
-                `user_name` VARCHAR(255),
-                `last_sync_at` TIMESTAMP NULL,
-                `is_active` INT DEFAULT 1,
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """);
     }
@@ -317,14 +226,7 @@ public class DatabaseManager {
                 name TEXT NOT NULL UNIQUE,
                 description TEXT,
                 active INTEGER DEFAULT 1,
-                contribution_target REAL DEFAULT 0,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                deleted_at TEXT,
-                last_modified_by TEXT,
-                sync_status TEXT DEFAULT 'PENDING',
-                sync_version INTEGER DEFAULT 1,
-                last_sync_at TEXT
+                contribution_target REAL DEFAULT 0
             )
         """);
 
@@ -342,13 +244,6 @@ public class DatabaseManager {
                 avatar BLOB,
                 active INTEGER DEFAULT 1,
                 group_id INTEGER,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                deleted_at TEXT,
-                last_modified_by TEXT,
-                sync_status TEXT DEFAULT 'PENDING',
-                sync_version INTEGER DEFAULT 1,
-                last_sync_at TEXT,
                 FOREIGN KEY (group_id) REFERENCES groups(id)
             )
         """);
@@ -366,13 +261,6 @@ public class DatabaseManager {
                 max_capacity INTEGER,
                 active INTEGER DEFAULT 1,
                 contribution_target REAL DEFAULT 0,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                deleted_at TEXT,
-                last_modified_by TEXT,
-                sync_status TEXT DEFAULT 'PENDING',
-                sync_version INTEGER DEFAULT 1,
-                last_sync_at TEXT,
                 FOREIGN KEY (organizer_id) REFERENCES members(id)
             )
         """);
@@ -389,13 +277,6 @@ public class DatabaseManager {
                 target_budget REAL DEFAULT 0,
                 manager_id INTEGER,
                 contribution_target REAL DEFAULT 0,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                deleted_at TEXT,
-                last_modified_by TEXT,
-                sync_status TEXT DEFAULT 'PENDING',
-                sync_version INTEGER DEFAULT 1,
-                last_sync_at TEXT,
                 FOREIGN KEY (manager_id) REFERENCES members(id)
             )
         """);
@@ -410,13 +291,6 @@ public class DatabaseManager {
                 entity_type TEXT NOT NULL,
                 entity_id INTEGER NOT NULL,
                 member_id INTEGER,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                deleted_at TEXT,
-                last_modified_by TEXT,
-                sync_status TEXT DEFAULT 'PENDING',
-                sync_version INTEGER DEFAULT 1,
-                last_sync_at TEXT,
                 FOREIGN KEY (member_id) REFERENCES members(id)
             )
         """);
@@ -432,13 +306,6 @@ public class DatabaseManager {
                 status TEXT DEFAULT 'PENDING',
                 payment_method TEXT,
                 notes TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                deleted_at TEXT,
-                last_modified_by TEXT,
-                sync_status TEXT DEFAULT 'PENDING',
-                sync_version INTEGER DEFAULT 1,
-                last_sync_at TEXT,
                 FOREIGN KEY (member_id) REFERENCES members(id)
             )
         """);
@@ -450,13 +317,6 @@ public class DatabaseManager {
                 entity_type TEXT NOT NULL,
                 entity_id INTEGER NOT NULL,
                 amount REAL NOT NULL,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                deleted_at TEXT,
-                last_modified_by TEXT,
-                sync_status TEXT DEFAULT 'PENDING',
-                sync_version INTEGER DEFAULT 1,
-                last_sync_at TEXT,
                 FOREIGN KEY (group_id) REFERENCES groups(id)
             )
         """);
@@ -465,13 +325,6 @@ public class DatabaseManager {
             CREATE TABLE IF NOT EXISTS member_groups (
                 member_id INTEGER NOT NULL,
                 group_id INTEGER NOT NULL,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                deleted_at TEXT,
-                last_modified_by TEXT,
-                sync_status TEXT DEFAULT 'PENDING',
-                sync_version INTEGER DEFAULT 1,
-                last_sync_at TEXT,
                 PRIMARY KEY (member_id, group_id),
                 FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
                 FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
@@ -479,10 +332,49 @@ public class DatabaseManager {
         """);
     }
 
+    private void createSyncTablesMySQL(Statement stmt) throws SQLException {
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS sync_metadata (
+                table_name VARCHAR(255) NOT NULL,
+                record_id INT NOT NULL,
+                sync_version INT DEFAULT 1,
+                local_hash VARCHAR(255),
+                remote_hash VARCHAR(255),
+                last_sync_at DATETIME,
+                sync_status VARCHAR(50) DEFAULT 'PENDING',
+                conflict_resolution TEXT,
+                PRIMARY KEY (table_name, record_id)
+            )
+        """);
+
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS sync_log (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                sync_session_id VARCHAR(255) NOT NULL,
+                table_name VARCHAR(255) NOT NULL,
+                record_id INT NOT NULL,
+                operation VARCHAR(50) NOT NULL,
+                sync_direction VARCHAR(50) NOT NULL,
+                status VARCHAR(50) NOT NULL,
+                error_message TEXT,
+                synced_at DATETIME NOT NULL
+            )
+        """);
+
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS sync_devices (
+                device_id VARCHAR(255) PRIMARY KEY,
+                device_name VARCHAR(255) NOT NULL,
+                user_name VARCHAR(255),
+                last_sync_at DATETIME,
+                is_active INT DEFAULT 1
+            )
+        """);
+    }
+
     private void createSyncTablesSQLite(Statement stmt) throws SQLException {
         stmt.execute("""
             CREATE TABLE IF NOT EXISTS sync_metadata (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 table_name TEXT NOT NULL,
                 record_id INTEGER NOT NULL,
                 sync_version INTEGER DEFAULT 1,
@@ -491,7 +383,7 @@ public class DatabaseManager {
                 last_sync_at TEXT,
                 sync_status TEXT DEFAULT 'PENDING',
                 conflict_resolution TEXT,
-                UNIQUE (table_name, record_id)
+                PRIMARY KEY (table_name, record_id)
             )
         """);
 
@@ -502,23 +394,20 @@ public class DatabaseManager {
                 table_name TEXT NOT NULL,
                 record_id INTEGER NOT NULL,
                 operation TEXT NOT NULL,
+                sync_direction TEXT NOT NULL,
                 status TEXT NOT NULL,
                 error_message TEXT,
-                sync_direction TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                completed_at TEXT
+                synced_at TEXT NOT NULL
             )
         """);
 
         stmt.execute("""
             CREATE TABLE IF NOT EXISTS sync_devices (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                device_id TEXT NOT NULL UNIQUE,
+                device_id TEXT PRIMARY KEY,
                 device_name TEXT NOT NULL,
                 user_name TEXT,
                 last_sync_at TEXT,
-                is_active INTEGER DEFAULT 1,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                is_active INTEGER DEFAULT 1
             )
         """);
     }
