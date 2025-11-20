@@ -1,32 +1,99 @@
-# Configuration Example
-# Copy this file to config.properties and fill in your actual credentials
+# ===========================================
+# Association Manager - Configuration File
+# ===========================================
 
-# ===== Database Configuration =====
-# Database type: mysql or sqlite
-db.type=mysql
+# Database Configuration
+# -----------------------
+# Database type: sqlite (local, default) or mysql (remote)
+db.type=sqlite
 
-# MySQL Configuration (used when db.type=mysql)
+# SQLite Configuration (Local Database - Primary for offline-first)
+db.sqlite.path=association.db
+
+# MySQL Configuration (Remote Database - Sync Target)
 db.mysql.host=localhost
 db.mysql.port=3306
-db.mysql.database=association_manager
-db.mysql.username=YOUR_DB_USERNAME
-db.mysql.password=YOUR_DB_PASSWORD
+db.mysql.database=nasroul
+db.mysql.username=root
+db.mysql.password=
 db.mysql.useSSL=false
 db.mysql.serverTimezone=UTC
 
-# SQLite Configuration (used when db.type=sqlite)
-db.sqlite.path=association.db
-
-# ===== SMS Configuration =====
-# SMS Account ID from lafricamobile.com
-sms.account.id=YOUR_ACCOUNT_ID
-
-# SMS Account Password
-sms.password=YOUR_PASSWORD
-
-# SMS Sender Name (max 11 characters)
-sms.sender=YOUR_SENDER
-
-# SMS API URLs (usually don't need to change these)
+# SMS Service Configuration
+# --------------------------
+sms.account.id=your_account_id
+sms.password=your_password
+sms.sender=LAM
 sms.api.url=https://lamsms.lafricamobile.com/api
 sms.credits.url=https://lamsms.lafricamobile.com/credits
+
+# Synchronization Configuration
+# ------------------------------
+
+# Auto-sync: Enable automatic synchronization at regular intervals
+# Default: false (manual sync only via UI button)
+sync.auto.enabled=false
+
+# Auto-sync interval in minutes
+# How often to automatically sync when auto-sync is enabled
+# Default: 30 minutes
+sync.auto.interval=30
+
+# Sync on startup: Perform sync when application starts
+# Useful to get latest data at startup
+# Default: false
+sync.on.startup=false
+
+# Conflict resolution strategy
+# Options:
+#   - LAST_WRITE_WINS: Most recently modified version wins (default, recommended)
+#   - LOCAL_WINS: Always keep local version
+#   - REMOTE_WINS: Always keep remote version
+#   - MANUAL: Require manual resolution via UI dialog
+#   - HIGHER_VERSION_WINS: Use version number to determine winner
+# Default: LAST_WRITE_WINS
+sync.conflict.strategy=LAST_WRITE_WINS
+
+# Sync log retention: Number of days to keep sync logs
+# Older logs will be automatically cleaned up
+# Default: 30 days
+sync.log.retention.days=30
+
+# Offline mode: Disable all sync operations (SQLite only)
+# Useful for testing or when working completely offline
+# Default: false
+sync.offline.mode=false
+
+# Sync timeout in seconds
+# Maximum time to wait for sync operation to complete
+# Default: 300 seconds (5 minutes)
+sync.timeout.seconds=300
+
+# Sync notifications: Show notifications for sync events
+# Display alerts for sync success/failure
+# Default: true
+sync.notifications.enabled=true
+
+# ===========================================
+# IMPORTANT NOTES
+# ===========================================
+#
+# OFFLINE-FIRST ARCHITECTURE:
+# - Application always uses SQLite as primary database (fast, local)
+# - MySQL is used only for synchronization (centralized data sharing)
+# - Works perfectly offline without MySQL connection
+# - Sync happens in background without blocking UI
+#
+# FIRST TIME SETUP:
+# 1. Keep db.type=sqlite (recommended for best performance)
+# 2. Configure MySQL credentials for sync
+# 3. Run application - device will auto-register
+# 4. Click Sync button to perform first sync
+#
+# MULTI-DEVICE SETUP:
+# - Each device uses its own SQLite database
+# - Devices sync via shared MySQL server
+# - Conflicts are detected and resolved automatically
+# - Manual resolution available for complex conflicts
+#
+# ===========================================

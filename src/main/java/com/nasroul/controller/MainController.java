@@ -1,14 +1,17 @@
 package com.nasroul.controller;
 
+import com.nasroul.service.DeviceRegistrationService;
+import com.nasroul.service.SyncService;
+import com.nasroul.sync.SyncManager;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 
@@ -48,12 +51,44 @@ public class MainController {
     @FXML
     private Button btnGroups;
 
+    @FXML
+    private Button btnSync;
+
+    @FXML
+    private Label syncStatusLabel;
+
     private Timeline clockTimeline;
+    private final SyncService syncService = SyncService.getInstance();
+    private final DeviceRegistrationService deviceService = DeviceRegistrationService.getInstance();
 
     @FXML
     public void initialize() {
         startClock();
         showDashboard();
+        setupSyncService();
+        registerDevice();
+        updateSyncStatus();
+    }
+
+    /**
+     * Setup sync service listener
+     */
+    private void setupSyncService() {
+        syncService.setStatusListener(status -> {
+            Platform.runLater(() -> updateSyncStatusUI(status));
+        });
+    }
+
+    /**
+     * Register current device
+     */
+    private void registerDevice() {
+        try {
+            deviceService.registerDevice();
+            System.out.println("Device registered: " + deviceService.getCurrentDeviceId());
+        } catch (Exception e) {
+            System.err.println("Failed to register device: " + e.getMessage());
+        }
     }
 
     private void startClock() {
@@ -133,11 +168,146 @@ public class MainController {
     }
 
     @FXML
+    private void handleSync() {
+        if (syncService.isSyncing()) {
+            showAlert("Synchronisation en cours", "Une synchronisation est déjà en cours...", Alert.AlertType.WARNING);
+            return;
+        }
+
+        // Disable sync button during sync
+        if (btnSync != null) {
+            btnSync.setDisable(true);
+        }
+
+        // Perform sync asynchronously
+        Task<SyncManager.SyncResult> syncTask = syncService.synchronizeAsync();
+
+        syncTask.setOnSucceeded(event -> {
+            SyncManager.SyncResult result = syncTask.getValue();
+
+            if (btnSync != null) {
+                btnSync.setDisable(false);
+            }
+
+            if (result.isSuccess()) {
+                showSyncResultDialog(result);
+                updateSyncStatus();
+
+                // Update device last sync time
+                try {
+                    deviceService.updateLastSyncTime();
+                } catch (Exception e) {
+                    System.err.println("Failed to update device sync time: " + e.getMessage());
+                }
+            } else {
+                showAlert("Échec de la Synchronisation",
+                         result.getErrorMessage() != null ? result.getErrorMessage() : "Erreur inconnue",
+                         Alert.AlertType.ERROR);
+            }
+        });
+
+        syncTask.setOnFailed(event -> {
+            if (btnSync != null) {
+                btnSync.setDisable(false);
+            }
+
+            Throwable exception = syncTask.getException();
+            showAlert("Erreur de Synchronisation",
+                     exception != null ? exception.getMessage() : "Une erreur est survenue",
+                     Alert.AlertType.ERROR);
+        });
+    }
+
+    /**
+     * Update sync status display
+     */
+    private void updateSyncStatus() {
+        if (syncStatusLabel != null) {
+            String lastSync = syncService.getLastSyncTimeFormatted();
+            syncStatusLabel.setText("Dernier sync: " + lastSync);
+        }
+    }
+
+    /**
+     * Update sync status UI based on sync status
+     */
+    private void updateSyncStatusUI(SyncService.SyncStatus status) {
+        if (syncStatusLabel == null) return;
+
+        switch (status) {
+            case SYNCING:
+                syncStatusLabel.setText("🔄 Synchronisation en cours...");
+                syncStatusLabel.setStyle("-fx-text-fill: #2196f3;");
+                break;
+            case SUCCESS:
+                syncStatusLabel.setText("✅ Synchronisation réussie - " + syncService.getLastSyncTimeFormatted());
+                syncStatusLabel.setStyle("-fx-text-fill: #4caf50;");
+                break;
+            case FAILED:
+                syncStatusLabel.setText("❌ Échec de la synchronisation");
+                syncStatusLabel.setStyle("-fx-text-fill: #f44336;");
+                break;
+            case OFFLINE:
+                syncStatusLabel.setText("📴 Mode hors ligne");
+                syncStatusLabel.setStyle("-fx-text-fill: #ff9800;");
+                break;
+            default:
+                syncStatusLabel.setText("Dernier sync: " + syncService.getLastSyncTimeFormatted());
+                syncStatusLabel.setStyle("-fx-text-fill: #666;");
+        }
+    }
+
+    /**
+     * Show sync result dialog
+     */
+    private void showSyncResultDialog(SyncManager.SyncResult result) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Synchronisation Réussie");
+        alert.setHeaderText("La synchronisation s'est terminée avec succès");
+
+        String content = String.format(
+            "📥 Records téléchargés (PULL): %d\n" +
+            "📤 Records envoyés (PUSH): %d\n" +
+            "⚠️ Conflits détectés: %d\n\n" +
+            "Session: %s",
+            result.getRecordsPulled(),
+            result.getRecordsPushed(),
+            result.getConflicts(),
+            result.getSyncSessionId()
+        );
+
+        if (!result.getErrors().isEmpty()) {
+            content += "\n\n❌ Erreurs:\n";
+            for (String error : result.getErrors()) {
+                content += "• " + error + "\n";
+            }
+        }
+
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    /**
+     * Show alert dialog
+     */
+    private void showAlert(String title, String content, Alert.AlertType type) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    @FXML
     private void handleExit() {
         // Arrêter le timer avant de quitter
         if (clockTimeline != null) {
             clockTimeline.stop();
         }
+
+        // Shutdown sync service
+        syncService.shutdown();
+
         Platform.exit();
     }
 
