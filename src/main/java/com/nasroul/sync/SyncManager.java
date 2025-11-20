@@ -5,7 +5,7 @@ import com.nasroul.model.SyncableEntity;
 import com.nasroul.sync.ConflictDetector.ConflictType;
 import com.nasroul.sync.ConflictResolver.Resolution;
 import com.nasroul.sync.ConflictResolver.ResolutionAction;
-import com.nasroul.util.DeviceIdGenerator;
+import java.util.Map;
 
 import java.sql.*;
 import java.time.LocalDateTime;

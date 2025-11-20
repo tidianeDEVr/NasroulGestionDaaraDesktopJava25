@@ -45,6 +45,7 @@ com/nasroul/controller/MemberDialogController.class
 com/nasroul/service/ExpenseService.class
 com/nasroul/controller/ContributionDialogController$10.class
 com/nasroul/sync/ConflictResolver$Resolution.class
+com/nasroul/sync/GenericSyncableEntity.class
 com/nasroul/controller/MemberDetailsDialogController$1.class
 com/nasroul/service/SyncService.class
 com/nasroul/controller/ContributionDialogController.class

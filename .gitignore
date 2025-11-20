@@ -29,3 +29,6 @@ src/main/resources/config.properties
 
 # Log files
 *.log
+
+# SQLite
+association.db

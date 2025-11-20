@@ -43,6 +43,7 @@
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/util/DataHashCalculator.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/controller/EventController.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/sync/ConflictDetector.java
+/Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/sync/GenericSyncableEntity.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/util/ExcelUtil.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/model/Project.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/model/Expense.java

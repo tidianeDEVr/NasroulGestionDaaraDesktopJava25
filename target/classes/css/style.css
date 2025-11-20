@@ -58,6 +58,21 @@
   -fx-font-weight: 600;
 }
 
+.menu-button-sync {
+  -fx-background-color: transparent;
+  -fx-text-fill: #185b8b;
+  -fx-padding: 8 12;
+  -fx-background-radius: 6;
+  -fx-cursor: hand;
+  -fx-alignment: center-left;
+  -fx-font-size: 14px;
+}
+
+.menu-button-sync:hover {
+  -fx-background-color: #ffebe9;
+  -fx-text-fill: #0e7ea4;
+}
+
 .menu-button-exit {
   -fx-background-color: transparent;
   -fx-text-fill: #cf222e;
