@@ -57,7 +57,11 @@ public class MainController {
     @FXML
     private Label syncStatusLabel;
 
+    @FXML
+    private ProgressIndicator syncProgressIndicator;
+
     private Timeline clockTimeline;
+    private String originalSyncButtonText = "Synchroniser";
     private final SyncService syncService = SyncService.getInstance();
     private final DeviceRegistrationService deviceService = DeviceRegistrationService.getInstance();
 
@@ -174,10 +178,8 @@ public class MainController {
             return;
         }
 
-        // Disable sync button during sync
-        if (btnSync != null) {
-            btnSync.setDisable(true);
-        }
+        // Start sync UI feedback
+        startSyncUI();
 
         // Perform sync asynchronously
         Task<SyncManager.SyncResult> syncTask = syncService.synchronizeAsync();
@@ -185,9 +187,8 @@ public class MainController {
         syncTask.setOnSucceeded(event -> {
             SyncManager.SyncResult result = syncTask.getValue();
 
-            if (btnSync != null) {
-                btnSync.setDisable(false);
-            }
+            // Stop sync UI feedback
+            stopSyncUI();
 
             if (result.isSuccess()) {
                 showSyncResultDialog(result);
@@ -207,14 +208,48 @@ public class MainController {
         });
 
         syncTask.setOnFailed(event -> {
-            if (btnSync != null) {
-                btnSync.setDisable(false);
-            }
+            // Stop sync UI feedback
+            stopSyncUI();
 
             Throwable exception = syncTask.getException();
             showAlert("Erreur de Synchronisation",
                      exception != null ? exception.getMessage() : "Une erreur est survenue",
                      Alert.AlertType.ERROR);
+        });
+    }
+
+    /**
+     * Start sync UI feedback - disable button, show spinner, update text
+     */
+    private void startSyncUI() {
+        Platform.runLater(() -> {
+            if (btnSync != null) {
+                btnSync.setDisable(true);
+                btnSync.setText("Synchronisation en cours...");
+            }
+            if (syncProgressIndicator != null) {
+                syncProgressIndicator.setVisible(true);
+                syncProgressIndicator.setManaged(true);
+            }
+            if (statusLabel != null) {
+                statusLabel.setText("🔄 Synchronisation des données...");
+            }
+        });
+    }
+
+    /**
+     * Stop sync UI feedback - enable button, hide spinner, restore text
+     */
+    private void stopSyncUI() {
+        Platform.runLater(() -> {
+            if (btnSync != null) {
+                btnSync.setDisable(false);
+                btnSync.setText(originalSyncButtonText);
+            }
+            if (syncProgressIndicator != null) {
+                syncProgressIndicator.setVisible(false);
+                syncProgressIndicator.setManaged(false);
+            }
         });
     }
 
@@ -258,33 +293,73 @@ public class MainController {
     }
 
     /**
-     * Show sync result dialog
+     * Show sync result dialog with detailed information
      */
     private void showSyncResultDialog(SyncManager.SyncResult result) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Synchronisation Réussie");
-        alert.setHeaderText("La synchronisation s'est terminée avec succès");
 
-        String content = String.format(
-            "📥 Records téléchargés (PULL): %d\n" +
-            "📤 Records envoyés (PUSH): %d\n" +
-            "⚠️ Conflits détectés: %d\n\n" +
-            "Session: %s",
-            result.getRecordsPulled(),
-            result.getRecordsPushed(),
-            result.getConflicts(),
-            result.getSyncSessionId()
-        );
+        // Determine if there are any issues to report
+        boolean hasConflicts = result.getConflicts() > 0;
+        boolean hasErrors = !result.getErrors().isEmpty();
 
-        if (!result.getErrors().isEmpty()) {
-            content += "\n\n❌ Erreurs:\n";
+        if (hasConflicts || hasErrors) {
+            alert.setHeaderText("La synchronisation s'est terminée avec quelques avertissements");
+        } else {
+            alert.setHeaderText("La synchronisation s'est terminée avec succès");
+        }
+
+        // Build detailed content
+        StringBuilder content = new StringBuilder();
+
+        // Summary section
+        content.append("═══════════════════════════════════════\n");
+        content.append("           RÉSUMÉ DE LA SYNCHRONISATION\n");
+        content.append("═══════════════════════════════════════\n\n");
+
+        // Pull statistics
+        content.append(String.format("📥 TÉLÉCHARGEMENT (PULL)\n"));
+        content.append(String.format("   Records reçus: %d\n\n", result.getRecordsPulled()));
+
+        // Push statistics
+        content.append(String.format("📤 ENVOI (PUSH)\n"));
+        content.append(String.format("   Records envoyés: %d\n\n", result.getRecordsPushed()));
+
+        // Total processed
+        int totalProcessed = result.getRecordsPulled() + result.getRecordsPushed();
+        content.append(String.format("📊 TOTAL TRAITÉ: %d records\n\n", totalProcessed));
+
+        // Conflicts section
+        if (hasConflicts) {
+            content.append(String.format("⚠️  CONFLITS DÉTECTÉS: %d\n", result.getConflicts()));
+            content.append("   (Les conflits ont été résolus automatiquement)\n\n");
+        } else {
+            content.append("✅ Aucun conflit détecté\n\n");
+        }
+
+        // Session info
+        content.append("───────────────────────────────────────\n");
+        content.append(String.format("Session ID: %s\n", result.getSyncSessionId()));
+        content.append(String.format("Heure: %s\n",
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))));
+
+        // Errors section (if any)
+        if (hasErrors) {
+            content.append("\n───────────────────────────────────────\n");
+            content.append("❌ ERREURS RENCONTRÉES:\n\n");
             for (String error : result.getErrors()) {
-                content += "• " + error + "\n";
+                content.append(String.format("   • %s\n", error));
             }
         }
 
-        alert.setContentText(content);
+        alert.setContentText(content.toString());
         alert.showAndWait();
+
+        // Update status bar with summary
+        if (statusLabel != null) {
+            statusLabel.setText(String.format("✅ Sync terminée: %d pull, %d push, %d conflits",
+                result.getRecordsPulled(), result.getRecordsPushed(), result.getConflicts()));
+        }
     }
 
     /**

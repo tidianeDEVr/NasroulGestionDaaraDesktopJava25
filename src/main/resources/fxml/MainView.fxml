@@ -57,8 +57,12 @@
 
             <Label text="SYSTÈME" style="-fx-font-size: 11px; -fx-text-fill: #57606a; -fx-padding: 8 12 4 12; -fx-font-weight: 600;"/>
 
-            <Button fx:id="btnSync" text="Synchroniser" onAction="#handleSync"
-                    styleClass="menu-button-sync" maxWidth="Infinity"/>
+            <HBox alignment="CENTER_LEFT" spacing="8" maxWidth="Infinity">
+                <Button fx:id="btnSync" text="Synchroniser" onAction="#handleSync"
+                        styleClass="menu-button-sync" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                <ProgressIndicator fx:id="syncProgressIndicator" prefWidth="20" prefHeight="20"
+                                 visible="false" managed="false"/>
+            </HBox>
 
             <Button text="Quitter" onAction="#handleExit"
                     styleClass="menu-button-exit" maxWidth="Infinity"/>
