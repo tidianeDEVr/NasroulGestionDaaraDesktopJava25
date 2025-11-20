@@ -16,8 +16,9 @@ public class ContributionDAO {
 
     public void create(Contribution contribution) throws SQLException {
         String sql = """
-            INSERT INTO contributions (member_id, entity_type, entity_id, amount, date, status, payment_method, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO contributions (member_id, entity_type, entity_id, amount, date, status, payment_method, notes,
+                                      created_at, updated_at, last_modified_by, sync_status, sync_version)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -53,7 +54,7 @@ public class ContributionDAO {
                    END AS entity_name
             FROM contributions c
             LEFT JOIN members m ON c.member_id = m.id
-            WHERE c.member_id = ?
+            WHERE c.member_id = ? AND c.deleted_at IS NULL
             ORDER BY c.date DESC
             """;
 
@@ -82,7 +83,7 @@ public class ContributionDAO {
                    END AS entity_name
             FROM contributions c
             LEFT JOIN members m ON c.member_id = m.id
-            WHERE c.entity_type = ? AND c.entity_id = ?
+            WHERE c.entity_type = ? AND c.entity_id = ? AND c.deleted_at IS NULL
             ORDER BY c.date DESC
             """;
 
@@ -112,7 +113,7 @@ public class ContributionDAO {
                    END AS entity_name
             FROM contributions c
             LEFT JOIN members m ON c.member_id = m.id
-            WHERE c.status = 'PENDING'
+            WHERE c.status = 'PENDING' AND c.deleted_at IS NULL
             ORDER BY c.date DESC
             """;
 
@@ -139,6 +140,7 @@ public class ContributionDAO {
                    END AS entity_name
             FROM contributions c
             LEFT JOIN members m ON c.member_id = m.id
+            WHERE c.deleted_at IS NULL
             ORDER BY c.date DESC
             """;
 
@@ -158,7 +160,9 @@ public class ContributionDAO {
         String sql = """
             UPDATE contributions
             SET member_id = ?, entity_type = ?, entity_id = ?, amount = ?,
-                date = ?, status = ?, payment_method = ?, notes = ?
+                date = ?, status = ?, payment_method = ?, notes = ?,
+                updated_at = datetime('now'), last_modified_by = 'system',
+                sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
 
@@ -180,7 +184,12 @@ public class ContributionDAO {
     }
 
     public void delete(int id) throws SQLException {
-        String sql = "DELETE FROM contributions WHERE id = ?";
+        // Soft delete - mark as deleted instead of physical deletion
+        String sql = """
+            UPDATE contributions
+            SET deleted_at = datetime('now'), sync_status = 'PENDING', sync_version = sync_version + 1
+            WHERE id = ?
+            """;
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -194,7 +203,7 @@ public class ContributionDAO {
         String sql = """
             SELECT SUM(amount)
             FROM contributions
-            WHERE entity_type = ? AND entity_id = ? AND status = 'PAID'
+            WHERE entity_type = ? AND entity_id = ? AND status = 'PAID' AND deleted_at IS NULL
             """;
 
         try (Connection conn = dbManager.getConnection();

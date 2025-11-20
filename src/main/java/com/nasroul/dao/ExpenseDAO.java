@@ -16,8 +16,8 @@ public class ExpenseDAO {
 
     public void create(Expense expense) throws SQLException {
         String sql = """
-            INSERT INTO expenses (description, amount, date, category, entity_type, entity_id, member_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO expenses (description, amount, date, category, entity_type, entity_id, member_id, created_at, updated_at, last_modified_by, sync_status, sync_version)
+            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -50,7 +50,7 @@ public class ExpenseDAO {
             LEFT JOIN members m ON e.member_id = m.id
             LEFT JOIN events ev ON e.entity_type = 'EVENT' AND e.entity_id = ev.id
             LEFT JOIN projects pr ON e.entity_type = 'PROJECT' AND e.entity_id = pr.id
-            WHERE e.id = ?
+            WHERE e.id = ? AND e.deleted_at IS NULL
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -77,6 +77,7 @@ public class ExpenseDAO {
             LEFT JOIN members m ON e.member_id = m.id
             LEFT JOIN events ev ON e.entity_type = 'EVENT' AND e.entity_id = ev.id
             LEFT JOIN projects pr ON e.entity_type = 'PROJECT' AND e.entity_id = pr.id
+            WHERE e.deleted_at IS NULL
             ORDER BY e.date DESC
             """;
 
@@ -102,7 +103,7 @@ public class ExpenseDAO {
             LEFT JOIN members m ON e.member_id = m.id
             LEFT JOIN events ev ON e.entity_type = 'EVENT' AND e.entity_id = ev.id
             LEFT JOIN projects pr ON e.entity_type = 'PROJECT' AND e.entity_id = pr.id
-            WHERE e.entity_type = ? AND e.entity_id = ?
+            WHERE e.entity_type = ? AND e.entity_id = ? AND e.deleted_at IS NULL
             ORDER BY e.date DESC
             """;
 
@@ -125,7 +126,8 @@ public class ExpenseDAO {
         String sql = """
             UPDATE expenses
             SET description = ?, amount = ?, date = ?, category = ?,
-                entity_type = ?, entity_id = ?, member_id = ?
+                entity_type = ?, entity_id = ?, member_id = ?,
+                updated_at = datetime('now'), last_modified_by = 'system', sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
 
@@ -146,7 +148,15 @@ public class ExpenseDAO {
     }
 
     public void delete(int id) throws SQLException {
-        String sql = "DELETE FROM expenses WHERE id = ?";
+        String sql = """
+            UPDATE expenses
+            SET deleted_at = datetime('now'),
+                updated_at = datetime('now'),
+                last_modified_by = 'system',
+                sync_status = 'PENDING',
+                sync_version = sync_version + 1
+            WHERE id = ?
+            """;
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {

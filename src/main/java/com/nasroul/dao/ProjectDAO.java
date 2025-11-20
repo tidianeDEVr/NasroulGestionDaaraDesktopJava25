@@ -16,8 +16,8 @@ public class ProjectDAO {
 
     public void create(Project project) throws SQLException {
         String sql = """
-            INSERT INTO projects (name, description, start_date, end_date, status, budget, target_budget, manager_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO projects (name, description, start_date, end_date, status, budget, target_budget, manager_id, created_at, updated_at, last_modified_by, sync_status, sync_version)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -47,7 +47,7 @@ public class ProjectDAO {
             SELECT p.*, m.first_name || ' ' || m.last_name AS manager_name
             FROM projects p
             LEFT JOIN members m ON p.manager_id = m.id
-            WHERE p.id = ?
+            WHERE p.id = ? AND p.deleted_at IS NULL
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -70,6 +70,7 @@ public class ProjectDAO {
             SELECT p.*, m.first_name || ' ' || m.last_name AS manager_name
             FROM projects p
             LEFT JOIN members m ON p.manager_id = m.id
+            WHERE p.deleted_at IS NULL
             ORDER BY p.name
             """;
 
@@ -89,7 +90,8 @@ public class ProjectDAO {
         String sql = """
             UPDATE projects
             SET name = ?, description = ?, start_date = ?, end_date = ?,
-                status = ?, budget = ?, target_budget = ?, manager_id = ?
+                status = ?, budget = ?, target_budget = ?, manager_id = ?,
+                updated_at = datetime('now'), last_modified_by = 'system', sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
 
@@ -111,7 +113,15 @@ public class ProjectDAO {
     }
 
     public void delete(int id) throws SQLException {
-        String sql = "DELETE FROM projects WHERE id = ?";
+        String sql = """
+            UPDATE projects
+            SET deleted_at = datetime('now'),
+                updated_at = datetime('now'),
+                last_modified_by = 'system',
+                sync_status = 'PENDING',
+                sync_version = sync_version + 1
+            WHERE id = ?
+            """;
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
