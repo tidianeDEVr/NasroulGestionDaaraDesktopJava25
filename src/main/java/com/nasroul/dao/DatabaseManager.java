@@ -423,19 +423,14 @@ public class DatabaseManager {
         String[] tables = {"groups", "members", "events", "projects", "expenses", "contributions", "payment_groups"};
 
         for (String table : tables) {
-            try {
-                // Try to add each sync column (will fail silently if already exists)
-                addColumnIfNotExists(stmt, table, "created_at", "TEXT");
-                addColumnIfNotExists(stmt, table, "updated_at", "TEXT");
-                addColumnIfNotExists(stmt, table, "deleted_at", "TEXT");
-                addColumnIfNotExists(stmt, table, "last_modified_by", "TEXT");
-                addColumnIfNotExists(stmt, table, "sync_status", "TEXT DEFAULT 'PENDING'");
-                addColumnIfNotExists(stmt, table, "sync_version", "INTEGER DEFAULT 1");
-                addColumnIfNotExists(stmt, table, "last_sync_at", "TEXT");
-            } catch (SQLException e) {
-                // Column might already exist, continue
-                System.out.println("Migration for table " + table + ": " + e.getMessage());
-            }
+            // Try to add each sync column (will fail silently if already exists)
+            addColumnIfNotExists(stmt, table, "created_at", "TEXT");
+            addColumnIfNotExists(stmt, table, "updated_at", "TEXT");
+            addColumnIfNotExists(stmt, table, "deleted_at", "TEXT");
+            addColumnIfNotExists(stmt, table, "last_modified_by", "TEXT");
+            addColumnIfNotExists(stmt, table, "sync_status", "TEXT DEFAULT 'PENDING'");
+            addColumnIfNotExists(stmt, table, "sync_version", "INTEGER DEFAULT 1");
+            addColumnIfNotExists(stmt, table, "last_sync_at", "TEXT");
         }
         System.out.println("Sync columns migration completed for SQLite");
     }
@@ -447,17 +442,13 @@ public class DatabaseManager {
         String[] tables = {"groups", "members", "events", "projects", "expenses", "contributions", "payment_groups"};
 
         for (String table : tables) {
-            try {
-                addColumnIfNotExistsMySQL(stmt, table, "created_at", "DATETIME");
-                addColumnIfNotExistsMySQL(stmt, table, "updated_at", "DATETIME");
-                addColumnIfNotExistsMySQL(stmt, table, "deleted_at", "DATETIME");
-                addColumnIfNotExistsMySQL(stmt, table, "last_modified_by", "VARCHAR(255)");
-                addColumnIfNotExistsMySQL(stmt, table, "sync_status", "VARCHAR(50) DEFAULT 'PENDING'");
-                addColumnIfNotExistsMySQL(stmt, table, "sync_version", "INT DEFAULT 1");
-                addColumnIfNotExistsMySQL(stmt, table, "last_sync_at", "DATETIME");
-            } catch (SQLException e) {
-                System.out.println("Migration for table " + table + ": " + e.getMessage());
-            }
+            addColumnIfNotExistsMySQL(stmt, table, "created_at", "DATETIME");
+            addColumnIfNotExistsMySQL(stmt, table, "updated_at", "DATETIME");
+            addColumnIfNotExistsMySQL(stmt, table, "deleted_at", "DATETIME");
+            addColumnIfNotExistsMySQL(stmt, table, "last_modified_by", "VARCHAR(255)");
+            addColumnIfNotExistsMySQL(stmt, table, "sync_status", "VARCHAR(50) DEFAULT 'PENDING'");
+            addColumnIfNotExistsMySQL(stmt, table, "sync_version", "INT DEFAULT 1");
+            addColumnIfNotExistsMySQL(stmt, table, "last_sync_at", "DATETIME");
         }
         System.out.println("Sync columns migration completed for MySQL");
     }
