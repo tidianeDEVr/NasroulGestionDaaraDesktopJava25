@@ -100,16 +100,21 @@ public class SyncManager {
     private int pullTableFromRemote(String tableName) throws SQLException {
         int pulledCount = 0;
 
-        // Get all records from remote (MySQL) that were modified after last sync
-        String sql = "SELECT * FROM `" + tableName + "` WHERE updated_at > ? OR updated_at IS NULL";
-
         // Get last sync time for this table
         LocalDateTime lastSync = getLastSyncTime(tableName);
+
+        // Get all records from remote (MySQL) that were modified after last sync
+        // Use MySQL-compatible min date if lastSync is null
+        String sql = lastSync != null
+            ? "SELECT * FROM `" + tableName + "` WHERE updated_at > ? OR updated_at IS NULL"
+            : "SELECT * FROM `" + tableName + "`";
 
         try (Connection remoteConn = dbManager.getMySQLConnection();
              PreparedStatement pstmt = remoteConn.prepareStatement(sql)) {
 
-            pstmt.setObject(1, lastSync != null ? lastSync : LocalDateTime.MIN);
+            if (lastSync != null) {
+                pstmt.setObject(1, lastSync);
+            }
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
@@ -280,7 +285,8 @@ public class SyncManager {
     }
 
     private void updateLocalEntity(String tableName, SyncableEntity entity) throws SQLException {
-        // TODO: Implement local update
+        // TODO: Implement using DAOs - simplified placeholder for now
+        // This should use the appropriate DAO (GroupDAO, MemberDAO, etc.) instead of generic SQL
     }
 
     private void updateRemoteEntity(String tableName, SyncableEntity entity) throws SQLException {
