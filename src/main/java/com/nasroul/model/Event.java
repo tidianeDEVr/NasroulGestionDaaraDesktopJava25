@@ -1,8 +1,10 @@
 package com.nasroul.model;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
-public class Event {
+public class Event extends SyncableEntity {
     private Integer id;
     private String name;
     private String description;
@@ -17,9 +19,26 @@ public class Event {
     private Double contributionTarget;
 
     public Event() {
+        super();
         this.status = "PLANNED";
         this.active = true;
         this.contributionTarget = 0.0;
+    }
+
+    @Override
+    public Map<String, Object> getFieldValuesForHash() {
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("name", name);
+        fields.put("description", description);
+        fields.put("startDate", startDate);
+        fields.put("endDate", endDate);
+        fields.put("location", location);
+        fields.put("status", status);
+        fields.put("organizerId", organizerId);
+        fields.put("maxCapacity", maxCapacity);
+        fields.put("active", active);
+        fields.put("contributionTarget", contributionTarget);
+        return fields;
     }
 
     public Integer getId() {

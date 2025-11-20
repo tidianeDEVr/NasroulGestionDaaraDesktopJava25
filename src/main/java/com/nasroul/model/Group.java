@@ -1,13 +1,26 @@
 package com.nasroul.model;
 
-public class Group {
+import java.util.HashMap;
+import java.util.Map;
+
+public class Group extends SyncableEntity {
     private Integer id;
     private String name;
     private String description;
     private boolean active;
 
     public Group() {
+        super();
         this.active = true;
+    }
+
+    @Override
+    public Map<String, Object> getFieldValuesForHash() {
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("name", name);
+        fields.put("description", description);
+        fields.put("active", active);
+        return fields;
     }
 
     public Integer getId() {

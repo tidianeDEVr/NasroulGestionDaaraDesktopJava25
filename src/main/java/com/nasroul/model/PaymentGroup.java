@@ -1,6 +1,9 @@
 package com.nasroul.model;
 
-public class PaymentGroup {
+import java.util.HashMap;
+import java.util.Map;
+
+public class PaymentGroup extends SyncableEntity {
     private Integer id;
     private Integer groupId;
     private String groupName;          // For display (from JOIN)
@@ -10,7 +13,18 @@ public class PaymentGroup {
     private Double amount;             // Amount per member
 
     public PaymentGroup() {
+        super();
         this.amount = 0.0;
+    }
+
+    @Override
+    public Map<String, Object> getFieldValuesForHash() {
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("groupId", groupId);
+        fields.put("entityType", entityType);
+        fields.put("entityId", entityId);
+        fields.put("amount", amount);
+        return fields;
     }
 
     // Getters and Setters
