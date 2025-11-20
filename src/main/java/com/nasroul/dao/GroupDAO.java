@@ -19,10 +19,9 @@ public class GroupDAO {
         String sql = """
             INSERT INTO `groups` (name, description, active,
                 created_at, updated_at, last_modified_by, sync_status, sync_version)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, datetime('now'), datetime('now'), ?, 'PENDING', 1)
             """;
 
-        LocalDateTime now = LocalDateTime.now();
         String deviceId = DeviceIdGenerator.getDeviceId();
 
         try (Connection conn = dbManager.getConnection();
@@ -31,11 +30,7 @@ public class GroupDAO {
             pstmt.setString(1, group.getName());
             pstmt.setString(2, group.getDescription());
             pstmt.setBoolean(3, group.isActive());
-            pstmt.setObject(4, now); // created_at
-            pstmt.setObject(5, now); // updated_at
-            pstmt.setString(6, deviceId); // last_modified_by
-            pstmt.setString(7, "PENDING"); // sync_status
-            pstmt.setInt(8, 1); // sync_version
+            pstmt.setString(4, deviceId); // last_modified_by
 
             pstmt.executeUpdate();
 
@@ -46,6 +41,7 @@ public class GroupDAO {
             }
 
             // Set sync metadata on the model
+            LocalDateTime now = LocalDateTime.now();
             group.setCreatedAt(now);
             group.setUpdatedAt(now);
             group.setLastModifiedBy(deviceId);
@@ -107,11 +103,11 @@ public class GroupDAO {
         String sql = """
             UPDATE `groups`
             SET name = ?, description = ?, active = ?,
-                updated_at = ?, last_modified_by = ?, sync_status = ?, sync_version = sync_version + 1
+                updated_at = datetime('now'), last_modified_by = ?, sync_status = 'PENDING',
+                sync_version = sync_version + 1
             WHERE id = ?
             """;
 
-        LocalDateTime now = LocalDateTime.now();
         String deviceId = DeviceIdGenerator.getDeviceId();
 
         try (Connection conn = dbManager.getConnection();
@@ -120,15 +116,13 @@ public class GroupDAO {
             pstmt.setString(1, group.getName());
             pstmt.setString(2, group.getDescription());
             pstmt.setBoolean(3, group.isActive());
-            pstmt.setObject(4, now); // updated_at
-            pstmt.setString(5, deviceId); // last_modified_by
-            pstmt.setString(6, "PENDING"); // sync_status
-            pstmt.setInt(7, group.getId());
+            pstmt.setString(4, deviceId); // last_modified_by
+            pstmt.setInt(5, group.getId());
 
             pstmt.executeUpdate();
 
             // Update sync metadata on the model
-            group.setUpdatedAt(now);
+            group.setUpdatedAt(LocalDateTime.now());
             group.setLastModifiedBy(deviceId);
             group.setSyncStatus("PENDING");
             group.setSyncVersion((group.getSyncVersion() != null ? group.getSyncVersion() : 0) + 1);
@@ -139,22 +133,18 @@ public class GroupDAO {
         // Soft delete: mark as deleted instead of physical deletion
         String sql = """
             UPDATE `groups`
-            SET deleted_at = ?, updated_at = ?, last_modified_by = ?,
-                sync_status = ?, sync_version = sync_version + 1
+            SET deleted_at = datetime('now'), updated_at = datetime('now'),
+                last_modified_by = ?, sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
 
-        LocalDateTime now = LocalDateTime.now();
         String deviceId = DeviceIdGenerator.getDeviceId();
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setObject(1, now); // deleted_at
-            pstmt.setObject(2, now); // updated_at
-            pstmt.setString(3, deviceId); // last_modified_by
-            pstmt.setString(4, "PENDING"); // sync_status
-            pstmt.setInt(5, id);
+            pstmt.setString(1, deviceId); // last_modified_by
+            pstmt.setInt(2, id);
 
             pstmt.executeUpdate();
         }
@@ -184,22 +174,46 @@ public class GroupDAO {
         group.setDescription(rs.getString("description"));
         group.setActive(rs.getBoolean("active"));
 
-        // Extract sync metadata
-        Timestamp createdAt = rs.getTimestamp("created_at");
-        if (createdAt != null) group.setCreatedAt(createdAt.toLocalDateTime());
+        // Extract sync metadata - SQLite stores datetime as TEXT
+        String createdAt = rs.getString("created_at");
+        if (createdAt != null && !createdAt.isEmpty()) {
+            try {
+                group.setCreatedAt(LocalDateTime.parse(createdAt.replace(" ", "T")));
+            } catch (Exception e) {
+                // Ignore parsing errors
+            }
+        }
 
-        Timestamp updatedAt = rs.getTimestamp("updated_at");
-        if (updatedAt != null) group.setUpdatedAt(updatedAt.toLocalDateTime());
+        String updatedAt = rs.getString("updated_at");
+        if (updatedAt != null && !updatedAt.isEmpty()) {
+            try {
+                group.setUpdatedAt(LocalDateTime.parse(updatedAt.replace(" ", "T")));
+            } catch (Exception e) {
+                // Ignore parsing errors
+            }
+        }
 
-        Timestamp deletedAt = rs.getTimestamp("deleted_at");
-        if (deletedAt != null) group.setDeletedAt(deletedAt.toLocalDateTime());
+        String deletedAt = rs.getString("deleted_at");
+        if (deletedAt != null && !deletedAt.isEmpty()) {
+            try {
+                group.setDeletedAt(LocalDateTime.parse(deletedAt.replace(" ", "T")));
+            } catch (Exception e) {
+                // Ignore parsing errors
+            }
+        }
 
         group.setLastModifiedBy(rs.getString("last_modified_by"));
         group.setSyncStatus(rs.getString("sync_status"));
         group.setSyncVersion(rs.getInt("sync_version"));
 
-        Timestamp lastSyncAt = rs.getTimestamp("last_sync_at");
-        if (lastSyncAt != null) group.setLastSyncAt(lastSyncAt.toLocalDateTime());
+        String lastSyncAt = rs.getString("last_sync_at");
+        if (lastSyncAt != null && !lastSyncAt.isEmpty()) {
+            try {
+                group.setLastSyncAt(LocalDateTime.parse(lastSyncAt.replace(" ", "T")));
+            } catch (Exception e) {
+                // Ignore parsing errors
+            }
+        }
 
         return group;
     }
