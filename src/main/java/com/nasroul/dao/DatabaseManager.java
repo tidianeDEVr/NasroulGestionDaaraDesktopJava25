@@ -40,7 +40,18 @@ public class DatabaseManager {
      * Get SQLite connection (local, primary database)
      */
     public Connection getSQLiteConnection() throws SQLException {
-        return DriverManager.getConnection("jdbc:sqlite:" + config.getSQLitePath());
+        Connection conn = DriverManager.getConnection("jdbc:sqlite:" + config.getSQLitePath());
+
+        // Enable WAL mode for better concurrency (allows simultaneous reads and one write)
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("PRAGMA journal_mode=WAL");
+            // Set busy timeout to 30 seconds to handle locks
+            stmt.execute("PRAGMA busy_timeout=30000");
+        } catch (SQLException e) {
+            System.err.println("Failed to set SQLite pragmas: " + e.getMessage());
+        }
+
+        return conn;
     }
 
     /**
