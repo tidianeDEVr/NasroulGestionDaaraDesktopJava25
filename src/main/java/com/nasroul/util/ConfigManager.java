@@ -119,4 +119,63 @@ public class ConfigManager {
     public String getSmsCreditsUrl() {
         return getProperty("sms.credits.url", "https://lamsms.lafricamobile.com/credits");
     }
+
+    // Sync Configuration getters
+
+    /**
+     * Check if auto-sync is enabled
+     */
+    public boolean isSyncAutoEnabled() {
+        return Boolean.parseBoolean(getProperty("sync.auto.enabled", "false"));
+    }
+
+    /**
+     * Get auto-sync interval in minutes
+     */
+    public int getSyncAutoInterval() {
+        return Integer.parseInt(getProperty("sync.auto.interval", "30"));
+    }
+
+    /**
+     * Get sync conflict resolution strategy
+     * Options: LAST_WRITE_WINS, LOCAL_WINS, REMOTE_WINS, MANUAL, HIGHER_VERSION_WINS
+     */
+    public String getSyncConflictStrategy() {
+        return getProperty("sync.conflict.strategy", "LAST_WRITE_WINS");
+    }
+
+    /**
+     * Check if sync should run on startup
+     */
+    public boolean isSyncOnStartup() {
+        return Boolean.parseBoolean(getProperty("sync.on.startup", "false"));
+    }
+
+    /**
+     * Get number of days to keep sync logs
+     */
+    public int getSyncLogRetentionDays() {
+        return Integer.parseInt(getProperty("sync.log.retention.days", "30"));
+    }
+
+    /**
+     * Check if offline mode is enabled (only use SQLite)
+     */
+    public boolean isOfflineModeEnabled() {
+        return Boolean.parseBoolean(getProperty("sync.offline.mode", "false"));
+    }
+
+    /**
+     * Get sync timeout in seconds
+     */
+    public int getSyncTimeout() {
+        return Integer.parseInt(getProperty("sync.timeout.seconds", "300"));
+    }
+
+    /**
+     * Check if sync notifications are enabled
+     */
+    public boolean isSyncNotificationsEnabled() {
+        return Boolean.parseBoolean(getProperty("sync.notifications.enabled", "true"));
+    }
 }
