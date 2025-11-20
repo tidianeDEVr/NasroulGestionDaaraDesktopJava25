@@ -61,7 +61,6 @@ public class MainController {
     private ProgressIndicator syncProgressIndicator;
 
     private Timeline clockTimeline;
-    private String originalSyncButtonText = "Synchroniser";
     private final SyncService syncService = SyncService.getInstance();
     private final DeviceRegistrationService deviceService = DeviceRegistrationService.getInstance();
 
@@ -219,32 +218,30 @@ public class MainController {
     }
 
     /**
-     * Start sync UI feedback - disable button, show spinner, update text
+     * Start sync UI feedback - disable button, show spinner
      */
     private void startSyncUI() {
         Platform.runLater(() -> {
             if (btnSync != null) {
                 btnSync.setDisable(true);
-                btnSync.setText("Synchronisation en cours...");
+                // Keep button text as "Synchroniser" - status is shown in footer
             }
             if (syncProgressIndicator != null) {
                 syncProgressIndicator.setVisible(true);
                 syncProgressIndicator.setManaged(true);
             }
-            if (statusLabel != null) {
-                statusLabel.setText("🔄 Synchronisation des données...");
-            }
+            // Note: syncStatusLabel in footer shows "🔄 Synchronisation en cours..."
         });
     }
 
     /**
-     * Stop sync UI feedback - enable button, hide spinner, restore text
+     * Stop sync UI feedback - enable button, hide spinner
      */
     private void stopSyncUI() {
         Platform.runLater(() -> {
             if (btnSync != null) {
                 btnSync.setDisable(false);
-                btnSync.setText(originalSyncButtonText);
+                // Button text stays "Synchroniser"
             }
             if (syncProgressIndicator != null) {
                 syncProgressIndicator.setVisible(false);

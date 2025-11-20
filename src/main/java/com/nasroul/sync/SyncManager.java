@@ -104,8 +104,8 @@ public class SyncManager {
         // Get last sync time for this table
         LocalDateTime lastSync = getLastSyncTime(tableName);
 
-        // Get all records from remote (MySQL) that were modified after last sync
-        // Use MySQL-compatible min date if lastSync is null
+        // IMPORTANT: Get ALL records, including soft-deleted ones (deleted_at IS NOT NULL)
+        // This ensures soft deletes propagate between devices
         String sql = lastSync != null
             ? "SELECT * FROM `" + tableName + "` WHERE updated_at > ? OR updated_at IS NULL"
             : "SELECT * FROM `" + tableName + "`";
@@ -119,61 +119,72 @@ public class SyncManager {
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    int recordId = rs.getInt("id");
+                    int remoteId = rs.getInt("id");
+                    String remoteDeletedAt = rs.getString("deleted_at");
 
                     try {
-                        // Get local version
-                        SyncableEntity localEntity = getLocalEntity(tableName, recordId);
+                        // Find local ID for this remote ID
+                        Integer localId = syncMetadataDAO.getLocalIdByRemoteId(tableName, remoteId);
+
                         SyncableEntity remoteEntity = extractEntity(tableName, rs);
 
-                        // Get last synced hash
-                        SyncMetadataDAO.SyncMetadata metadata = syncMetadataDAO.get(tableName, recordId);
-                        String lastSyncedHash = metadata != null ? metadata.getRemoteHash() : null;
+                        if (localId != null) {
+                            // Mapping exists - update local record
+                            SyncableEntity localEntity = getLocalEntity(tableName, localId);
 
-                        // Detect conflicts
-                        ConflictType conflict = conflictDetector.detectConflict(
-                                localEntity, remoteEntity, lastSyncedHash);
-
-                        if (conflict != ConflictType.NO_CONFLICT) {
-                            // Resolve conflict
-                            Resolution resolution = conflictResolver.resolve(localEntity, remoteEntity, conflict);
-
-                            if (resolution.getAction() == ResolutionAction.TAKE_REMOTE) {
+                            // CRITICAL: Propagate soft delete
+                            if (remoteDeletedAt != null && !remoteDeletedAt.isEmpty()) {
+                                // Remote was deleted - mark local as deleted too
+                                softDeleteLocal(tableName, localId);
+                                pulledCount++;
+                                System.out.println("Propagated soft delete: " + tableName + " local ID " + localId);
+                            } else if (localEntity == null || !localEntity.calculateHash().equals(remoteEntity.calculateHash())) {
+                                // Update local with remote changes
                                 updateLocalEntity(tableName, remoteEntity);
                                 pulledCount++;
-                            } else if (resolution.getAction() == ResolutionAction.MANUAL_RESOLUTION) {
-                                // Mark as conflict for manual resolution
-                                markConflict(tableName, recordId, "Manual resolution required");
                             }
-                            // If TAKE_LOCAL, do nothing (keep local version)
+
+                            // Update sync metadata
+                            String hash = remoteEntity.calculateHash();
+                            syncMetadataDAO.save(tableName, localId,
+                                    remoteEntity.getSyncVersion(),
+                                    hash, hash, "SYNCED");
+
+                            syncLogDAO.log(currentSyncSession, tableName, localId,
+                                    "UPDATE", "PULL", "SUCCESS", null);
+
                         } else {
-                            // No conflict, update local
-                            if (localEntity == null || !localEntity.calculateHash().equals(remoteEntity.calculateHash())) {
-                                updateLocalEntity(tableName, remoteEntity);
+                            // No mapping - new record from another device
+                            if (remoteDeletedAt == null || remoteDeletedAt.isEmpty()) {
+                                // Only create if not deleted
+                                int newLocalId = insertLocalEntity(tableName, remoteEntity);
+                                syncMetadataDAO.setRemoteId(tableName, newLocalId, remoteId);
                                 pulledCount++;
+                                System.out.println("Created local record from remote: " + tableName + " local ID " + newLocalId + " ← remote ID " + remoteId);
+
+                                // Update sync metadata
+                                String hash = remoteEntity.calculateHash();
+                                syncMetadataDAO.save(tableName, newLocalId,
+                                        remoteEntity.getSyncVersion(),
+                                        hash, hash, "SYNCED");
+
+                                syncLogDAO.log(currentSyncSession, tableName, newLocalId,
+                                        "INSERT", "PULL", "SUCCESS", null);
                             }
                         }
 
-                        // Update sync metadata in BOTH SQLite (local) AND MySQL (remote)
-                        String hash = remoteEntity.calculateHash();
-                        syncMetadataDAO.save(tableName, recordId,
-                                remoteEntity.getSyncVersion(),
-                                hash, hash, "SYNCED");
-
                         // CRITICAL: Also save to MySQL so other devices can see sync state
-                        syncMetadataDAO.saveMySQLMetadata(tableName, recordId,
+                        String hash = remoteEntity.calculateHash();
+                        syncMetadataDAO.saveMySQLMetadata(tableName, remoteId,
                                 remoteEntity.getSyncVersion(),
                                 hash, hash, "SYNCED");
-
-                        syncLogDAO.log(currentSyncSession, tableName, recordId,
-                                "UPDATE", "PULL", "SUCCESS", null);
 
                         // Also log to MySQL
-                        syncLogDAO.logMySQL(currentSyncSession, tableName, recordId,
+                        syncLogDAO.logMySQL(currentSyncSession, tableName, remoteId,
                                 "UPDATE", "PULL", "SUCCESS", null);
 
                     } catch (Exception e) {
-                        syncLogDAO.log(currentSyncSession, tableName, recordId,
+                        syncLogDAO.log(currentSyncSession, tableName, remoteId,
                                 "UPDATE", "PULL", "FAILED", e.getMessage());
                     }
                 }
@@ -339,6 +350,9 @@ public class SyncManager {
         GenericSyncableEntity genericEntity = (GenericSyncableEntity) entity;
         Map<String, Object> fields = genericEntity.getAllFields();
 
+        // CRITICAL: Convert remote FK IDs to local FK IDs before updating
+        fields = convertForeignKeysForPull(tableName, fields);
+
         // Build dynamic UPDATE SQL
         StringBuilder sql = new StringBuilder("UPDATE `").append(tableName).append("` SET ");
         List<String> setClauses = new ArrayList<>();
@@ -373,7 +387,21 @@ public class SyncManager {
         }
 
         GenericSyncableEntity genericEntity = (GenericSyncableEntity) entity;
+        int localId = genericEntity.getId();
+
+        // Get remote ID for this local record
+        Integer remoteId = syncMetadataDAO.getRemoteId(tableName, localId);
+        if (remoteId == null) {
+            // No mapping exists - this should be an insert, not update
+            System.out.println("No remote ID mapping found for " + tableName + " local ID " + localId + " - inserting instead");
+            insertRemoteEntity(tableName, entity);
+            return;
+        }
+
         Map<String, Object> fields = genericEntity.getAllFields();
+
+        // CRITICAL: Convert local FK IDs to remote FK IDs before pushing
+        fields = convertForeignKeysForPush(tableName, fields);
 
         // Build dynamic UPDATE SQL for MySQL
         StringBuilder sql = new StringBuilder("UPDATE `").append(tableName).append("` SET ");
@@ -397,7 +425,8 @@ public class SyncManager {
             for (Object value : values) {
                 pstmt.setObject(paramIndex++, value);
             }
-            pstmt.setInt(paramIndex, genericEntity.getId());
+            // Use REMOTE ID in WHERE clause, not local ID!
+            pstmt.setInt(paramIndex, remoteId);
 
             pstmt.executeUpdate();
         }
@@ -409,7 +438,11 @@ public class SyncManager {
         }
 
         GenericSyncableEntity genericEntity = (GenericSyncableEntity) entity;
+        int localId = genericEntity.getId();
         Map<String, Object> fields = genericEntity.getAllFields();
+
+        // CRITICAL: Convert local FK IDs to remote FK IDs before pushing
+        fields = convertForeignKeysForPush(tableName, fields);
 
         // Build dynamic INSERT SQL for MySQL
         StringBuilder sql = new StringBuilder("INSERT INTO `").append(tableName).append("` (");
@@ -431,7 +464,8 @@ public class SyncManager {
         sql.append(")");
 
         try (Connection conn = dbManager.getMySQLConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql.toString())) {
+             PreparedStatement pstmt = conn.prepareStatement(sql.toString(),
+                                                             Statement.RETURN_GENERATED_KEYS)) {
 
             int paramIndex = 1;
             for (Object value : values) {
@@ -439,6 +473,15 @@ public class SyncManager {
             }
 
             pstmt.executeUpdate();
+
+            // CRITICAL: Capture MySQL generated ID and save mapping
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    int remoteId = rs.getInt(1);
+                    syncMetadataDAO.setRemoteId(tableName, localId, remoteId);
+                    System.out.println("Mapped " + tableName + " local ID " + localId + " → remote ID " + remoteId);
+                }
+            }
         }
     }
 
@@ -465,6 +508,76 @@ public class SyncManager {
         }
     }
 
+    /**
+     * Soft delete a local record by setting deleted_at timestamp
+     */
+    private void softDeleteLocal(String tableName, int localId) throws SQLException {
+        String sql = "UPDATE `" + tableName + "` SET deleted_at = datetime('now'), " +
+                     "sync_status = 'SYNCED' WHERE id = ?";
+
+        try (Connection conn = dbManager.getSQLiteConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, localId);
+            pstmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Insert entity into local database and return generated ID
+     */
+    private int insertLocalEntity(String tableName, SyncableEntity entity) throws SQLException {
+        if (!(entity instanceof GenericSyncableEntity)) {
+            throw new SQLException("Entity must be GenericSyncableEntity");
+        }
+
+        GenericSyncableEntity genericEntity = (GenericSyncableEntity) entity;
+        Map<String, Object> fields = genericEntity.getAllFields();
+
+        // CRITICAL: Convert remote FK IDs to local FK IDs before inserting
+        fields = convertForeignKeysForPull(tableName, fields);
+
+        // Build dynamic INSERT SQL for SQLite
+        StringBuilder sql = new StringBuilder("INSERT INTO `").append(tableName).append("` (");
+        List<String> columns = new ArrayList<>();
+        List<String> placeholders = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+
+        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+            if (!entry.getKey().equals("id")) {  // Skip auto-increment ID
+                columns.add(entry.getKey());
+                placeholders.add("?");
+                values.add(entry.getValue());
+            }
+        }
+
+        sql.append(String.join(", ", columns));
+        sql.append(") VALUES (");
+        sql.append(String.join(", ", placeholders));
+        sql.append(")");
+
+        try (Connection conn = dbManager.getSQLiteConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql.toString(),
+                                                             Statement.RETURN_GENERATED_KEYS)) {
+
+            int paramIndex = 1;
+            for (Object value : values) {
+                pstmt.setObject(paramIndex++, value);
+            }
+
+            pstmt.executeUpdate();
+
+            // Return the generated local ID
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+
+            throw new SQLException("Failed to get generated ID for inserted local entity");
+        }
+    }
+
     private LocalDateTime getLastSyncTime(String tableName) throws SQLException {
         String sql = "SELECT MAX(last_sync_at) FROM `" + tableName + "`";
 
@@ -488,6 +601,151 @@ public class SyncManager {
         }
 
         return null;
+    }
+
+    /**
+     * Get foreign key mappings for a table
+     * Returns Map of: FK column name → referenced table name
+     */
+    private Map<String, String> getForeignKeyMappings(String tableName) {
+        Map<String, String> mappings = new java.util.HashMap<>();
+
+        switch (tableName) {
+            case "members":
+                mappings.put("group_id", "groups");
+                break;
+
+            case "events":
+                mappings.put("organizer_id", "members");
+                break;
+
+            case "projects":
+                // No FK for now
+                break;
+
+            case "contributions":
+                mappings.put("member_id", "members");
+                // entity_id is polymorphic (events or projects) - handled specially
+                break;
+
+            case "expenses":
+                mappings.put("project_id", "projects");
+                mappings.put("paid_by", "members");
+                break;
+
+            case "payment_groups":
+                mappings.put("group_id", "groups");
+                break;
+
+            default:
+                // No mappings for unknown tables
+                break;
+        }
+
+        return mappings;
+    }
+
+    /**
+     * Convert local FK IDs to remote FK IDs before PUSH
+     * CRITICAL: This ensures relationships are preserved when syncing to MySQL
+     */
+    private Map<String, Object> convertForeignKeysForPush(String tableName, Map<String, Object> fields) throws SQLException {
+        Map<String, Object> converted = new java.util.HashMap<>(fields);
+        Map<String, String> fkMappings = getForeignKeyMappings(tableName);
+
+        for (Map.Entry<String, String> fk : fkMappings.entrySet()) {
+            String fkColumn = fk.getKey();    // e.g., "group_id"
+            String fkTable = fk.getValue();   // e.g., "groups"
+
+            Object localFkValue = fields.get(fkColumn);
+            if (localFkValue != null && localFkValue instanceof Integer) {
+                int localFkId = (Integer) localFkValue;
+
+                // Get remote ID for this local FK
+                Integer remoteFkId = syncMetadataDAO.getRemoteId(fkTable, localFkId);
+                if (remoteFkId != null) {
+                    converted.put(fkColumn, remoteFkId);
+                    System.out.println("Converted FK for PUSH: " + tableName + "." + fkColumn + " local " + localFkId + " → remote " + remoteFkId);
+                } else {
+                    System.err.println("WARNING: No remote ID mapping found for " + fkTable + " local ID " + localFkId + " - keeping local ID (may cause FK constraint error)");
+                }
+            }
+        }
+
+        // Special handling for polymorphic entity_id in contributions
+        if (tableName.equals("contributions")) {
+            String entityType = (String) fields.get("entity_type");
+            Object entityIdValue = fields.get("entity_id");
+
+            if (entityType != null && entityIdValue != null && entityIdValue instanceof Integer) {
+                int localEntityId = (Integer) entityIdValue;
+                String entityTable = entityType.equals("EVENT") ? "events" : "projects";
+
+                Integer remoteEntityId = syncMetadataDAO.getRemoteId(entityTable, localEntityId);
+                if (remoteEntityId != null) {
+                    converted.put("entity_id", remoteEntityId);
+                    System.out.println("Converted polymorphic FK for PUSH: contributions.entity_id (" + entityType + ") local " + localEntityId + " → remote " + remoteEntityId);
+                } else {
+                    System.err.println("WARNING: No remote ID mapping found for " + entityTable + " local ID " + localEntityId);
+                }
+            }
+        }
+
+        return converted;
+    }
+
+    /**
+     * Convert remote FK IDs to local FK IDs after PULL
+     * CRITICAL: This ensures relationships work correctly in local SQLite
+     */
+    private Map<String, Object> convertForeignKeysForPull(String tableName, Map<String, Object> fields) throws SQLException {
+        Map<String, Object> converted = new java.util.HashMap<>(fields);
+        Map<String, String> fkMappings = getForeignKeyMappings(tableName);
+
+        for (Map.Entry<String, String> fk : fkMappings.entrySet()) {
+            String fkColumn = fk.getKey();    // e.g., "group_id"
+            String fkTable = fk.getValue();   // e.g., "groups"
+
+            Object remoteFkValue = fields.get(fkColumn);
+            if (remoteFkValue != null && remoteFkValue instanceof Integer) {
+                int remoteFkId = (Integer) remoteFkValue;
+
+                // Get local ID for this remote FK
+                Integer localFkId = syncMetadataDAO.getLocalIdByRemoteId(fkTable, remoteFkId);
+                if (localFkId != null) {
+                    converted.put(fkColumn, localFkId);
+                    System.out.println("Converted FK for PULL: " + tableName + "." + fkColumn + " remote " + remoteFkId + " → local " + localFkId);
+                } else {
+                    // FK reference doesn't exist locally yet - this could happen if:
+                    // 1. Referenced record hasn't been synced yet
+                    // 2. Referenced record was deleted
+                    System.err.println("WARNING: No local ID mapping found for " + fkTable + " remote ID " + remoteFkId + " - setting FK to NULL");
+                    converted.put(fkColumn, null);
+                }
+            }
+        }
+
+        // Special handling for polymorphic entity_id in contributions
+        if (tableName.equals("contributions")) {
+            String entityType = (String) fields.get("entity_type");
+            Object entityIdValue = fields.get("entity_id");
+
+            if (entityType != null && entityIdValue != null && entityIdValue instanceof Integer) {
+                int remoteEntityId = (Integer) entityIdValue;
+                String entityTable = entityType.equals("EVENT") ? "events" : "projects";
+
+                Integer localEntityId = syncMetadataDAO.getLocalIdByRemoteId(entityTable, remoteEntityId);
+                if (localEntityId != null) {
+                    converted.put("entity_id", localEntityId);
+                    System.out.println("Converted polymorphic FK for PULL: contributions.entity_id (" + entityType + ") remote " + remoteEntityId + " → local " + localEntityId);
+                } else {
+                    System.err.println("WARNING: No local ID mapping found for " + entityTable + " remote ID " + remoteEntityId + " - setting entity_id to NULL");
+                    converted.put("entity_id", null);
+                }
+            }
+        }
+
+        return converted;
     }
 
     /**
