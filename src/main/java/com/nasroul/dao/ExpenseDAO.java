@@ -29,7 +29,13 @@ public class ExpenseDAO {
             pstmt.setString(4, expense.getCategory());
             pstmt.setString(5, expense.getEntityType());
             pstmt.setInt(6, expense.getEntityId());
-            pstmt.setObject(7, expense.getMemberId());
+
+            // Handle nullable member_id - SQLite JDBC doesn't support setObject for nulls
+            if (expense.getMemberId() != null) {
+                pstmt.setInt(7, expense.getMemberId());
+            } else {
+                pstmt.setNull(7, Types.INTEGER);
+            }
 
             pstmt.executeUpdate();
 
@@ -140,7 +146,14 @@ public class ExpenseDAO {
             pstmt.setString(4, expense.getCategory());
             pstmt.setString(5, expense.getEntityType());
             pstmt.setInt(6, expense.getEntityId());
-            pstmt.setObject(7, expense.getMemberId());
+
+            // Handle nullable member_id - SQLite JDBC doesn't support setObject for nulls
+            if (expense.getMemberId() != null) {
+                pstmt.setInt(7, expense.getMemberId());
+            } else {
+                pstmt.setNull(7, Types.INTEGER);
+            }
+
             pstmt.setInt(8, expense.getId());
 
             pstmt.executeUpdate();
