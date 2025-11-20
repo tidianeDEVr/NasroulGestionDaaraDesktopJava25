@@ -231,9 +231,7 @@ public class MainController {
                 syncProgressIndicator.setVisible(true);
                 syncProgressIndicator.setManaged(true);
             }
-            if (statusLabel != null) {
-                statusLabel.setText("🔄 Synchronisation des données...");
-            }
+            // Note: syncStatusLabel is updated by the status listener, not here
         });
     }
 

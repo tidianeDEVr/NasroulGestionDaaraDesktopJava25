@@ -96,6 +96,9 @@ public class DatabaseManager {
             // MIGRATION: Add sync columns to existing tables
             migrateSyncColumns(stmt);
 
+            // MIGRATION: Add remote_id column to sync_metadata
+            migrateRemoteIdColumn(stmt);
+
             System.out.println("SQLite database initialized successfully (offline-first)");
             connectionError = null;
 
@@ -106,6 +109,7 @@ public class DatabaseManager {
                     createTablesMySQL(mysqlStmt);
                     createSyncTablesMySQL(mysqlStmt);
                     migrateSyncColumnsMySQL(mysqlStmt);
+                    migrateRemoteIdColumnMySQL(mysqlStmt);
                     System.out.println("MySQL database also initialized (for sync)");
                 } catch (SQLException e) {
                     System.out.println("MySQL not available (offline mode): " + e.getMessage());
@@ -352,6 +356,7 @@ public class DatabaseManager {
             CREATE TABLE IF NOT EXISTS sync_metadata (
                 table_name VARCHAR(255) NOT NULL,
                 record_id INT NOT NULL,
+                remote_id INT,
                 sync_version INT DEFAULT 1,
                 local_hash VARCHAR(255),
                 remote_hash VARCHAR(255),
@@ -392,6 +397,7 @@ public class DatabaseManager {
             CREATE TABLE IF NOT EXISTS sync_metadata (
                 table_name TEXT NOT NULL,
                 record_id INTEGER NOT NULL,
+                remote_id INTEGER,
                 sync_version INTEGER DEFAULT 1,
                 local_hash TEXT,
                 remote_hash TEXT,
@@ -462,6 +468,22 @@ public class DatabaseManager {
             addColumnIfNotExistsMySQL(stmt, table, "last_sync_at", "DATETIME");
         }
         System.out.println("Sync columns migration completed for MySQL");
+    }
+
+    /**
+     * Migrate sync_metadata to add remote_id column (SQLite)
+     */
+    private void migrateRemoteIdColumn(Statement stmt) throws SQLException {
+        addColumnIfNotExists(stmt, "sync_metadata", "remote_id", "INTEGER");
+        System.out.println("Added remote_id column to sync_metadata (SQLite)");
+    }
+
+    /**
+     * Migrate sync_metadata to add remote_id column (MySQL)
+     */
+    private void migrateRemoteIdColumnMySQL(Statement stmt) throws SQLException {
+        addColumnIfNotExistsMySQL(stmt, "sync_metadata", "remote_id", "INT");
+        System.out.println("Added remote_id column to sync_metadata (MySQL)");
     }
 
     private void addColumnIfNotExists(Statement stmt, String table, String column, String type) {
