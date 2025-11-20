@@ -15,8 +15,8 @@ public class PaymentGroupDAO {
 
     public void create(PaymentGroup paymentGroup) throws SQLException {
         String sql = """
-            INSERT INTO payment_groups (group_id, entity_type, entity_id, amount)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO payment_groups (group_id, entity_type, entity_id, amount, created_at, updated_at, last_modified_by, sync_status, sync_version)
+            VALUES (?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -46,7 +46,7 @@ public class PaymentGroupDAO {
             LEFT JOIN `groups` g ON pg.group_id = g.id
             LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id
             LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id
-            WHERE pg.id = ?
+            WHERE pg.id = ? AND pg.deleted_at IS NULL
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -72,6 +72,7 @@ public class PaymentGroupDAO {
             LEFT JOIN `groups` g ON pg.group_id = g.id
             LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id
             LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id
+            WHERE pg.deleted_at IS NULL
             ORDER BY pg.id DESC
             """;
 
@@ -98,7 +99,7 @@ public class PaymentGroupDAO {
             LEFT JOIN `groups` g ON pg.group_id = g.id
             LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id
             LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id
-            WHERE pg.group_id = ?
+            WHERE pg.group_id = ? AND pg.deleted_at IS NULL
             ORDER BY pg.id DESC
             """;
 
@@ -128,7 +129,7 @@ public class PaymentGroupDAO {
             LEFT JOIN `groups` g ON pg.group_id = g.id
             LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id
             LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id
-            WHERE pg.entity_type = ? AND pg.entity_id = ?
+            WHERE pg.entity_type = ? AND pg.entity_id = ? AND pg.deleted_at IS NULL
             ORDER BY pg.id DESC
             """;
 
@@ -153,7 +154,8 @@ public class PaymentGroupDAO {
     public void update(PaymentGroup paymentGroup) throws SQLException {
         String sql = """
             UPDATE payment_groups
-            SET group_id = ?, entity_type = ?, entity_id = ?, amount = ?
+            SET group_id = ?, entity_type = ?, entity_id = ?, amount = ?,
+                updated_at = datetime('now'), last_modified_by = 'system', sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
 
@@ -171,7 +173,15 @@ public class PaymentGroupDAO {
     }
 
     public void delete(int id) throws SQLException {
-        String sql = "DELETE FROM payment_groups WHERE id = ?";
+        String sql = """
+            UPDATE payment_groups
+            SET deleted_at = datetime('now'),
+                updated_at = datetime('now'),
+                last_modified_by = 'system',
+                sync_status = 'PENDING',
+                sync_version = sync_version + 1
+            WHERE id = ?
+            """;
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -185,7 +195,7 @@ public class PaymentGroupDAO {
         String sql = """
             SELECT SUM(amount) AS total
             FROM payment_groups
-            WHERE entity_type = ? AND entity_id = ?
+            WHERE entity_type = ? AND entity_id = ? AND deleted_at IS NULL
             """;
 
         try (Connection conn = dbManager.getConnection();

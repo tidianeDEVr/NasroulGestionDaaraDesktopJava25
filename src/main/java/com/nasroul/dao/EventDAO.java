@@ -16,8 +16,8 @@ public class EventDAO {
 
     public void create(Event event) throws SQLException {
         String sql = """
-            INSERT INTO events (name, description, start_date, end_date, location, status, organizer_id, max_capacity, contribution_target, active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO events (name, description, start_date, end_date, location, status, organizer_id, max_capacity, contribution_target, active, created_at, updated_at, last_modified_by, sync_status, sync_version)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -49,7 +49,7 @@ public class EventDAO {
             SELECT e.*, m.first_name || ' ' || m.last_name AS organizer_name
             FROM events e
             LEFT JOIN members m ON e.organizer_id = m.id
-            WHERE e.id = ?
+            WHERE e.id = ? AND e.deleted_at IS NULL
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -72,6 +72,7 @@ public class EventDAO {
             SELECT e.*, m.first_name || ' ' || m.last_name AS organizer_name
             FROM events e
             LEFT JOIN members m ON e.organizer_id = m.id
+            WHERE e.deleted_at IS NULL
             ORDER BY e.start_date DESC
             """;
 
@@ -91,7 +92,8 @@ public class EventDAO {
         String sql = """
             UPDATE events
             SET name = ?, description = ?, start_date = ?, end_date = ?,
-                location = ?, status = ?, organizer_id = ?, max_capacity = ?, contribution_target = ?, active = ?
+                location = ?, status = ?, organizer_id = ?, max_capacity = ?, contribution_target = ?, active = ?,
+                updated_at = datetime('now'), last_modified_by = 'system', sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
 
@@ -115,7 +117,15 @@ public class EventDAO {
     }
 
     public void delete(int id) throws SQLException {
-        String sql = "DELETE FROM events WHERE id = ?";
+        String sql = """
+            UPDATE events
+            SET deleted_at = datetime('now'),
+                updated_at = datetime('now'),
+                last_modified_by = 'system',
+                sync_status = 'PENDING',
+                sync_version = sync_version + 1
+            WHERE id = ?
+            """;
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -130,10 +140,28 @@ public class EventDAO {
         event.setId(rs.getInt("id"));
         event.setName(rs.getString("name"));
         event.setDescription(rs.getString("description"));
-        event.setStartDate(LocalDateTime.parse(rs.getString("start_date")));
 
+        // Parse start_date with try-catch for SQLite compatibility
+        String startDateStr = rs.getString("start_date");
+        try {
+            event.setStartDate(LocalDateTime.parse(startDateStr.replace(" ", "T")));
+        } catch (Exception e) {
+            System.err.println("Error parsing start_date: " + startDateStr + " - " + e.getMessage());
+            event.setStartDate(LocalDateTime.now());
+        }
+
+        // Parse end_date with try-catch for SQLite compatibility
         String endDate = rs.getString("end_date");
-        event.setEndDate(endDate != null ? LocalDateTime.parse(endDate) : null);
+        if (endDate != null) {
+            try {
+                event.setEndDate(LocalDateTime.parse(endDate.replace(" ", "T")));
+            } catch (Exception e) {
+                System.err.println("Error parsing end_date: " + endDate + " - " + e.getMessage());
+                event.setEndDate(null);
+            }
+        } else {
+            event.setEndDate(null);
+        }
 
         event.setLocation(rs.getString("location"));
         event.setStatus(rs.getString("status"));
