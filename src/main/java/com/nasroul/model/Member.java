@@ -1,10 +1,9 @@
 package com.nasroul.model;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
-public class Member {
+public class Member extends SyncableEntity {
     private Integer id;
     private String firstName;
     private String lastName;
@@ -22,10 +21,28 @@ public class Member {
     private List<String> groupNames; // New: for display
 
     public Member() {
+        super();
         this.active = true;
         this.joinDate = LocalDate.now();
         this.groupIds = new ArrayList<>();
         this.groupNames = new ArrayList<>();
+    }
+
+    @Override
+    public Map<String, Object> getFieldValuesForHash() {
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("firstName", firstName);
+        fields.put("lastName", lastName);
+        fields.put("email", email);
+        fields.put("phone", phone);
+        fields.put("birthDate", birthDate);
+        fields.put("address", address);
+        fields.put("joinDate", joinDate);
+        fields.put("role", role);
+        fields.put("avatar", avatar != null ? Arrays.toString(avatar) : null);
+        fields.put("active", active);
+        fields.put("groupIds", groupIds != null ? groupIds.toString() : null);
+        return fields;
     }
 
     public Integer getId() {
