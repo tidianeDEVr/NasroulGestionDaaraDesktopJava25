@@ -30,7 +30,13 @@ public class ProjectDAO {
             pstmt.setString(5, project.getStatus());
             pstmt.setDouble(6, project.getBudget());
             pstmt.setDouble(7, project.getTargetBudget());
-            pstmt.setObject(8, project.getManagerId());
+
+            // Handle nullable manager_id - SQLite JDBC doesn't support setObject for nulls
+            if (project.getManagerId() != null) {
+                pstmt.setInt(8, project.getManagerId());
+            } else {
+                pstmt.setNull(8, Types.INTEGER);
+            }
 
             pstmt.executeUpdate();
 
@@ -105,7 +111,14 @@ public class ProjectDAO {
             pstmt.setString(5, project.getStatus());
             pstmt.setDouble(6, project.getBudget());
             pstmt.setDouble(7, project.getTargetBudget());
-            pstmt.setObject(8, project.getManagerId());
+
+            // Handle nullable manager_id - SQLite JDBC doesn't support setObject for nulls
+            if (project.getManagerId() != null) {
+                pstmt.setInt(8, project.getManagerId());
+            } else {
+                pstmt.setNull(8, Types.INTEGER);
+            }
+
             pstmt.setInt(9, project.getId());
 
             pstmt.executeUpdate();
