@@ -619,7 +619,7 @@ Ce projet est sous licence propriétaire. Tous droits réservés.
 
 ## 👤 Auteur
 
-**Tidiane DEME**
+**Tidiane DEVr**
 - GitHub: [@tidianeDEVr](https://github.com/tidianeDEVr)
 
 ---
