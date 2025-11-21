@@ -8,6 +8,14 @@
 db.type=sqlite
 
 # SQLite Configuration (Local Database - Primary for offline-first)
+# IMPORTANT: Database path behavior
+# - Relative path (default): Stored in OS-specific application data directory
+#   Windows: %APPDATA%\NasroulGestion\association.db
+#   macOS: ~/Library/Application Support/NasroulGestion/association.db
+#   Linux: ~/.nasroulgestion/association.db
+# - Absolute path: Use the exact path specified
+#   Example (Windows): C:\Users\YourName\Documents\NasroulGestion\association.db
+#   Example (Linux/Mac): /home/username/documents/association.db
 db.sqlite.path=association.db
 
 # MySQL Configuration (Remote Database - Sync Target)
