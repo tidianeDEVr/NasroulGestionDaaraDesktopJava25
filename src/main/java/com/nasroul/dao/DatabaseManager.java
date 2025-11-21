@@ -119,10 +119,39 @@ public class DatabaseManager {
             }
 
         } catch (SQLException e) {
-            connectionError = e.getMessage();
-            System.err.println("SQLite database initialization failed: " + e.getMessage());
+            connectionError = buildDetailedErrorMessage(e);
+            System.err.println("SQLite database initialization failed: " + connectionError);
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Build a detailed error message for database connection issues
+     */
+    private String buildDetailedErrorMessage(SQLException e) {
+        String dbPath = config.getSQLitePath();
+        String message = e.getMessage();
+
+        StringBuilder detailMsg = new StringBuilder();
+        detailMsg.append("opening db: '").append(dbPath).append("': ");
+
+        if (message != null && (message.toLowerCase().contains("access") ||
+                                message.toLowerCase().contains("permission") ||
+                                message.toLowerCase().contains("denied") ||
+                                message.toLowerCase().contains("readonly"))) {
+            detailMsg.append("Accès refusé\n\n");
+            detailMsg.append("Le fichier de base de données ne peut pas être créé ou ouvert.\n");
+            detailMsg.append("Emplacement: ").append(dbPath).append("\n\n");
+            detailMsg.append("Solutions possibles:\n");
+            detailMsg.append("1. Exécutez l'application en tant qu'administrateur\n");
+            detailMsg.append("2. Vérifiez les permissions du dossier\n");
+            detailMsg.append("3. Spécifiez un chemin différent dans config.properties\n");
+            detailMsg.append("   Exemple: db.sqlite.path=C:\\Users\\VotreNom\\Documents\\association.db");
+        } else {
+            detailMsg.append(message);
+        }
+
+        return detailMsg.toString();
     }
 
     private void createTablesMySQL(Statement stmt) throws SQLException {
