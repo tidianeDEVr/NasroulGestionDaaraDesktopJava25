@@ -115,14 +115,21 @@ public class SMSCampaignDialogController {
         // Check balance in background thread
         new Thread(() -> {
             smsBalance = smsService.checkSMSBalance();
+            final String errorMessage = smsService.getLastErrorMessage();
             Platform.runLater(() -> {
                 if (smsBalance >= 0) {
                     lblSMSBalance.setText(String.format("%d SMS", smsBalance));
                     lblSMSBalance.setStyle("-fx-font-weight: bold; -fx-text-fill: " +
                         (smsBalance > 100 ? "#1a7f37;" : smsBalance > 20 ? "#bf8700;" : "#cf222e;"));
                 } else {
-                    lblSMSBalance.setText("Erreur de vérification");
-                    lblSMSBalance.setStyle("-fx-font-weight: bold; -fx-text-fill: #cf222e;");
+                    lblSMSBalance.setText("Erreur");
+                    lblSMSBalance.setStyle("-fx-font-weight: bold; -fx-text-fill: #cf222e; -fx-cursor: hand;");
+                    // Make the label clickable to show error details
+                    lblSMSBalance.setOnMouseClicked(e -> {
+                        if (errorMessage != null) {
+                            showError(errorMessage);
+                        }
+                    });
                 }
             });
         }).start();
@@ -232,7 +239,12 @@ public class SMSCampaignDialogController {
 
         // Check SMS balance
         if (smsBalance < 0) {
-            showError("Impossible de vérifier le solde SMS. Veuillez réessayer.");
+            String errorMsg = smsService.getLastErrorMessage();
+            if (errorMsg != null) {
+                showError(errorMsg);
+            } else {
+                showError("Impossible de vérifier le solde SMS.\n\nVeuillez vérifier votre connexion Internet et réessayer.");
+            }
             return;
         }
 

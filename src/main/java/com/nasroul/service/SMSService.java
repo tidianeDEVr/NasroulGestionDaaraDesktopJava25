@@ -12,6 +12,7 @@ public class SMSService {
     private final String SENDER;
     private final String API_URL;
     private final String CREDITS_URL;
+    private String lastErrorMessage = null;
 
     public SMSService() {
         this.config = ConfigManager.getInstance();
@@ -27,6 +28,7 @@ public class SMSService {
      * @return the number of SMS credits available, or -1 if error
      */
     public int checkSMSBalance() {
+        lastErrorMessage = null;
         try {
             HttpResponse<String> response = Unirest.get(CREDITS_URL)
                 .queryString("accountid", ACCOUNT_ID)
@@ -48,20 +50,71 @@ public class SMSService {
                             return Integer.parseInt(creditsValue);
                         }
                     }
+                    lastErrorMessage = "Impossible de lire le solde SMS.\n\n" +
+                                      "La réponse du serveur SMS est mal formatée.\n" +
+                                      "Veuillez contacter le support technique.";
                     System.err.println("Could not parse credits from XML: " + body);
                     return -1;
                 } catch (Exception e) {
+                    lastErrorMessage = "Erreur de lecture du solde SMS.\n\n" +
+                                      "Le format de réponse du serveur est invalide.\n" +
+                                      "Veuillez contacter le support technique.";
                     System.err.println("Error parsing balance response: " + body);
                     return -1;
                 }
             } else {
+                // Provide user-friendly error based on HTTP status
+                if (response.getStatus() == 401 || response.getStatus() == 403) {
+                    lastErrorMessage = "Erreur d'authentification SMS.\n\n" +
+                                      "Vos identifiants SMS sont incorrects ou expirés.\n\n" +
+                                      "Veuillez vérifier:\n" +
+                                      "• L'ID de compte SMS\n" +
+                                      "• Le mot de passe SMS\n" +
+                                      "• Que votre compte SMS est actif";
+                } else if (response.getStatus() >= 500) {
+                    lastErrorMessage = "Serveur SMS indisponible.\n\n" +
+                                      "Le serveur SMS rencontre des difficultés techniques.\n" +
+                                      "Veuillez réessayer dans quelques minutes.";
+                } else {
+                    lastErrorMessage = "Impossible de vérifier le solde SMS.\n\n" +
+                                      "Le serveur SMS a retourné une erreur.\n" +
+                                      "Code d'erreur: " + response.getStatus() + "\n\n" +
+                                      "Veuillez réessayer ou contacter le support.";
+                }
                 System.err.println("Error checking balance: " + response.getStatus() + " - " + response.getBody());
                 return -1;
             }
         } catch (Exception e) {
+            if (e.getMessage() != null && (e.getMessage().contains("timeout") ||
+                e.getMessage().contains("timed out"))) {
+                lastErrorMessage = "Délai d'attente dépassé.\n\n" +
+                                  "La connexion au serveur SMS a pris trop de temps.\n\n" +
+                                  "Veuillez vérifier:\n" +
+                                  "• Votre connexion Internet\n" +
+                                  "• Réessayer dans quelques instants";
+            } else if (e.getMessage() != null && (e.getMessage().contains("UnknownHost") ||
+                       e.getMessage().contains("connection"))) {
+                lastErrorMessage = "Impossible de joindre le serveur SMS.\n\n" +
+                                  "Veuillez vérifier:\n" +
+                                  "• Votre connexion Internet\n" +
+                                  "• Que l'URL du serveur SMS est correcte\n" +
+                                  "• Votre pare-feu";
+            } else {
+                lastErrorMessage = "Erreur de connexion au serveur SMS.\n\n" +
+                                  "Détails: " + e.getMessage() + "\n\n" +
+                                  "Veuillez vérifier votre connexion Internet.";
+            }
             System.err.println("Exception checking SMS balance: " + e.getMessage());
             return -1;
         }
+    }
+
+    /**
+     * Get the last error message from SMS operations
+     * @return the last error message, or null if no error
+     */
+    public String getLastErrorMessage() {
+        return lastErrorMessage;
     }
 
     /**
@@ -108,6 +161,7 @@ public class SMSService {
      * @return true if sent successfully, false otherwise
      */
     public boolean sendSMS(String phoneNumber, String message) {
+        lastErrorMessage = null;
         try {
             // Format phone number
             String formattedPhone = formatPhoneNumber(phoneNumber);
@@ -128,11 +182,41 @@ public class SMSService {
                 System.out.println("SMS sent successfully to " + formattedPhone);
                 return true;
             } else {
+                // Provide user-friendly error messages
+                if (response.getStatus() == 401 || response.getStatus() == 403) {
+                    lastErrorMessage = "Erreur d'authentification SMS.\n\n" +
+                                      "Vos identifiants SMS sont incorrects.\n" +
+                                      "Veuillez vérifier la configuration.";
+                } else if (response.getStatus() == 400) {
+                    lastErrorMessage = "Erreur d'envoi SMS.\n\n" +
+                                      "Le numéro de téléphone ou le message est invalide.\n" +
+                                      "Numéro: " + formattedPhone;
+                } else if (response.getStatus() >= 500) {
+                    lastErrorMessage = "Serveur SMS indisponible.\n\n" +
+                                      "Le serveur SMS rencontre des difficultés.\n" +
+                                      "Veuillez réessayer plus tard.";
+                } else {
+                    lastErrorMessage = "Erreur d'envoi SMS.\n\n" +
+                                      "Code d'erreur: " + response.getStatus();
+                }
                 System.err.println("Error sending SMS to " + formattedPhone + ": " +
                     response.getStatus() + " - " + response.getBody());
                 return false;
             }
         } catch (Exception e) {
+            if (e.getMessage() != null && (e.getMessage().contains("timeout") ||
+                e.getMessage().contains("timed out"))) {
+                lastErrorMessage = "Délai d'attente dépassé.\n\n" +
+                                  "L'envoi du SMS a pris trop de temps.\n" +
+                                  "Veuillez réessayer.";
+            } else if (e.getMessage() != null && (e.getMessage().contains("UnknownHost") ||
+                       e.getMessage().contains("connection"))) {
+                lastErrorMessage = "Impossible de joindre le serveur SMS.\n\n" +
+                                  "Veuillez vérifier votre connexion Internet.";
+            } else {
+                lastErrorMessage = "Erreur d'envoi SMS.\n\n" +
+                                  "Détails: " + e.getMessage();
+            }
             System.err.println("Exception sending SMS to " + phoneNumber + ": " + e.getMessage());
             e.printStackTrace();
             return false;
