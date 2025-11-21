@@ -56,7 +56,7 @@ $log = Join-Path (Get-Location) 'jpackage-output.log'
   --input $targetDir `
   --name 'NasroulGestion' `
   --main-jar $jar.Name `
-  --main-class 'com.nasroul.AssociationApp' `
+  --main-class 'com.nasroul.Launcher' `
   --type exe `
   --icon (Join-Path (Get-Location) 'src\main\resources\images\icon.ico') `
   --dest $destDir `
@@ -68,8 +68,13 @@ $log = Join-Path (Get-Location) 'jpackage-output.log'
   --java-options '--enable-native-access=javafx.graphics,ALL-UNNAMED' *>&1 | Tee-Object -FilePath $log
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "ERREUR: jpackage a échoué (code $LASTEXITCODE). Voir $log"
-    Get-Content $log -Tail 200
+    Write-Error "ERREUR: jpackage a échoué (code $LASTEXITCODE)."
+    if (Test-Path $log) {
+        Write-Output "Voir le log: $log"
+        Get-Content $log -Tail 200
+    } else {
+        Write-Warning "Le fichier de log n'a pas pu être créé: $log"
+    }
     exit $LASTEXITCODE
 }
 
@@ -79,4 +84,9 @@ Write-Output "SUCCES !"
 Write-Output "Fichiers dans dist:"
 Get-ChildItem -Path $destDir -Force
 Write-Output "`nDernieres lignes du log jpackage:"
-Get-Content $log -Tail 200
+if (Test-Path $log) {
+    Get-Content $log -Tail 200
+} else {
+    Write-Warning "Le fichier de log n'est pas disponible: $log"
+    Write-Output "Cela peut être normal si jpackage n'a pas généré de log."
+}
