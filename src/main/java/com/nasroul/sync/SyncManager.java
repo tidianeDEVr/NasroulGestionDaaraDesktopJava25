@@ -48,7 +48,13 @@ public class SyncManager {
             // Check if MySQL is available
             if (!dbManager.isMySQLAvailable()) {
                 result.setSuccess(false);
-                result.setErrorMessage("MySQL server not available - operating in offline mode");
+                result.setErrorMessage("Impossible de se connecter au serveur.\n\n" +
+                    "L'application continue de fonctionner en mode hors ligne.\n" +
+                    "Vos données locales sont sauvegardées.\n\n" +
+                    "Veuillez vérifier:\n" +
+                    "• Votre connexion Internet\n" +
+                    "• Les paramètres de connexion au serveur\n" +
+                    "• Que le serveur est bien démarré");
                 return result;
             }
 
@@ -65,7 +71,9 @@ public class SyncManager {
 
         } catch (SQLException e) {
             result.setSuccess(false);
-            result.setErrorMessage("Sync failed: " + e.getMessage());
+            // Provide user-friendly error messages
+            String userMessage = getUserFriendlyErrorMessage(e);
+            result.setErrorMessage(userMessage);
             throw e;
         }
 
@@ -84,7 +92,7 @@ public class SyncManager {
         for (String tableName : tables) {
             try {
                 int pulled = pullTableFromRemote(tableName);
-                result.addPulled(pulled);
+                result.addPulled(tableName, pulled);
             } catch (SQLException e) {
                 result.addError(tableName + " pull failed: " + e.getMessage());
                 syncLogDAO.log(currentSyncSession, tableName, 0, "PULL", "PULL",
@@ -214,7 +222,7 @@ public class SyncManager {
         for (String tableName : tables) {
             try {
                 int pushed = pushTableToRemote(tableName);
-                result.addPushed(pushed);
+                result.addPushed(tableName, pushed);
             } catch (SQLException e) {
                 result.addError(tableName + " push failed: " + e.getMessage());
                 syncLogDAO.log(currentSyncSession, tableName, 0, "PUSH", "PUSH",
@@ -780,6 +788,55 @@ public class SyncManager {
     }
 
     /**
+     * Convert technical SQL errors to user-friendly messages
+     */
+    private String getUserFriendlyErrorMessage(SQLException e) {
+        String errorMsg = e.getMessage().toLowerCase();
+
+        // Connection errors
+        if (errorMsg.contains("connection") || errorMsg.contains("timeout") ||
+            errorMsg.contains("refused") || errorMsg.contains("unreachable")) {
+            return "Erreur de connexion au serveur.\n\n" +
+                   "Le serveur de synchronisation n'est pas accessible.\n\n" +
+                   "Veuillez vérifier:\n" +
+                   "• Votre connexion Internet\n" +
+                   "• Que le serveur est bien en ligne\n" +
+                   "• Les paramètres de connexion dans le fichier de configuration";
+        }
+
+        // Authentication errors
+        if (errorMsg.contains("access denied") || errorMsg.contains("authentication") ||
+            errorMsg.contains("password")) {
+            return "Erreur d'authentification.\n\n" +
+                   "Les identifiants de connexion au serveur sont incorrects.\n\n" +
+                   "Veuillez vérifier:\n" +
+                   "• Le nom d'utilisateur\n" +
+                   "• Le mot de passe\n" +
+                   "• Les droits d'accès à la base de données";
+        }
+
+        // Database not found
+        if (errorMsg.contains("unknown database") || errorMsg.contains("database") && errorMsg.contains("not found")) {
+            return "Base de données introuvable.\n\n" +
+                   "La base de données spécifiée n'existe pas sur le serveur.\n\n" +
+                   "Veuillez contacter l'administrateur système.";
+        }
+
+        // Network errors
+        if (errorMsg.contains("network") || errorMsg.contains("host")) {
+            return "Erreur réseau.\n\n" +
+                   "Impossible de joindre le serveur de synchronisation.\n\n" +
+                   "Veuillez vérifier votre connexion Internet.";
+        }
+
+        // Default message for other SQL errors
+        return "Erreur de synchronisation.\n\n" +
+               "Une erreur technique s'est produite lors de la synchronisation.\n\n" +
+               "Détails techniques: " + e.getMessage() + "\n\n" +
+               "Si le problème persiste, veuillez contacter le support.";
+    }
+
+    /**
      * Sync result statistics
      */
     public static class SyncResult {
@@ -791,8 +848,16 @@ public class SyncManager {
         private String errorMessage;
         private String syncSessionId;
 
+        // Detailed tracking by table
+        private Map<String, Integer> pullByTable;
+        private Map<String, Integer> pushByTable;
+        private Map<String, Integer> conflictsByTable;
+
         public SyncResult() {
             this.errors = new ArrayList<>();
+            this.pullByTable = new java.util.HashMap<>();
+            this.pushByTable = new java.util.HashMap<>();
+            this.conflictsByTable = new java.util.HashMap<>();
         }
 
         public void merge(SyncResult other) {
@@ -800,18 +865,41 @@ public class SyncManager {
             this.recordsPushed += other.recordsPushed;
             this.conflicts += other.conflicts;
             this.errors.addAll(other.errors);
+
+            // Merge table-specific stats
+            other.pullByTable.forEach((table, count) ->
+                pullByTable.merge(table, count, Integer::sum));
+            other.pushByTable.forEach((table, count) ->
+                pushByTable.merge(table, count, Integer::sum));
+            other.conflictsByTable.forEach((table, count) ->
+                conflictsByTable.merge(table, count, Integer::sum));
         }
 
         public void addPulled(int count) {
             this.recordsPulled += count;
         }
 
+        public void addPulled(String tableName, int count) {
+            this.recordsPulled += count;
+            pullByTable.merge(tableName, count, Integer::sum);
+        }
+
         public void addPushed(int count) {
             this.recordsPushed += count;
         }
 
+        public void addPushed(String tableName, int count) {
+            this.recordsPushed += count;
+            pushByTable.merge(tableName, count, Integer::sum);
+        }
+
         public void addConflict() {
             this.conflicts++;
+        }
+
+        public void addConflict(String tableName) {
+            this.conflicts++;
+            conflictsByTable.merge(tableName, 1, Integer::sum);
         }
 
         public void addError(String error) {
@@ -830,6 +918,11 @@ public class SyncManager {
         public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
         public String getSyncSessionId() { return syncSessionId; }
         public void setSyncSessionId(String syncSessionId) { this.syncSessionId = syncSessionId; }
+
+        // Detailed tracking getters
+        public Map<String, Integer> getPullByTable() { return pullByTable; }
+        public Map<String, Integer> getPushByTable() { return pushByTable; }
+        public Map<String, Integer> getConflictsByTable() { return conflictsByTable; }
 
         @Override
         public String toString() {
