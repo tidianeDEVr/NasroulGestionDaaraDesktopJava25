@@ -41,7 +41,7 @@ Si vous préférez exécuter les commandes manuellement :
    jpackage --input target ^
        --name NasroulGestion ^
        --main-jar AssociationManager-1.0-SNAPSHOT.jar ^
-       --main-class com.nasroul.AssociationApp ^
+       --main-class com.nasroul.Launcher ^
        --type exe ^
        --icon src/main/resources/images/icon.ico ^
        --dest dist ^

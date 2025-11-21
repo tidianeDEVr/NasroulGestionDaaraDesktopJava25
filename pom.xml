@@ -13,7 +13,8 @@
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
     <javafx.version>21.0.1</javafx.version>
-    <exec.mainClass>com.nasroul.AssociationApp</exec.mainClass>
+    <!-- Utilisation de Launcher pour jpackage - ne dépend pas de JavaFX -->
+    <exec.mainClass>com.nasroul.Launcher</exec.mainClass>
     <!-- par défaut, override via profile -->
     <javafx.platform>win</javafx.platform>
   </properties>
