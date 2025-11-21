@@ -636,7 +636,7 @@ Ce projet est sous licence propriétaire. Tous droits réservés.
 
 Pour toute question ou assistance :
 
-- 📧 Email : support@nasroul.com (à configurer)
+- 📧 Email : cheikhtiindiaye@gmail.com
 - 🐛 Issues : [GitHub Issues](https://github.com/tidianeDEVr/NasroulGestionDaaraDesktopJava25/issues)
 - 📖 Wiki : [GitHub Wiki](https://github.com/tidianeDEVr/NasroulGestionDaaraDesktopJava25/wiki)
 
@@ -644,7 +644,7 @@ Pour toute question ou assistance :
 
 <div align="center">
 
-**Fait avec ❤️ pour la communauté Nasroul Mouminina**
+**Fait avec ❤️ par la communauté Mouride**
 
 ⭐ N'oubliez pas de mettre une étoile si ce projet vous plaît !
 
