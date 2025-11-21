@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.SyncHistoryController"
+      spacing="16" styleClass="container">
+
+    <padding>
+        <Insets top="24" right="24" bottom="24" left="24"/>
+    </padding>
+
+    <!-- Header -->
+    <HBox alignment="CENTER_LEFT" spacing="16">
+        <Label text="📜 Historique de Synchronisation" styleClass="view-title"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnRefresh" text="🔄 Actualiser" onAction="#handleRefresh" styleClass="secondary-button"/>
+        <Button fx:id="btnCleanOldLogs" text="🗑️ Nettoyer anciens logs" onAction="#handleCleanOldLogs" styleClass="secondary-button"/>
+    </HBox>
+
+    <!-- Filter Section -->
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <Label text="Filtre:"/>
+        <ComboBox fx:id="filterComboBox" promptText="Tous les statuts" onAction="#handleFilterChange">
+            <items>
+                <javafx.collections.FXCollections fx:factory="observableArrayList">
+                    <String fx:value="Tous"/>
+                    <String fx:value="SUCCESS"/>
+                    <String fx:value="FAILED"/>
+                </javafx.collections.FXCollections>
+            </items>
+        </ComboBox>
+
+        <Label text="Table:"/>
+        <ComboBox fx:id="tableFilterComboBox" promptText="Toutes les tables" onAction="#handleFilterChange">
+            <items>
+                <javafx.collections.FXCollections fx:factory="observableArrayList">
+                    <String fx:value="Toutes"/>
+                    <String fx:value="groups"/>
+                    <String fx:value="members"/>
+                    <String fx:value="events"/>
+                    <String fx:value="projects"/>
+                    <String fx:value="expenses"/>
+                    <String fx:value="contributions"/>
+                    <String fx:value="payment_groups"/>
+                </javafx.collections.FXCollections>
+            </items>
+        </ComboBox>
+
+        <Region HBox.hgrow="ALWAYS"/>
+
+        <Label fx:id="statsLabel" text="Total: 0 logs" style="-fx-font-size: 12px; -fx-text-fill: #666;"/>
+    </HBox>
+
+    <!-- Table -->
+    <TableView fx:id="historyTable" VBox.vgrow="ALWAYS" styleClass="data-table">
+        <columns>
+            <TableColumn fx:id="sessionIdColumn" text="Session ID" prefWidth="120"/>
+            <TableColumn fx:id="tableNameColumn" text="Table" prefWidth="120"/>
+            <TableColumn fx:id="recordIdColumn" text="Record ID" prefWidth="80"/>
+            <TableColumn fx:id="operationColumn" text="Opération" prefWidth="100"/>
+            <TableColumn fx:id="directionColumn" text="Direction" prefWidth="80"/>
+            <TableColumn fx:id="statusColumn" text="Statut" prefWidth="100"/>
+            <TableColumn fx:id="timestampColumn" text="Date/Heure" prefWidth="150"/>
+            <TableColumn fx:id="errorMessageColumn" text="Message d'erreur" prefWidth="200"/>
+        </columns>
+
+        <placeholder>
+            <VBox alignment="CENTER" spacing="8">
+                <Label text="📭 Aucun historique de synchronisation" style="-fx-font-size: 14px; -fx-text-fill: #666;"/>
+                <Label text="Effectuez une synchronisation pour voir l'historique" style="-fx-font-size: 12px; -fx-text-fill: #999;"/>
+            </VBox>
+        </placeholder>
+    </TableView>
+
+    <!-- Footer with statistics -->
+    <HBox spacing="24" alignment="CENTER_LEFT" style="-fx-padding: 12; -fx-background-color: #f5f5f5; -fx-background-radius: 5;">
+        <VBox spacing="4">
+            <Label text="Statistiques" style="-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #666;"/>
+            <HBox spacing="16">
+                <Label fx:id="totalSuccessLabel" text="✅ Succès: 0" style="-fx-font-size: 12px;"/>
+                <Label fx:id="totalFailedLabel" text="❌ Échecs: 0" style="-fx-font-size: 12px;"/>
+                <Label fx:id="totalPullLabel" text="📥 PULL: 0" style="-fx-font-size: 12px;"/>
+                <Label fx:id="totalPushLabel" text="📤 PUSH: 0" style="-fx-font-size: 12px;"/>
+            </HBox>
+        </VBox>
+
+        <Region HBox.hgrow="ALWAYS"/>
+
+        <VBox spacing="4" alignment="CENTER_RIGHT">
+            <Label text="Dernier log" style="-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #666;"/>
+            <Label fx:id="lastSyncLabel" text="Jamais" style="-fx-font-size: 12px;"/>
+        </VBox>
+    </HBox>
+
+</VBox>

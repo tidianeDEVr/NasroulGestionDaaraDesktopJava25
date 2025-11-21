@@ -18,6 +18,7 @@ import javafx.util.Duration;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 
 public class MainController {
 
@@ -53,6 +54,9 @@ public class MainController {
 
     @FXML
     private Button btnSync;
+
+    @FXML
+    private Button btnSyncHistory;
 
     @FXML
     private Label syncStatusLabel;
@@ -122,6 +126,7 @@ public class MainController {
         btnProjects.getStyleClass().remove("menu-button-active");
         btnExpenses.getStyleClass().remove("menu-button-active");
         btnGroups.getStyleClass().remove("menu-button-active");
+        btnSyncHistory.getStyleClass().remove("menu-button-active");
 
         if (!activeButton.getStyleClass().contains("menu-button-active")) {
             activeButton.getStyleClass().add("menu-button-active");
@@ -295,6 +300,8 @@ public class MainController {
     private void showSyncResultDialog(SyncManager.SyncResult result) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Synchronisation Réussie");
+        alert.setResizable(true);
+        alert.getDialogPane().setPrefWidth(700);
 
         // Determine if there are any issues to report
         boolean hasConflicts = result.getConflicts() > 0;
@@ -310,40 +317,92 @@ public class MainController {
         StringBuilder content = new StringBuilder();
 
         // Summary section
-        content.append("═══════════════════════════════════════\n");
-        content.append("           RÉSUMÉ DE LA SYNCHRONISATION\n");
-        content.append("═══════════════════════════════════════\n\n");
+        content.append("═══════════════════════════════════════════════════════════\n");
+        content.append("                  RÉSUMÉ DE LA SYNCHRONISATION\n");
+        content.append("═══════════════════════════════════════════════════════════\n\n");
 
-        // Pull statistics
-        content.append(String.format("📥 TÉLÉCHARGEMENT (PULL)\n"));
-        content.append(String.format("   Records reçus: %d\n\n", result.getRecordsPulled()));
+        // Pull statistics with table details
+        content.append("📥 PHASE PULL (MySQL → SQLite)\n");
+        content.append("───────────────────────────────────────\n");
 
-        // Push statistics
-        content.append(String.format("📤 ENVOI (PUSH)\n"));
-        content.append(String.format("   Records envoyés: %d\n\n", result.getRecordsPushed()));
+        Map<String, Integer> pullByTable = result.getPullByTable();
+        if (pullByTable.isEmpty() || result.getRecordsPulled() == 0) {
+            content.append("   ✓ Aucune mise à jour à télécharger\n");
+        } else {
+            pullByTable.entrySet().stream()
+                .filter(e -> e.getValue() > 0)
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .forEach(entry -> {
+                    String tableName = formatTableName(entry.getKey());
+                    content.append(String.format("   ├─ %s: %d record%s\n",
+                        tableName, entry.getValue(), entry.getValue() > 1 ? "s" : ""));
+                });
+            content.append(String.format("   └─ TOTAL: %d record%s téléchargé%s\n",
+                result.getRecordsPulled(),
+                result.getRecordsPulled() > 1 ? "s" : "",
+                result.getRecordsPulled() > 1 ? "s" : ""));
+        }
+        content.append("\n");
+
+        // Push statistics with table details
+        content.append("📤 PHASE PUSH (SQLite → MySQL)\n");
+        content.append("───────────────────────────────────────\n");
+
+        Map<String, Integer> pushByTable = result.getPushByTable();
+        if (pushByTable.isEmpty() || result.getRecordsPushed() == 0) {
+            content.append("   ✓ Aucune modification locale à envoyer\n");
+        } else {
+            pushByTable.entrySet().stream()
+                .filter(e -> e.getValue() > 0)
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .forEach(entry -> {
+                    String tableName = formatTableName(entry.getKey());
+                    content.append(String.format("   ├─ %s: %d record%s\n",
+                        tableName, entry.getValue(), entry.getValue() > 1 ? "s" : ""));
+                });
+            content.append(String.format("   └─ TOTAL: %d record%s envoyé%s\n",
+                result.getRecordsPushed(),
+                result.getRecordsPushed() > 1 ? "s" : "",
+                result.getRecordsPushed() > 1 ? "s" : ""));
+        }
+        content.append("\n");
 
         // Total processed
         int totalProcessed = result.getRecordsPulled() + result.getRecordsPushed();
-        content.append(String.format("📊 TOTAL TRAITÉ: %d records\n\n", totalProcessed));
+        content.append("📊 STATISTIQUES GLOBALES\n");
+        content.append("───────────────────────────────────────\n");
+        content.append(String.format("   • Total traité: %d record%s\n",
+            totalProcessed, totalProcessed > 1 ? "s" : ""));
 
-        // Conflicts section
+        // Conflicts section with table details
         if (hasConflicts) {
-            content.append(String.format("⚠️  CONFLITS DÉTECTÉS: %d\n", result.getConflicts()));
-            content.append("   (Les conflits ont été résolus automatiquement)\n\n");
+            Map<String, Integer> conflictsByTable = result.getConflictsByTable();
+            content.append(String.format("   • Conflits: %d (résolus automatiquement)\n", result.getConflicts()));
+
+            if (!conflictsByTable.isEmpty()) {
+                conflictsByTable.forEach((table, count) -> {
+                    String tableName = formatTableName(table);
+                    content.append(String.format("     - %s: %d conflit%s\n",
+                        tableName, count, count > 1 ? "s" : ""));
+                });
+            }
         } else {
-            content.append("✅ Aucun conflit détecté\n\n");
+            content.append("   • Conflits: 0 ✅\n");
         }
+        content.append("\n");
 
         // Session info
+        content.append("ℹ️ INFORMATIONS DE SESSION\n");
         content.append("───────────────────────────────────────\n");
-        content.append(String.format("Session ID: %s\n", result.getSyncSessionId()));
-        content.append(String.format("Heure: %s\n",
+        content.append(String.format("   • Session ID: %s\n", result.getSyncSessionId()));
+        content.append(String.format("   • Heure: %s\n",
             LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))));
+        content.append(String.format("   • Appareil: %s\n", syncService.getDeviceId()));
 
         // Errors section (if any)
         if (hasErrors) {
-            content.append("\n───────────────────────────────────────\n");
-            content.append("❌ ERREURS RENCONTRÉES:\n\n");
+            content.append("\n❌ ERREURS RENCONTRÉES\n");
+            content.append("───────────────────────────────────────\n");
             for (String error : result.getErrors()) {
                 content.append(String.format("   • %s\n", error));
             }
@@ -360,6 +419,22 @@ public class MainController {
     }
 
     /**
+     * Format table name for display
+     */
+    private String formatTableName(String tableName) {
+        Map<String, String> tableLabels = Map.of(
+            "groups", "Groupes",
+            "members", "Membres",
+            "events", "Événements",
+            "projects", "Projets",
+            "expenses", "Dépenses",
+            "contributions", "Cotisations",
+            "payment_groups", "Groupes de Paiement"
+        );
+        return tableLabels.getOrDefault(tableName, tableName);
+    }
+
+    /**
      * Show alert dialog
      */
     private void showAlert(String title, String content, Alert.AlertType type) {
@@ -368,6 +443,12 @@ public class MainController {
         alert.setHeaderText(null);
         alert.setContentText(content);
         alert.showAndWait();
+    }
+
+    @FXML
+    private void showSyncHistory() {
+        setActiveButton(btnSyncHistory);
+        loadView("/fxml/SyncHistoryView.fxml", "Historique de Synchronisation");
     }
 
     @FXML
