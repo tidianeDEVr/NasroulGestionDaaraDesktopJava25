@@ -321,46 +321,46 @@ public class MainController {
         content.append("                  RÉSUMÉ DE LA SYNCHRONISATION\n");
         content.append("═══════════════════════════════════════════════════════════\n\n");
 
-        // Pull statistics with table details
-        content.append("📥 PHASE PULL (MySQL → SQLite)\n");
+        // Downloaded data statistics
+        content.append("📥 DONNÉES REÇUES DU SERVEUR\n");
         content.append("───────────────────────────────────────\n");
 
         Map<String, Integer> pullByTable = result.getPullByTable();
         if (pullByTable.isEmpty() || result.getRecordsPulled() == 0) {
-            content.append("   ✓ Aucune mise à jour à télécharger\n");
+            content.append("   ✓ Vos données sont à jour\n");
         } else {
             pullByTable.entrySet().stream()
                 .filter(e -> e.getValue() > 0)
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
                 .forEach(entry -> {
                     String tableName = formatTableName(entry.getKey());
-                    content.append(String.format("   ├─ %s: %d record%s\n",
+                    content.append(String.format("   ├─ %s: %d donnée%s\n",
                         tableName, entry.getValue(), entry.getValue() > 1 ? "s" : ""));
                 });
-            content.append(String.format("   └─ TOTAL: %d record%s téléchargé%s\n",
+            content.append(String.format("   └─ TOTAL: %d donnée%s reçue%s\n",
                 result.getRecordsPulled(),
                 result.getRecordsPulled() > 1 ? "s" : "",
                 result.getRecordsPulled() > 1 ? "s" : ""));
         }
         content.append("\n");
 
-        // Push statistics with table details
-        content.append("📤 PHASE PUSH (SQLite → MySQL)\n");
+        // Uploaded data statistics
+        content.append("📤 DONNÉES ENVOYÉES AU SERVEUR\n");
         content.append("───────────────────────────────────────\n");
 
         Map<String, Integer> pushByTable = result.getPushByTable();
         if (pushByTable.isEmpty() || result.getRecordsPushed() == 0) {
-            content.append("   ✓ Aucune modification locale à envoyer\n");
+            content.append("   ✓ Aucune modification à envoyer\n");
         } else {
             pushByTable.entrySet().stream()
                 .filter(e -> e.getValue() > 0)
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
                 .forEach(entry -> {
                     String tableName = formatTableName(entry.getKey());
-                    content.append(String.format("   ├─ %s: %d record%s\n",
+                    content.append(String.format("   ├─ %s: %d donnée%s\n",
                         tableName, entry.getValue(), entry.getValue() > 1 ? "s" : ""));
                 });
-            content.append(String.format("   └─ TOTAL: %d record%s envoyé%s\n",
+            content.append(String.format("   └─ TOTAL: %d donnée%s envoyée%s\n",
                 result.getRecordsPushed(),
                 result.getRecordsPushed() > 1 ? "s" : "",
                 result.getRecordsPushed() > 1 ? "s" : ""));
@@ -413,8 +413,10 @@ public class MainController {
 
         // Update status bar with summary
         if (statusLabel != null) {
-            statusLabel.setText(String.format("✅ Sync terminée: %d pull, %d push, %d conflits",
-                result.getRecordsPulled(), result.getRecordsPushed(), result.getConflicts()));
+            statusLabel.setText(String.format("✅ Sync terminée: %d reçu%s, %d envoyé%s, %d conflit%s",
+                result.getRecordsPulled(), result.getRecordsPulled() > 1 ? "s" : "",
+                result.getRecordsPushed(), result.getRecordsPushed() > 1 ? "s" : "",
+                result.getConflicts(), result.getConflicts() > 1 ? "s" : ""));
         }
     }
 

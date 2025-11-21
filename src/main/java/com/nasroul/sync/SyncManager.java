@@ -48,7 +48,13 @@ public class SyncManager {
             // Check if MySQL is available
             if (!dbManager.isMySQLAvailable()) {
                 result.setSuccess(false);
-                result.setErrorMessage("MySQL server not available - operating in offline mode");
+                result.setErrorMessage("Impossible de se connecter au serveur.\n\n" +
+                    "L'application continue de fonctionner en mode hors ligne.\n" +
+                    "Vos données locales sont sauvegardées.\n\n" +
+                    "Veuillez vérifier:\n" +
+                    "• Votre connexion Internet\n" +
+                    "• Les paramètres de connexion au serveur\n" +
+                    "• Que le serveur est bien démarré");
                 return result;
             }
 
@@ -65,7 +71,9 @@ public class SyncManager {
 
         } catch (SQLException e) {
             result.setSuccess(false);
-            result.setErrorMessage("Sync failed: " + e.getMessage());
+            // Provide user-friendly error messages
+            String userMessage = getUserFriendlyErrorMessage(e);
+            result.setErrorMessage(userMessage);
             throw e;
         }
 
@@ -746,6 +754,55 @@ public class SyncManager {
         }
 
         return converted;
+    }
+
+    /**
+     * Convert technical SQL errors to user-friendly messages
+     */
+    private String getUserFriendlyErrorMessage(SQLException e) {
+        String errorMsg = e.getMessage().toLowerCase();
+
+        // Connection errors
+        if (errorMsg.contains("connection") || errorMsg.contains("timeout") ||
+            errorMsg.contains("refused") || errorMsg.contains("unreachable")) {
+            return "Erreur de connexion au serveur.\n\n" +
+                   "Le serveur de synchronisation n'est pas accessible.\n\n" +
+                   "Veuillez vérifier:\n" +
+                   "• Votre connexion Internet\n" +
+                   "• Que le serveur est bien en ligne\n" +
+                   "• Les paramètres de connexion dans le fichier de configuration";
+        }
+
+        // Authentication errors
+        if (errorMsg.contains("access denied") || errorMsg.contains("authentication") ||
+            errorMsg.contains("password")) {
+            return "Erreur d'authentification.\n\n" +
+                   "Les identifiants de connexion au serveur sont incorrects.\n\n" +
+                   "Veuillez vérifier:\n" +
+                   "• Le nom d'utilisateur\n" +
+                   "• Le mot de passe\n" +
+                   "• Les droits d'accès à la base de données";
+        }
+
+        // Database not found
+        if (errorMsg.contains("unknown database") || errorMsg.contains("database") && errorMsg.contains("not found")) {
+            return "Base de données introuvable.\n\n" +
+                   "La base de données spécifiée n'existe pas sur le serveur.\n\n" +
+                   "Veuillez contacter l'administrateur système.";
+        }
+
+        // Network errors
+        if (errorMsg.contains("network") || errorMsg.contains("host")) {
+            return "Erreur réseau.\n\n" +
+                   "Impossible de joindre le serveur de synchronisation.\n\n" +
+                   "Veuillez vérifier votre connexion Internet.";
+        }
+
+        // Default message for other SQL errors
+        return "Erreur de synchronisation.\n\n" +
+               "Une erreur technique s'est produite lors de la synchronisation.\n\n" +
+               "Détails techniques: " + e.getMessage() + "\n\n" +
+               "Si le problème persiste, veuillez contacter le support.";
     }
 
     /**
