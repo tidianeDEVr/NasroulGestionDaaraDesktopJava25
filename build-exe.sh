@@ -21,17 +21,20 @@ if command -v jpackage &> /dev/null; then
     JPACKAGE_CMD="jpackage"
 elif [ -n "$JAVA_HOME" ] && [ -f "$JAVA_HOME/bin/jpackage" ]; then
     JPACKAGE_CMD="$JAVA_HOME/bin/jpackage"
-elif [ -f "/c/Program Files/Java/jdk-25/bin/jpackage.exe" ]; then
-    # Chemin Windows dans Git Bash/WSL
-    JPACKAGE_CMD="/c/Program Files/Java/jdk-25/bin/jpackage.exe"
 else
-    echo "ERREUR: jpackage introuvable"
-    echo ""
-    echo "Solutions:"
-    echo "1. Ajoutez le JDK bin au PATH"
-    echo "2. Ou definissez JAVA_HOME vers votre JDK"
-    echo "3. Ou modifiez le script avec le bon chemin"
-    exit 1
+    # Chemin par defaut Windows (Git Bash convertit automatiquement)
+    JPACKAGE_WIN='C:\Program Files\Java\jdk-25\bin\jpackage.exe'
+    if [ -f "$JPACKAGE_WIN" ]; then
+        JPACKAGE_CMD="$JPACKAGE_WIN"
+    else
+        echo "ERREUR: jpackage introuvable"
+        echo ""
+        echo "Solutions:"
+        echo "1. Ajoutez le JDK bin au PATH"
+        echo "2. Ou definissez JAVA_HOME vers votre JDK"
+        echo "3. Ou modifiez le script avec le bon chemin"
+        exit 1
+    fi
 fi
 
 echo "Java detecte. Utilisation de: $JPACKAGE_CMD"
