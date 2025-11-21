@@ -12,6 +12,7 @@ com/nasroul/controller/ContributionDialogController$9.class
 com/nasroul/dao/EventDAO.class
 com/nasroul/controller/ProjectDialogController$1.class
 com/nasroul/dao/SyncLogDAO$SyncLog.class
+com/nasroul/controller/SyncHistoryController$3.class
 com/nasroul/dao/SyncMetadataDAO$SyncMetadata.class
 com/nasroul/controller/ExpenseDialogController$EntityItem.class
 com/nasroul/util/ExcelUtil$1.class
@@ -29,6 +30,7 @@ com/nasroul/sync/ConflictResolver.class
 com/nasroul/controller/DashboardController.class
 com/nasroul/controller/GroupDialogController.class
 com/nasroul/service/MemberService.class
+com/nasroul/controller/SyncHistoryController$1.class
 com/nasroul/controller/ExpenseDialogController.class
 com/nasroul/controller/PaymentGroupController.class
 com/nasroul/dao/MemberDAO.class
@@ -49,6 +51,7 @@ com/nasroul/sync/GenericSyncableEntity.class
 com/nasroul/controller/MemberDetailsDialogController$1.class
 com/nasroul/service/SyncService.class
 com/nasroul/controller/ContributionDialogController.class
+com/nasroul/controller/SyncHistoryController$2.class
 com/nasroul/util/ImageUtil.class
 com/nasroul/controller/PaymentGroupDialogController$5.class
 com/nasroul/controller/EventDialogController$2.class
@@ -81,6 +84,7 @@ com/nasroul/controller/ProjectDialogController$2.class
 com/nasroul/dao/SyncLogDAO.class
 com/nasroul/util/ConfigManager.class
 com/nasroul/controller/ProjectDialogController.class
+com/nasroul/controller/SyncHistoryController$4.class
 com/nasroul/model/Group.class
 com/nasroul/service/DeviceRegistrationService.class
 com/nasroul/dao/ProjectDAO.class
@@ -97,6 +101,7 @@ com/nasroul/controller/MainController.class
 com/nasroul/dao/ContributionDAO.class
 com/nasroul/dao/DatabaseManager.class
 com/nasroul/sync/ConflictDetector$ConflictType.class
+com/nasroul/controller/SyncHistoryController.class
 com/nasroul/controller/EventDialogController.class
 com/nasroul/controller/PaymentGroupDialogController$2.class
 com/nasroul/controller/ContributionDialogController$5.class

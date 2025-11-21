@@ -1,6 +1,7 @@
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/service/GroupService.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/service/ProjectService.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/controller/ExpenseController.java
+/Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/controller/SyncHistoryController.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/model/Group.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/dao/PaymentGroupDAO.java
 /Users/tidiane/Documents/nasroul/AssociationManager/src/main/java/com/nasroul/util/DeviceIdGenerator.java

@@ -66,6 +66,9 @@
                                  visible="false" managed="false"/>
             </HBox>
 
+            <Button fx:id="btnSyncHistory" text="Historique" onAction="#showSyncHistory"
+                    styleClass="menu-button" maxWidth="Infinity"/>
+
             <Button text="Quitter" onAction="#handleExit"
                     styleClass="menu-button-exit" maxWidth="Infinity"/>
         </VBox>

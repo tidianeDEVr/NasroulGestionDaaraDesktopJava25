@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import java.lang.String?>
 
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
@@ -15,7 +16,7 @@
 
     <!-- Header -->
     <HBox alignment="CENTER_LEFT" spacing="16">
-        <Label text="📜 Historique de Synchronisation" styleClass="view-title"/>
+        <Label text="Historique de Synchronisation" styleClass="view-title"/>
         <Region HBox.hgrow="ALWAYS"/>
         <Button fx:id="btnRefresh" text="🔄 Actualiser" onAction="#handleRefresh" styleClass="secondary-button"/>
         <Button fx:id="btnCleanOldLogs" text="🗑️ Nettoyer anciens logs" onAction="#handleCleanOldLogs" styleClass="secondary-button"/>
