@@ -21,7 +21,7 @@ public class ProjectDAO {
             """;
 
         try (Connection conn = dbManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, project.getName());
             pstmt.setString(2, project.getDescription());
@@ -40,7 +40,10 @@ public class ProjectDAO {
 
             pstmt.executeUpdate();
 
-            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+            // Get generated ID using last_insert_rowid() for SQLite compatibility
+            String getIdSql = "SELECT last_insert_rowid()";
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(getIdSql)) {
                 if (rs.next()) {
                     project.setId(rs.getInt(1));
                 }
@@ -52,7 +55,7 @@ public class ProjectDAO {
         String sql = """
             SELECT p.*, m.first_name || ' ' || m.last_name AS manager_name
             FROM projects p
-            LEFT JOIN members m ON p.manager_id = m.id
+            LEFT JOIN members m ON p.manager_id = m.id AND m.deleted_at IS NULL
             WHERE p.id = ? AND p.deleted_at IS NULL
             """;
 
@@ -75,7 +78,7 @@ public class ProjectDAO {
         String sql = """
             SELECT p.*, m.first_name || ' ' || m.last_name AS manager_name
             FROM projects p
-            LEFT JOIN members m ON p.manager_id = m.id
+            LEFT JOIN members m ON p.manager_id = m.id AND m.deleted_at IS NULL
             WHERE p.deleted_at IS NULL
             ORDER BY p.name
             """;

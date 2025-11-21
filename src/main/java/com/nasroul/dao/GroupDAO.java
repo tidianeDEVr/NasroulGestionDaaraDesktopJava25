@@ -25,16 +25,22 @@ public class GroupDAO {
         String deviceId = DeviceIdGenerator.getDeviceId();
 
         try (Connection conn = dbManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, group.getName());
             pstmt.setString(2, group.getDescription());
-            pstmt.setBoolean(3, group.isActive());
+
+            // SQLite stores boolean as integer (0 or 1)
+            pstmt.setInt(3, group.isActive() ? 1 : 0);
+
             pstmt.setString(4, deviceId); // last_modified_by
 
             pstmt.executeUpdate();
 
-            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+            // Get generated ID using last_insert_rowid() for SQLite compatibility
+            String getIdSql = "SELECT last_insert_rowid()";
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(getIdSql)) {
                 if (rs.next()) {
                     group.setId(rs.getInt(1));
                 }
@@ -115,7 +121,10 @@ public class GroupDAO {
 
             pstmt.setString(1, group.getName());
             pstmt.setString(2, group.getDescription());
-            pstmt.setBoolean(3, group.isActive());
+
+            // SQLite stores boolean as integer (0 or 1)
+            pstmt.setInt(3, group.isActive() ? 1 : 0);
+
             pstmt.setString(4, deviceId); // last_modified_by
             pstmt.setInt(5, group.getId());
 
@@ -151,7 +160,7 @@ public class GroupDAO {
     }
 
     public int getMemberCount(int groupId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM members WHERE group_id = ?";
+        String sql = "SELECT COUNT(*) FROM members WHERE group_id = ? AND deleted_at IS NULL";
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -172,7 +181,9 @@ public class GroupDAO {
         group.setId(rs.getInt("id"));
         group.setName(rs.getString("name"));
         group.setDescription(rs.getString("description"));
-        group.setActive(rs.getBoolean("active"));
+
+        // SQLite stores boolean as integer (0 or 1)
+        group.setActive(rs.getInt("active") == 1);
 
         // Extract sync metadata - SQLite stores datetime as TEXT
         String createdAt = rs.getString("created_at");

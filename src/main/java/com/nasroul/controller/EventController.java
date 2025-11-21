@@ -135,6 +135,7 @@ public class EventController {
                     }
                     loadEvents();
                 } catch (SQLException e) {
+                    e.printStackTrace(); // Log full stack trace to console
                     showError("Erreur", "Impossible de sauvegarder l'événement: " + e.getMessage());
                 }
             }

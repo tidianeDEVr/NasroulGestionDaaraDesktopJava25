@@ -21,7 +21,7 @@ public class ExpenseDAO {
             """;
 
         try (Connection conn = dbManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, expense.getDescription());
             pstmt.setDouble(2, expense.getAmount());
@@ -39,7 +39,10 @@ public class ExpenseDAO {
 
             pstmt.executeUpdate();
 
-            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+            // Get generated ID using last_insert_rowid() for SQLite compatibility
+            String getIdSql = "SELECT last_insert_rowid()";
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(getIdSql)) {
                 if (rs.next()) {
                     expense.setId(rs.getInt(1));
                 }
@@ -53,9 +56,9 @@ public class ExpenseDAO {
                    m.first_name || ' ' || m.last_name AS member_name,
                    COALESCE(ev.name, pr.name) AS entity_name
             FROM expenses e
-            LEFT JOIN members m ON e.member_id = m.id
-            LEFT JOIN events ev ON e.entity_type = 'EVENT' AND e.entity_id = ev.id
-            LEFT JOIN projects pr ON e.entity_type = 'PROJECT' AND e.entity_id = pr.id
+            LEFT JOIN members m ON e.member_id = m.id AND m.deleted_at IS NULL
+            LEFT JOIN events ev ON e.entity_type = 'EVENT' AND e.entity_id = ev.id AND ev.deleted_at IS NULL
+            LEFT JOIN projects pr ON e.entity_type = 'PROJECT' AND e.entity_id = pr.id AND pr.deleted_at IS NULL
             WHERE e.id = ? AND e.deleted_at IS NULL
             """;
 
@@ -80,9 +83,9 @@ public class ExpenseDAO {
                    m.first_name || ' ' || m.last_name AS member_name,
                    COALESCE(ev.name, pr.name) AS entity_name
             FROM expenses e
-            LEFT JOIN members m ON e.member_id = m.id
-            LEFT JOIN events ev ON e.entity_type = 'EVENT' AND e.entity_id = ev.id
-            LEFT JOIN projects pr ON e.entity_type = 'PROJECT' AND e.entity_id = pr.id
+            LEFT JOIN members m ON e.member_id = m.id AND m.deleted_at IS NULL
+            LEFT JOIN events ev ON e.entity_type = 'EVENT' AND e.entity_id = ev.id AND ev.deleted_at IS NULL
+            LEFT JOIN projects pr ON e.entity_type = 'PROJECT' AND e.entity_id = pr.id AND pr.deleted_at IS NULL
             WHERE e.deleted_at IS NULL
             ORDER BY e.date DESC
             """;
@@ -106,9 +109,9 @@ public class ExpenseDAO {
                    m.first_name || ' ' || m.last_name AS member_name,
                    COALESCE(ev.name, pr.name) AS entity_name
             FROM expenses e
-            LEFT JOIN members m ON e.member_id = m.id
-            LEFT JOIN events ev ON e.entity_type = 'EVENT' AND e.entity_id = ev.id
-            LEFT JOIN projects pr ON e.entity_type = 'PROJECT' AND e.entity_id = pr.id
+            LEFT JOIN members m ON e.member_id = m.id AND m.deleted_at IS NULL
+            LEFT JOIN events ev ON e.entity_type = 'EVENT' AND e.entity_id = ev.id AND ev.deleted_at IS NULL
+            LEFT JOIN projects pr ON e.entity_type = 'PROJECT' AND e.entity_id = pr.id AND pr.deleted_at IS NULL
             WHERE e.entity_type = ? AND e.entity_id = ? AND e.deleted_at IS NULL
             ORDER BY e.date DESC
             """;

@@ -21,7 +21,7 @@ public class EventDAO {
             """;
 
         try (Connection conn = dbManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, event.getName());
             pstmt.setString(2, event.getDescription());
@@ -45,11 +45,16 @@ public class EventDAO {
             }
 
             pstmt.setDouble(9, event.getContributionTarget() != null ? event.getContributionTarget() : 0.0);
-            pstmt.setBoolean(10, event.isActive());
+
+            // SQLite stores boolean as integer (0 or 1)
+            pstmt.setInt(10, event.isActive() ? 1 : 0);
 
             pstmt.executeUpdate();
 
-            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+            // Get generated ID using last_insert_rowid() for SQLite compatibility
+            String getIdSql = "SELECT last_insert_rowid()";
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(getIdSql)) {
                 if (rs.next()) {
                     event.setId(rs.getInt(1));
                 }
@@ -61,7 +66,7 @@ public class EventDAO {
         String sql = """
             SELECT e.*, m.first_name || ' ' || m.last_name AS organizer_name
             FROM events e
-            LEFT JOIN members m ON e.organizer_id = m.id
+            LEFT JOIN members m ON e.organizer_id = m.id AND m.deleted_at IS NULL
             WHERE e.id = ? AND e.deleted_at IS NULL
             """;
 
@@ -84,7 +89,7 @@ public class EventDAO {
         String sql = """
             SELECT e.*, m.first_name || ' ' || m.last_name AS organizer_name
             FROM events e
-            LEFT JOIN members m ON e.organizer_id = m.id
+            LEFT JOIN members m ON e.organizer_id = m.id AND m.deleted_at IS NULL
             WHERE e.deleted_at IS NULL
             ORDER BY e.start_date DESC
             """;
@@ -135,7 +140,10 @@ public class EventDAO {
             }
 
             pstmt.setDouble(9, event.getContributionTarget() != null ? event.getContributionTarget() : 0.0);
-            pstmt.setBoolean(10, event.isActive());
+
+            // SQLite stores boolean as integer (0 or 1)
+            pstmt.setInt(10, event.isActive() ? 1 : 0);
+
             pstmt.setInt(11, event.getId());
 
             pstmt.executeUpdate();
@@ -201,7 +209,9 @@ public class EventDAO {
         event.setMaxCapacity(rs.wasNull() ? null : maxCapacity);
 
         event.setContributionTarget(rs.getDouble("contribution_target"));
-        event.setActive(rs.getBoolean("active"));
+
+        // SQLite stores boolean as integer (0 or 1)
+        event.setActive(rs.getInt("active") == 1);
 
         return event;
     }

@@ -18,7 +18,7 @@ public class AssociationApp extends Application {
         SplashScreenController splashController = splashLoader.getController();
         splashController.setStage(primaryStage);
 
-        primaryStage.setTitle("Association Manager - Chargement");
+        primaryStage.setTitle("Nasroul Mouminina - Chargement");
         primaryStage.initStyle(StageStyle.UNDECORATED);
         primaryStage.setScene(splashScene);
         primaryStage.setResizable(false);

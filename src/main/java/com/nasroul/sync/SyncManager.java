@@ -101,24 +101,16 @@ public class SyncManager {
     private int pullTableFromRemote(String tableName) throws SQLException {
         int pulledCount = 0;
 
-        // Get last sync time for this table
-        LocalDateTime lastSync = getLastSyncTime(tableName);
-
         // IMPORTANT: Get ALL records, including soft-deleted ones (deleted_at IS NOT NULL)
         // This ensures soft deletes propagate between devices
-        String sql = lastSync != null
-            ? "SELECT * FROM `" + tableName + "` WHERE updated_at > ? OR updated_at IS NULL"
-            : "SELECT * FROM `" + tableName + "`";
+        // Fetch ALL records to enable cross-device synchronization
+        String sql = "SELECT * FROM `" + tableName + "`";
 
         try (Connection remoteConn = dbManager.getMySQLConnection();
-             PreparedStatement pstmt = remoteConn.prepareStatement(sql)) {
+             Statement stmt = remoteConn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
 
-            if (lastSync != null) {
-                pstmt.setObject(1, lastSync);
-            }
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
+            while (rs.next()) {
                     int remoteId = rs.getInt("id");
                     String remoteDeletedAt = rs.getString("deleted_at");
 
@@ -154,22 +146,39 @@ public class SyncManager {
                                     "UPDATE", "PULL", "SUCCESS", null);
 
                         } else {
-                            // No mapping - new record from another device
+                            // No mapping - could be new record from another device OR existing record without mapping
                             if (remoteDeletedAt == null || remoteDeletedAt.isEmpty()) {
-                                // Only create if not deleted
-                                int newLocalId = insertLocalEntity(tableName, remoteEntity);
-                                syncMetadataDAO.setRemoteId(tableName, newLocalId, remoteId);
-                                pulledCount++;
-                                System.out.println("Created local record from remote: " + tableName + " local ID " + newLocalId + " ← remote ID " + remoteId);
-
-                                // Update sync metadata
+                                // Check if we already have this entity by content hash
                                 String hash = remoteEntity.calculateHash();
-                                syncMetadataDAO.save(tableName, newLocalId,
-                                        remoteEntity.getSyncVersion(),
-                                        hash, hash, "SYNCED");
+                                Integer existingLocalId = findLocalEntityByHash(tableName, hash);
 
-                                syncLogDAO.log(currentSyncSession, tableName, newLocalId,
-                                        "INSERT", "PULL", "SUCCESS", null);
+                                if (existingLocalId != null) {
+                                    // Found existing local entity with same content - just create the mapping
+                                    syncMetadataDAO.setRemoteId(tableName, existingLocalId, remoteId);
+                                    System.out.println("Linked existing local record to remote: " + tableName + " local ID " + existingLocalId + " ← remote ID " + remoteId);
+
+                                    // Update sync metadata
+                                    syncMetadataDAO.save(tableName, existingLocalId,
+                                            remoteEntity.getSyncVersion(),
+                                            hash, hash, "SYNCED");
+
+                                    syncLogDAO.log(currentSyncSession, tableName, existingLocalId,
+                                            "LINK", "PULL", "SUCCESS", null);
+                                } else {
+                                    // Truly new record - create it
+                                    int newLocalId = insertLocalEntity(tableName, remoteEntity);
+                                    syncMetadataDAO.setRemoteId(tableName, newLocalId, remoteId);
+                                    pulledCount++;
+                                    System.out.println("Created local record from remote: " + tableName + " local ID " + newLocalId + " ← remote ID " + remoteId);
+
+                                    // Update sync metadata
+                                    syncMetadataDAO.save(tableName, newLocalId,
+                                            remoteEntity.getSyncVersion(),
+                                            hash, hash, "SYNCED");
+
+                                    syncLogDAO.log(currentSyncSession, tableName, newLocalId,
+                                            "INSERT", "PULL", "SUCCESS", null);
+                                }
                             }
                         }
 
@@ -188,7 +197,6 @@ public class SyncManager {
                                 "UPDATE", "PULL", "FAILED", e.getMessage());
                     }
                 }
-            }
         }
 
         return pulledCount;
@@ -340,6 +348,29 @@ public class SyncManager {
 
     private SyncableEntity extractEntity(String tableName, ResultSet rs) throws SQLException {
         return GenericSyncableEntity.fromResultSet(tableName, rs);
+    }
+
+    /**
+     * Find a local entity by its content hash to detect duplicates
+     * This prevents creating duplicate records when pulling from remote
+     */
+    private Integer findLocalEntityByHash(String tableName, String contentHash) throws SQLException {
+        String sql = "SELECT record_id FROM sync_metadata WHERE table_name = ? AND local_hash = ?";
+
+        try (Connection conn = dbManager.getSQLiteConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, tableName);
+            pstmt.setString(2, contentHash);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("record_id");
+                }
+            }
+        }
+
+        return null;
     }
 
     private void updateLocalEntity(String tableName, SyncableEntity entity) throws SQLException {

@@ -112,7 +112,7 @@ public class SplashScreenController {
         // Create new stage for main application
         Stage mainStage = new Stage();
         mainStage.setScene(scene);
-        mainStage.setTitle("Association Manager");
+        mainStage.setTitle("Nasroul Mouminina");
         mainStage.setResizable(true);
         mainStage.centerOnScreen();
 

@@ -22,7 +22,7 @@ public class ContributionDAO {
             """;
 
         try (Connection conn = dbManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, contribution.getMemberId());
             pstmt.setString(2, contribution.getEntityType());
@@ -35,7 +35,10 @@ public class ContributionDAO {
 
             pstmt.executeUpdate();
 
-            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+            // Get generated ID using last_insert_rowid() for SQLite compatibility
+            String getIdSql = "SELECT last_insert_rowid()";
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(getIdSql)) {
                 if (rs.next()) {
                     contribution.setId(rs.getInt(1));
                 }
@@ -49,11 +52,11 @@ public class ContributionDAO {
             SELECT c.*,
                    m.first_name || ' ' || m.last_name AS member_name,
                    CASE
-                       WHEN c.entity_type = 'EVENT' THEN (SELECT name FROM events WHERE id = c.entity_id)
-                       WHEN c.entity_type = 'PROJECT' THEN (SELECT name FROM projects WHERE id = c.entity_id)
+                       WHEN c.entity_type = 'EVENT' THEN (SELECT name FROM events WHERE id = c.entity_id AND deleted_at IS NULL)
+                       WHEN c.entity_type = 'PROJECT' THEN (SELECT name FROM projects WHERE id = c.entity_id AND deleted_at IS NULL)
                    END AS entity_name
             FROM contributions c
-            LEFT JOIN members m ON c.member_id = m.id
+            LEFT JOIN members m ON c.member_id = m.id AND m.deleted_at IS NULL
             WHERE c.member_id = ? AND c.deleted_at IS NULL
             ORDER BY c.date DESC
             """;
@@ -78,11 +81,11 @@ public class ContributionDAO {
             SELECT c.*,
                    m.first_name || ' ' || m.last_name AS member_name,
                    CASE
-                       WHEN c.entity_type = 'EVENT' THEN (SELECT name FROM events WHERE id = c.entity_id)
-                       WHEN c.entity_type = 'PROJECT' THEN (SELECT name FROM projects WHERE id = c.entity_id)
+                       WHEN c.entity_type = 'EVENT' THEN (SELECT name FROM events WHERE id = c.entity_id AND deleted_at IS NULL)
+                       WHEN c.entity_type = 'PROJECT' THEN (SELECT name FROM projects WHERE id = c.entity_id AND deleted_at IS NULL)
                    END AS entity_name
             FROM contributions c
-            LEFT JOIN members m ON c.member_id = m.id
+            LEFT JOIN members m ON c.member_id = m.id AND m.deleted_at IS NULL
             WHERE c.entity_type = ? AND c.entity_id = ? AND c.deleted_at IS NULL
             ORDER BY c.date DESC
             """;
@@ -108,11 +111,11 @@ public class ContributionDAO {
             SELECT c.*,
                    m.first_name || ' ' || m.last_name AS member_name,
                    CASE
-                       WHEN c.entity_type = 'EVENT' THEN (SELECT name FROM events WHERE id = c.entity_id)
-                       WHEN c.entity_type = 'PROJECT' THEN (SELECT name FROM projects WHERE id = c.entity_id)
+                       WHEN c.entity_type = 'EVENT' THEN (SELECT name FROM events WHERE id = c.entity_id AND deleted_at IS NULL)
+                       WHEN c.entity_type = 'PROJECT' THEN (SELECT name FROM projects WHERE id = c.entity_id AND deleted_at IS NULL)
                    END AS entity_name
             FROM contributions c
-            LEFT JOIN members m ON c.member_id = m.id
+            LEFT JOIN members m ON c.member_id = m.id AND m.deleted_at IS NULL
             WHERE c.status = 'PENDING' AND c.deleted_at IS NULL
             ORDER BY c.date DESC
             """;
@@ -135,11 +138,11 @@ public class ContributionDAO {
             SELECT c.*,
                    m.first_name || ' ' || m.last_name AS member_name,
                    CASE
-                       WHEN c.entity_type = 'EVENT' THEN (SELECT name FROM events WHERE id = c.entity_id)
-                       WHEN c.entity_type = 'PROJECT' THEN (SELECT name FROM projects WHERE id = c.entity_id)
+                       WHEN c.entity_type = 'EVENT' THEN (SELECT name FROM events WHERE id = c.entity_id AND deleted_at IS NULL)
+                       WHEN c.entity_type = 'PROJECT' THEN (SELECT name FROM projects WHERE id = c.entity_id AND deleted_at IS NULL)
                    END AS entity_name
             FROM contributions c
-            LEFT JOIN members m ON c.member_id = m.id
+            LEFT JOIN members m ON c.member_id = m.id AND m.deleted_at IS NULL
             WHERE c.deleted_at IS NULL
             ORDER BY c.date DESC
             """;

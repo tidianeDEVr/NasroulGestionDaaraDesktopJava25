@@ -31,7 +31,7 @@
         </font>
     </Label>
 
-    <ProgressBar fx:id="progressBar" prefWidth="300.0" progress="0.0" />
+    <ProgressBar fx:id="progressBar" prefWidth="300.0" progress="0.0" style="-fx-accent: #11480a;" />
 
     <Label fx:id="errorLabel" style="-fx-text-fill: #d32f2f;" textAlignment="CENTER" visible="false" wrapText="true">
         <font>

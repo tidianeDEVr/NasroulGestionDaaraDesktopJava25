@@ -20,7 +20,7 @@ public class PaymentGroupDAO {
             """;
 
         try (Connection conn = dbManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, paymentGroup.getGroupId());
             pstmt.setString(2, paymentGroup.getEntityType());
@@ -29,9 +29,12 @@ public class PaymentGroupDAO {
 
             pstmt.executeUpdate();
 
-            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    paymentGroup.setId(generatedKeys.getInt(1));
+            // Get generated ID using last_insert_rowid() for SQLite compatibility
+            String getIdSql = "SELECT last_insert_rowid()";
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(getIdSql)) {
+                if (rs.next()) {
+                    paymentGroup.setId(rs.getInt(1));
                 }
             }
         }
@@ -43,9 +46,9 @@ public class PaymentGroupDAO {
                    g.name AS group_name,
                    COALESCE(e.name, p.name) AS entity_name
             FROM payment_groups pg
-            LEFT JOIN `groups` g ON pg.group_id = g.id
-            LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id
-            LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id
+            LEFT JOIN `groups` g ON pg.group_id = g.id AND g.deleted_at IS NULL
+            LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id AND e.deleted_at IS NULL
+            LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id AND p.deleted_at IS NULL
             WHERE pg.id = ? AND pg.deleted_at IS NULL
             """;
 
@@ -69,9 +72,9 @@ public class PaymentGroupDAO {
                    g.name AS group_name,
                    COALESCE(e.name, p.name) AS entity_name
             FROM payment_groups pg
-            LEFT JOIN `groups` g ON pg.group_id = g.id
-            LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id
-            LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id
+            LEFT JOIN `groups` g ON pg.group_id = g.id AND g.deleted_at IS NULL
+            LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id AND e.deleted_at IS NULL
+            LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id AND p.deleted_at IS NULL
             WHERE pg.deleted_at IS NULL
             ORDER BY pg.id DESC
             """;
@@ -96,9 +99,9 @@ public class PaymentGroupDAO {
                    g.name AS group_name,
                    COALESCE(e.name, p.name) AS entity_name
             FROM payment_groups pg
-            LEFT JOIN `groups` g ON pg.group_id = g.id
-            LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id
-            LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id
+            LEFT JOIN `groups` g ON pg.group_id = g.id AND g.deleted_at IS NULL
+            LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id AND e.deleted_at IS NULL
+            LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id AND p.deleted_at IS NULL
             WHERE pg.group_id = ? AND pg.deleted_at IS NULL
             ORDER BY pg.id DESC
             """;
@@ -126,9 +129,9 @@ public class PaymentGroupDAO {
                    g.name AS group_name,
                    COALESCE(e.name, p.name) AS entity_name
             FROM payment_groups pg
-            LEFT JOIN `groups` g ON pg.group_id = g.id
-            LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id
-            LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id
+            LEFT JOIN `groups` g ON pg.group_id = g.id AND g.deleted_at IS NULL
+            LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id AND e.deleted_at IS NULL
+            LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id AND p.deleted_at IS NULL
             WHERE pg.entity_type = ? AND pg.entity_id = ? AND pg.deleted_at IS NULL
             ORDER BY pg.id DESC
             """;

@@ -22,7 +22,7 @@ public class MemberDAO {
             """;
 
         try (Connection conn = dbManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, member.getFirstName());
             pstmt.setString(2, member.getLastName());
@@ -32,7 +32,14 @@ public class MemberDAO {
             pstmt.setString(6, member.getAddress());
             pstmt.setString(7, member.getJoinDate().toString());
             pstmt.setString(8, member.getRole());
-            pstmt.setBytes(9, member.getAvatar());
+
+            // Handle nullable avatar - SQLite JDBC requires special handling for BLOB
+            if (member.getAvatar() != null) {
+                pstmt.setBytes(9, member.getAvatar());
+            } else {
+                pstmt.setNull(9, Types.BLOB);
+            }
+
             pstmt.setInt(10, member.isActive() ? 1 : 0);
 
             // Handle nullable group_id - SQLite JDBC doesn't support setObject for nulls
@@ -47,7 +54,10 @@ public class MemberDAO {
 
             pstmt.executeUpdate();
 
-            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+            // Get generated ID using last_insert_rowid() for SQLite compatibility
+            String getIdSql = "SELECT last_insert_rowid()";
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(getIdSql)) {
                 if (rs.next()) {
                     member.setId(rs.getInt(1));
                     // Insert member_groups associations
@@ -63,7 +73,7 @@ public class MemberDAO {
         String sql = """
             SELECT m.*, g.name AS group_name
             FROM members m
-            LEFT JOIN `groups` g ON m.group_id = g.id
+            LEFT JOIN `groups` g ON m.group_id = g.id AND g.deleted_at IS NULL
             WHERE m.id = ?
             """;
 
@@ -86,7 +96,7 @@ public class MemberDAO {
         String sql = """
             SELECT m.*, g.name AS group_name
             FROM members m
-            LEFT JOIN `groups` g ON m.group_id = g.id
+            LEFT JOIN `groups` g ON m.group_id = g.id AND g.deleted_at IS NULL
             WHERE m.deleted_at IS NULL
             ORDER BY m.last_name, m.first_name
             """;
@@ -108,7 +118,7 @@ public class MemberDAO {
         String sql = """
             SELECT m.*, g.name AS group_name
             FROM members m
-            LEFT JOIN `groups` g ON m.group_id = g.id
+            LEFT JOIN `groups` g ON m.group_id = g.id AND g.deleted_at IS NULL
             WHERE m.active = 1 AND m.deleted_at IS NULL
             ORDER BY m.last_name, m.first_name
             """;
@@ -146,7 +156,14 @@ public class MemberDAO {
             pstmt.setString(6, member.getAddress());
             pstmt.setString(7, member.getJoinDate().toString());
             pstmt.setString(8, member.getRole());
-            pstmt.setBytes(9, member.getAvatar());
+
+            // Handle nullable avatar - SQLite JDBC requires special handling for BLOB
+            if (member.getAvatar() != null) {
+                pstmt.setBytes(9, member.getAvatar());
+            } else {
+                pstmt.setNull(9, Types.BLOB);
+            }
+
             pstmt.setInt(10, member.isActive() ? 1 : 0);
 
             // Handle nullable group_id - SQLite JDBC doesn't support setObject for nulls
@@ -200,7 +217,11 @@ public class MemberDAO {
         member.setAddress(rs.getString("address"));
         member.setJoinDate(LocalDate.parse(rs.getString("join_date")));
         member.setRole(rs.getString("role"));
-        member.setAvatar(rs.getBytes("avatar"));
+
+        // Handle avatar BLOB safely - SQLite JDBC driver requires special handling
+        byte[] avatar = rs.getBytes("avatar");
+        member.setAvatar(rs.wasNull() ? null : avatar);
+
         member.setActive(rs.getInt("active") == 1);
 
         int groupId = rs.getInt("group_id");
@@ -221,7 +242,7 @@ public class MemberDAO {
         String sql = """
             SELECT mg.group_id, g.name
             FROM member_groups mg
-            LEFT JOIN `groups` g ON mg.group_id = g.id
+            LEFT JOIN `groups` g ON mg.group_id = g.id AND g.deleted_at IS NULL
             WHERE mg.member_id = ?
             """;
 

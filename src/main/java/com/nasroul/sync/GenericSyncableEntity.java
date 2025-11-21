@@ -33,7 +33,18 @@ public class GenericSyncableEntity extends SyncableEntity {
 
         for (int i = 1; i <= columnCount; i++) {
             String columnName = metaData.getColumnName(i);
-            Object value = rs.getObject(i);
+            int columnType = metaData.getColumnType(i);
+
+            Object value;
+            // Handle BLOB type specially to avoid driver-specific issues
+            if (columnType == java.sql.Types.BLOB || columnType == java.sql.Types.BINARY ||
+                columnType == java.sql.Types.VARBINARY || columnType == java.sql.Types.LONGVARBINARY) {
+                byte[] bytes = rs.getBytes(i);
+                value = rs.wasNull() ? null : bytes;
+            } else {
+                value = rs.getObject(i);
+            }
+
             entity.fields.put(columnName, value);
         }
 
