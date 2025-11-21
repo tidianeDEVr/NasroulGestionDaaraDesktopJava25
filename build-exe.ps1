@@ -28,8 +28,15 @@ if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
 }
 mvn -v
 
+# Nettoyer le dossier dist s'il existe
+$destDir = Join-Path (Get-Location) 'dist'
+if (Test-Path $destDir) {
+    Write-Output "Nettoyage du dossier dist..."
+    Remove-Item -Path $destDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 # Build Maven
-Write-Output "[1/3] Compilation Maven..."
+Write-Output "[1/4] Compilation Maven..."
 & mvn clean package -P windows
 if ($LASTEXITCODE -ne 0) {
     Write-Error "ERREUR: La compilation Maven a échoué."
@@ -43,15 +50,33 @@ if (-not $jar) {
     Write-Error "ERREUR: Aucun JAR trouvé dans $targetDir"
     exit 1
 }
-Write-Output "JAR utilise: $($jar.FullName)`n"
+Write-Output "JAR utilise: $($jar.FullName)"
+Write-Output "Taille du JAR: $([math]::Round($jar.Length / 1MB, 2)) MB`n"
+
+# Vérifier le contenu du JAR (Main-Class)
+Write-Output "[2/4] Verification du JAR..."
+$manifest = & jar xf "$($jar.FullName)" META-INF/MANIFEST.MF -O 2>&1
+if ($manifest -match "Main-Class:\s*(.+)") {
+    Write-Output "Main-Class dans le JAR: $($Matches[1].Trim())"
+} else {
+    Write-Warning "Impossible de lire Main-Class du manifest"
+}
 
 # Préparer dist
-$destDir = Join-Path (Get-Location) 'dist'
 if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir | Out-Null }
 
 # Appel jpackage (log)
-Write-Output "[2/3] Creation de l'executable Windows..."
+Write-Output "`n[3/4] Creation de l'executable Windows..."
 $log = Join-Path (Get-Location) 'jpackage-output.log'
+
+# Note: L'option --java-options avec --enable-native-access peut causer des problèmes
+# sur certaines configurations. Si l'installateur échoue, essayez de la retirer.
+Write-Output "Configuration jpackage:"
+Write-Output "  - Main JAR: $($jar.Name)"
+Write-Output "  - Main Class: com.nasroul.Launcher"
+Write-Output "  - Type: exe"
+Write-Output "  - Destination: $destDir`n"
+
 & jpackage `
   --input $targetDir `
   --name 'NasroulGestion' `
@@ -62,10 +87,10 @@ $log = Join-Path (Get-Location) 'jpackage-output.log'
   --dest $destDir `
   --win-shortcut `
   --win-menu `
+  --win-dir-chooser `
   --app-version '1.0' `
   --vendor 'Nasroul' `
-  --description 'Gestionnaire d''Association Nasroul' `
-  --java-options '--enable-native-access=javafx.graphics,ALL-UNNAMED' *>&1 | Tee-Object -FilePath $log
+  --description 'Gestionnaire d''Association Nasroul' *>&1 | Tee-Object -FilePath $log
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "ERREUR: jpackage a échoué (code $LASTEXITCODE)."
@@ -78,7 +103,7 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-Write-Output "`n[3/3] Terminé !"
+Write-Output "`n[4/4] Terminé !"
 Write-Output "========================================"
 Write-Output "SUCCES !"
 Write-Output "Fichiers dans dist:"
