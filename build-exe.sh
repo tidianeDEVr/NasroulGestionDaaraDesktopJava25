@@ -8,6 +8,35 @@ echo "Creation de l'executable NasroulGestion"
 echo "========================================"
 echo ""
 
+# Verification de Java
+echo "Verification de Java..."
+if ! command -v java &> /dev/null; then
+    echo "ERREUR: Java n'est pas installe ou pas dans le PATH"
+    exit 1
+fi
+
+# Trouver jpackage
+JPACKAGE_CMD=""
+if command -v jpackage &> /dev/null; then
+    JPACKAGE_CMD="jpackage"
+elif [ -n "$JAVA_HOME" ] && [ -f "$JAVA_HOME/bin/jpackage" ]; then
+    JPACKAGE_CMD="$JAVA_HOME/bin/jpackage"
+elif [ -f "/c/Program Files/Java/jdk-25/bin/jpackage.exe" ]; then
+    # Chemin Windows dans Git Bash/WSL
+    JPACKAGE_CMD="/c/Program Files/Java/jdk-25/bin/jpackage.exe"
+else
+    echo "ERREUR: jpackage introuvable"
+    echo ""
+    echo "Solutions:"
+    echo "1. Ajoutez le JDK bin au PATH"
+    echo "2. Ou definissez JAVA_HOME vers votre JDK"
+    echo "3. Ou modifiez le script avec le bon chemin"
+    exit 1
+fi
+
+echo "Java detecte. Utilisation de: $JPACKAGE_CMD"
+echo ""
+
 # 1. Compilation et creation du fat JAR
 echo "[1/3] Compilation et creation du JAR..."
 mvn clean package -P windows
@@ -28,7 +57,7 @@ mkdir -p dist
 # 4. Creation de l'executable avec jpackage
 echo ""
 echo "[2/3] Creation de l'executable Windows..."
-jpackage \
+"$JPACKAGE_CMD" \
     --input target \
     --name NasroulGestion \
     --main-jar AssociationManager-1.0-SNAPSHOT.jar \
