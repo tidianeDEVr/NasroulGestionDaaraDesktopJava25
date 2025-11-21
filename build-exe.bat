@@ -7,6 +7,49 @@ echo Creation de l'executable NasroulGestion
 echo ========================================
 echo.
 
+REM Verification de Java et jpackage
+echo Verification de Java...
+java -version 2>nul
+if errorlevel 1 (
+    echo ERREUR: Java n'est pas installe ou pas dans le PATH
+    pause
+    exit /b 1
+)
+
+REM Trouver jpackage
+where jpackage >nul 2>nul
+if errorlevel 1 (
+    echo AVERTISSEMENT: jpackage n'est pas dans le PATH
+    echo Tentative de localisation via JAVA_HOME...
+    if "%JAVA_HOME%"=="" (
+        echo JAVA_HOME non defini, utilisation du chemin par defaut...
+        set "JPACKAGE_CMD=C:\Program Files\Java\jdk-25\bin\jpackage.exe"
+    ) else (
+        set "JPACKAGE_CMD=%JAVA_HOME%\bin\jpackage.exe"
+    )
+) else (
+    set "JPACKAGE_CMD=jpackage"
+)
+
+REM Verification que jpackage existe
+if not exist "%JPACKAGE_CMD%" (
+    if "%JPACKAGE_CMD%"=="jpackage" (
+        echo ERREUR: jpackage introuvable
+    ) else (
+        echo ERREUR: jpackage introuvable a: %JPACKAGE_CMD%
+    )
+    echo.
+    echo Solutions:
+    echo 1. Ajoutez C:\Program Files\Java\jdk-25\bin au PATH
+    echo 2. Ou definissez JAVA_HOME=C:\Program Files\Java\jdk-25
+    echo 3. Ou modifiez le script avec le bon chemin vers votre JDK
+    pause
+    exit /b 1
+)
+
+echo Java detecte. Utilisation de: %JPACKAGE_CMD%
+echo.
+
 REM 1. Compilation et creation du fat JAR
 echo [1/3] Compilation et creation du JAR...
 call mvn clean package -P windows
@@ -29,7 +72,7 @@ if not exist "dist" mkdir dist
 REM 4. Creation de l'executable avec jpackage
 echo.
 echo [2/3] Creation de l'executable Windows...
-jpackage ^
+%JPACKAGE_CMD% ^
     --input target ^
     --name NasroulGestion ^
     --main-jar AssociationManager-1.0-SNAPSHOT.jar ^
