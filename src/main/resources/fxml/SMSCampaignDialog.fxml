@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.control.ProgressBar?>
 
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
@@ -45,6 +46,14 @@
         <Label text="Aperçu du premier message :" style="-fx-font-weight: bold;"/>
         <TextArea fx:id="txtPreview" editable="false" prefRowCount="3"
                   style="-fx-background-color: #f6f8fa; -fx-border-color: #d0d7de;"/>
+    </VBox>
+
+    <VBox fx:id="progressContainer" spacing="4" visible="false" managed="false">
+        <HBox spacing="8" alignment="CENTER_LEFT">
+            <Label text="Envoi en cours..." style="-fx-font-weight: bold;"/>
+            <Label fx:id="lblProgress" text="0/0" style="-fx-text-fill: #0969da;"/>
+        </HBox>
+        <ProgressBar fx:id="progressBar" maxWidth="Infinity" prefHeight="20"/>
     </VBox>
 
     <HBox spacing="8" alignment="CENTER_RIGHT">

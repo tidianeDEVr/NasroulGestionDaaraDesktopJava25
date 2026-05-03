@@ -194,6 +194,61 @@ public class PaymentGroupDAO {
         }
     }
 
+    public List<PaymentGroup> findByEntityAndGroup(String entityType, int entityId, int groupId) throws SQLException {
+        String sql = """
+            SELECT pg.*,
+                   g.name AS group_name,
+                   COALESCE(e.name, p.name) AS entity_name
+            FROM payment_groups pg
+            LEFT JOIN `groups` g ON pg.group_id = g.id AND g.deleted_at IS NULL
+            LEFT JOIN events e ON pg.entity_type = 'EVENT' AND pg.entity_id = e.id AND e.deleted_at IS NULL
+            LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND pg.entity_id = p.id AND p.deleted_at IS NULL
+            WHERE pg.entity_type = ? AND pg.entity_id = ? AND pg.group_id = ? AND pg.deleted_at IS NULL
+            ORDER BY pg.id DESC
+            """;
+
+        List<PaymentGroup> paymentGroups = new ArrayList<>();
+
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, entityType);
+            pstmt.setInt(2, entityId);
+            pstmt.setInt(3, groupId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    paymentGroups.add(extractPaymentGroup(rs));
+                }
+            }
+        }
+
+        return paymentGroups;
+    }
+
+    public Double getTotalByEntityAndGroup(String entityType, int entityId, int groupId) throws SQLException {
+        String sql = """
+            SELECT amount
+            FROM payment_groups
+            WHERE entity_type = ? AND entity_id = ? AND group_id = ? AND deleted_at IS NULL
+            """;
+
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, entityType);
+            pstmt.setInt(2, entityId);
+            pstmt.setInt(3, groupId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getDouble("amount");
+                }
+            }
+        }
+        return 0.0;
+    }
+
     public Double getTotalByEntity(String entityType, int entityId) throws SQLException {
         String sql = """
             SELECT SUM(amount) AS total

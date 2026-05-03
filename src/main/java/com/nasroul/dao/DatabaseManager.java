@@ -99,11 +99,16 @@ public class DatabaseManager {
             // MIGRATION: Add remote_id column to sync_metadata
             migrateRemoteIdColumn(stmt);
 
+            // MIGRATION: Add contribution_target to projects (for existing DBs that only have target_budget)
+            addColumnIfNotExists(stmt, "projects", "contribution_target", "REAL DEFAULT 0");
+
             System.out.println("SQLite database initialized successfully (offline-first)");
             connectionError = null;
 
-            // Also initialize MySQL if available (for sync)
-            if (isMySQLAvailable()) {
+            // Skip MySQL initialization entirely in offline mode
+            if (config.isOfflineModeEnabled()) {
+                System.out.println("Offline mode enabled - skipping MySQL initialization");
+            } else if (isMySQLAvailable()) {
                 try (Connection mysqlConn = getMySQLConnection();
                      Statement mysqlStmt = mysqlConn.createStatement()) {
                     createTablesMySQL(mysqlStmt);
@@ -209,7 +214,6 @@ public class DatabaseManager {
                 `end_date` VARCHAR(255),
                 `status` VARCHAR(255) DEFAULT 'PLANNING',
                 `budget` DOUBLE DEFAULT 0,
-                `target_budget` DOUBLE DEFAULT 0,
                 `manager_id` INT,
                 `contribution_target` DOUBLE DEFAULT 0,
                 FOREIGN KEY (`manager_id`) REFERENCES `members`(`id`)
@@ -322,7 +326,6 @@ public class DatabaseManager {
                 end_date TEXT,
                 status TEXT DEFAULT 'PLANNING',
                 budget REAL DEFAULT 0,
-                target_budget REAL DEFAULT 0,
                 manager_id INTEGER,
                 contribution_target REAL DEFAULT 0,
                 FOREIGN KEY (manager_id) REFERENCES members(id)

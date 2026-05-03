@@ -3,6 +3,7 @@ package com.nasroul.controller;
 import com.nasroul.service.DeviceRegistrationService;
 import com.nasroul.service.SyncService;
 import com.nasroul.sync.SyncManager;
+import com.nasroul.util.ConfigManager;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -12,6 +13,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 
@@ -56,7 +58,13 @@ public class MainController {
     private Button btnSync;
 
     @FXML
+    private HBox syncButtonContainer;
+
+    @FXML
     private Button btnSyncHistory;
+
+    @FXML
+    private Label lblSystemSection;
 
     @FXML
     private Label syncStatusLabel;
@@ -67,14 +75,39 @@ public class MainController {
     private Timeline clockTimeline;
     private final SyncService syncService = SyncService.getInstance();
     private final DeviceRegistrationService deviceService = DeviceRegistrationService.getInstance();
+    private final boolean offlineMode = ConfigManager.getInstance().isOfflineModeEnabled();
 
     @FXML
     public void initialize() {
         startClock();
         showDashboard();
-        setupSyncService();
-        registerDevice();
-        updateSyncStatus();
+
+        if (offlineMode) {
+            hideSyncUI();
+        } else {
+            setupSyncService();
+            registerDevice();
+            updateSyncStatus();
+        }
+    }
+
+    private void hideSyncUI() {
+        if (syncButtonContainer != null) {
+            syncButtonContainer.setVisible(false);
+            syncButtonContainer.setManaged(false);
+        }
+        if (btnSyncHistory != null) {
+            btnSyncHistory.setVisible(false);
+            btnSyncHistory.setManaged(false);
+        }
+        if (lblSystemSection != null) {
+            lblSystemSection.setVisible(false);
+            lblSystemSection.setManaged(false);
+        }
+        if (syncStatusLabel != null) {
+            syncStatusLabel.setVisible(false);
+            syncStatusLabel.setManaged(false);
+        }
     }
 
     /**
@@ -177,6 +210,9 @@ public class MainController {
 
     @FXML
     private void handleSync() {
+        if (offlineMode) {
+            return;
+        }
         if (syncService.isSyncing()) {
             showAlert("Synchronisation en cours", "Une synchronisation est déjà en cours...", Alert.AlertType.WARNING);
             return;
@@ -449,6 +485,9 @@ public class MainController {
 
     @FXML
     private void showSyncHistory() {
+        if (offlineMode) {
+            return;
+        }
         setActiveButton(btnSyncHistory);
         loadView("/fxml/SyncHistoryView.fxml", "Historique de Synchronisation");
     }

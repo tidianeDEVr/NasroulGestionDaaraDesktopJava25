@@ -12,7 +12,6 @@ public class Project extends SyncableEntity {
     private LocalDate endDate;
     private String status;
     private Double budget;
-    private Double targetBudget;
     private Integer managerId;
     private String managerName;
     private Double contributionTarget;
@@ -21,7 +20,6 @@ public class Project extends SyncableEntity {
         super();
         this.status = "PLANNING";
         this.budget = 0.0;
-        this.targetBudget = 0.0;
         this.contributionTarget = 0.0;
     }
 
@@ -34,7 +32,6 @@ public class Project extends SyncableEntity {
         fields.put("endDate", endDate);
         fields.put("status", status);
         fields.put("budget", budget);
-        fields.put("targetBudget", targetBudget);
         fields.put("managerId", managerId);
         fields.put("contributionTarget", contributionTarget);
         return fields;
@@ -94,14 +91,6 @@ public class Project extends SyncableEntity {
 
     public void setBudget(Double budget) {
         this.budget = budget;
-    }
-
-    public Double getTargetBudget() {
-        return targetBudget;
-    }
-
-    public void setTargetBudget(Double targetBudget) {
-        this.targetBudget = targetBudget;
     }
 
     public Integer getManagerId() {

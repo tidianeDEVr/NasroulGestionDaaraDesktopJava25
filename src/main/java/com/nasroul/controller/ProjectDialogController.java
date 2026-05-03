@@ -18,7 +18,6 @@ public class ProjectDialogController {
     @FXML private DatePicker dpEndDate;
     @FXML private ComboBox<Member> cbManager;
     @FXML private TextField txtBudget;
-    @FXML private TextField txtTargetBudget;
     @FXML private TextField txtContributionTarget;
     @FXML private ComboBox<String> cbStatus;
 
@@ -82,10 +81,6 @@ public class ProjectDialogController {
                 txtBudget.setText(project.getBudget().toString());
             }
 
-            if (project.getTargetBudget() != null) {
-                txtTargetBudget.setText(project.getTargetBudget().toString());
-            }
-
             if (project.getContributionTarget() != null) {
                 txtContributionTarget.setText(project.getContributionTarget().toString());
             }
@@ -108,8 +103,8 @@ public class ProjectDialogController {
             return;
         }
 
-        if (txtTargetBudget.getText().trim().isEmpty()) {
-            showError("Le budget cible est obligatoire");
+        if (txtContributionTarget.getText().trim().isEmpty()) {
+            showError("Le budget de cotisation cible est obligatoire");
             return;
         }
 
@@ -128,33 +123,17 @@ public class ProjectDialogController {
             }
         }
 
-        // Validate target budget
-        Double targetBudget;
+        // Validate contribution target
+        Double contributionTarget;
         try {
-            targetBudget = Double.parseDouble(txtTargetBudget.getText().trim());
-            if (targetBudget <= 0) {
-                showError("Le budget cible doit être supérieur à 0");
+            contributionTarget = Double.parseDouble(txtContributionTarget.getText().trim());
+            if (contributionTarget <= 0) {
+                showError("Le budget de cotisation cible doit être supérieur à 0");
                 return;
             }
         } catch (NumberFormatException e) {
-            showError("Format de budget cible invalide");
+            showError("Format de budget de cotisation invalide");
             return;
-        }
-
-        // Validate contribution target
-        Double contributionTarget = 0.0;
-        String contributionTargetText = txtContributionTarget.getText();
-        if (contributionTargetText != null && !contributionTargetText.trim().isEmpty()) {
-            try {
-                contributionTarget = Double.parseDouble(contributionTargetText.trim());
-                if (contributionTarget < 0) {
-                    showError("Le budget de cotisation ne peut pas être négatif");
-                    return;
-                }
-            } catch (NumberFormatException e) {
-                showError("Format de budget de cotisation invalide");
-                return;
-            }
         }
 
         // Update project object
@@ -168,7 +147,6 @@ public class ProjectDialogController {
         project.setEndDate(dpEndDate.getValue());
         project.setStatus(translateStatusToEnglish(cbStatus.getValue()));
         project.setBudget(budget);
-        project.setTargetBudget(targetBudget);
         project.setContributionTarget(contributionTarget);
 
         if (cbManager.getValue() != null) {

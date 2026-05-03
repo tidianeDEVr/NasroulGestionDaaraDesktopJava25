@@ -32,14 +32,11 @@
         <Label text="Budget actuel" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
         <TextField fx:id="txtBudget" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
 
-        <Label text="Budget cible*" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
-        <TextField fx:id="txtTargetBudget" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+        <Label text="Budget de cotisation cible (CFA)*" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+        <TextField fx:id="txtContributionTarget" GridPane.columnIndex="1" GridPane.rowIndex="5" promptText="0.00"/>
 
-        <Label text="Budget de cotisation cible (CFA)" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
-        <TextField fx:id="txtContributionTarget" GridPane.columnIndex="1" GridPane.rowIndex="6" promptText="0.00"/>
-
-        <Label text="Statut" GridPane.columnIndex="0" GridPane.rowIndex="7"/>
-        <ComboBox fx:id="cbStatus" GridPane.columnIndex="1" GridPane.rowIndex="7" maxWidth="Infinity"/>
+        <Label text="Statut" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+        <ComboBox fx:id="cbStatus" GridPane.columnIndex="1" GridPane.rowIndex="6" maxWidth="Infinity"/>
     </GridPane>
 
     <HBox spacing="8" alignment="CENTER_RIGHT">

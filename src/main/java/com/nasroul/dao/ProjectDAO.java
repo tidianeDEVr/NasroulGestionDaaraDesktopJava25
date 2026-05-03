@@ -16,7 +16,7 @@ public class ProjectDAO {
 
     public void create(Project project) throws SQLException {
         String sql = """
-            INSERT INTO projects (name, description, start_date, end_date, status, budget, target_budget, manager_id, created_at, updated_at, last_modified_by, sync_status, sync_version)
+            INSERT INTO projects (name, description, start_date, end_date, status, budget, contribution_target, manager_id, created_at, updated_at, last_modified_by, sync_status, sync_version)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
             """;
 
@@ -29,7 +29,7 @@ public class ProjectDAO {
             pstmt.setString(4, project.getEndDate() != null ? project.getEndDate().toString() : null);
             pstmt.setString(5, project.getStatus());
             pstmt.setDouble(6, project.getBudget());
-            pstmt.setDouble(7, project.getTargetBudget());
+            pstmt.setDouble(7, project.getContributionTarget() != null ? project.getContributionTarget() : 0.0);
 
             // Handle nullable manager_id - SQLite JDBC doesn't support setObject for nulls
             if (project.getManagerId() != null) {
@@ -99,7 +99,7 @@ public class ProjectDAO {
         String sql = """
             UPDATE projects
             SET name = ?, description = ?, start_date = ?, end_date = ?,
-                status = ?, budget = ?, target_budget = ?, manager_id = ?,
+                status = ?, budget = ?, contribution_target = ?, manager_id = ?,
                 updated_at = datetime('now'), last_modified_by = 'system', sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
@@ -113,7 +113,7 @@ public class ProjectDAO {
             pstmt.setString(4, project.getEndDate() != null ? project.getEndDate().toString() : null);
             pstmt.setString(5, project.getStatus());
             pstmt.setDouble(6, project.getBudget());
-            pstmt.setDouble(7, project.getTargetBudget());
+            pstmt.setDouble(7, project.getContributionTarget() != null ? project.getContributionTarget() : 0.0);
 
             // Handle nullable manager_id - SQLite JDBC doesn't support setObject for nulls
             if (project.getManagerId() != null) {
@@ -161,7 +161,7 @@ public class ProjectDAO {
 
         project.setStatus(rs.getString("status"));
         project.setBudget(rs.getDouble("budget"));
-        project.setTargetBudget(rs.getDouble("target_budget"));
+        project.setContributionTarget(rs.getDouble("contribution_target"));
 
         int managerId = rs.getInt("manager_id");
         project.setManagerId(rs.wasNull() ? null : managerId);

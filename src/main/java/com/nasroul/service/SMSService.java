@@ -225,16 +225,10 @@ public class SMSService {
 
     /**
      * Replace template variables in the message
-     * @param template the message template with variables
-     * @param firstName member's first name
-     * @param lastName member's last name
-     * @param remainingAmount the remaining amount to pay
-     * @param totalAmount the total amount expected for the event/project
-     * @param entityName the name of the event or project
-     * @return the message with variables replaced
      */
     public String replaceVariables(String template, String firstName, String lastName,
-                                   double remainingAmount, double totalAmount, String entityName) {
+                                   double remainingAmount, double totalAmount, String entityName,
+                                   double amountPaid, double globalRemaining, String groupName, String deadline) {
         String message = template;
         message = message.replace("{prenom}", firstName != null ? firstName : "");
         message = message.replace("{nom}", lastName != null ? lastName : "");
@@ -242,6 +236,10 @@ public class SMSService {
         message = message.replace("{montant_total}", String.format("%.0f", totalAmount));
         message = message.replace("{nom_evenement}", entityName != null ? entityName : "");
         message = message.replace("{nom_projet}", entityName != null ? entityName : "");
+        message = message.replace("{montant_paye}", String.format("%.0f", amountPaid));
+        message = message.replace("{montant_cible_restant}", String.format("%.0f", globalRemaining));
+        message = message.replace("{nom_groupe}", groupName != null ? groupName : "");
+        message = message.replace("{date_echeance}", deadline != null ? deadline : "");
         return message;
     }
 
@@ -250,6 +248,6 @@ public class SMSService {
      * @return a formatted string listing available variables
      */
     public String getAvailableVariables() {
-        return "Variables disponibles : {nom}, {prenom}, {montant_restant}, {montant_total}, {nom_evenement}, {nom_projet}";
+        return "Variables : {nom}, {prenom}, {montant_restant}, {montant_total}, {montant_paye}, {montant_cible_restant}, {nom_evenement}, {nom_projet}, {nom_groupe}, {date_echeance}";
     }
 }

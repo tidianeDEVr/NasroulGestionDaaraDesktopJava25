@@ -253,19 +253,14 @@ public class ExcelUtil {
                     project.setBudget(Double.parseDouble(budget));
                 }
 
-                String targetBudget = getCellValueAsString(row.getCell(6));
-                if (targetBudget != null && !targetBudget.isEmpty()) {
-                    project.setTargetBudget(Double.parseDouble(targetBudget));
+                String contributionTarget = getCellValueAsString(row.getCell(6));
+                if (contributionTarget != null && !contributionTarget.isEmpty()) {
+                    project.setContributionTarget(Double.parseDouble(contributionTarget));
                 }
 
                 String managerId = getCellValueAsString(row.getCell(7));
                 if (managerId != null && !managerId.isEmpty()) {
                     project.setManagerId(Integer.parseInt(managerId));
-                }
-
-                String contributionTarget = getCellValueAsString(row.getCell(8));
-                if (contributionTarget != null && !contributionTarget.isEmpty()) {
-                    project.setContributionTarget(Double.parseDouble(contributionTarget));
                 }
 
                 projects.add(project);

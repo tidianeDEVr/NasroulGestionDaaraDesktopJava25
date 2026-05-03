@@ -51,6 +51,10 @@ public class PaymentGroupService {
         return paymentGroupDAO.getTotalByEntity(entityType, entityId);
     }
 
+    public Double getTotalAmountByEntityAndGroup(String entityType, int entityId, int groupId) throws SQLException {
+        return paymentGroupDAO.getTotalByEntityAndGroup(entityType, entityId, groupId);
+    }
+
     /**
      * Calculate the total expected amount across all payment groups
      * This sums up all payment group amounts (amount per member for each group/entity combination)
@@ -96,6 +100,38 @@ public class PaymentGroupService {
             .sum();
 
         // Calculate remaining amount
+        double remaining = expectedAmount - totalPaid;
+        return remaining > 0 ? remaining : 0.0;
+    }
+
+    /**
+     * Calculate the remaining amount for a specific member filtered by group
+     * This ensures the correct PaymentGroup amount is used when multiple groups
+     * contribute to the same entity with different amounts.
+     *
+     * @param memberId the member ID
+     * @param entityType the entity type ("EVENT" or "PROJECT")
+     * @param entityId the entity ID
+     * @param groupId the group ID to filter the payment group
+     * @return the remaining amount to pay, or 0.0 if no payment group defined
+     * @throws SQLException if database error
+     */
+    public double calculateRemainingAmount(int memberId, String entityType, int entityId, int groupId) throws SQLException {
+        List<PaymentGroup> paymentGroups = paymentGroupDAO.findByEntityAndGroup(entityType, entityId, groupId);
+
+        if (paymentGroups.isEmpty()) {
+            return 0.0;
+        }
+
+        double expectedAmount = paymentGroups.get(0).getAmount();
+
+        List<Contribution> contributions = contributionDAO.findByMember(memberId);
+        double totalPaid = contributions.stream()
+            .filter(c -> "PAID".equals(c.getStatus()))
+            .filter(c -> entityType.equals(c.getEntityType()) && entityId == c.getEntityId())
+            .mapToDouble(Contribution::getAmount)
+            .sum();
+
         double remaining = expectedAmount - totalPaid;
         return remaining > 0 ? remaining : 0.0;
     }

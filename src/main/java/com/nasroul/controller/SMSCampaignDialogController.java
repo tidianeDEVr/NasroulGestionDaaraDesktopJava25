@@ -1,17 +1,18 @@
 package com.nasroul.controller;
 
+import com.nasroul.model.Event;
 import com.nasroul.model.Group;
 import com.nasroul.model.Member;
-import com.nasroul.service.GroupService;
-import com.nasroul.service.MemberService;
-import com.nasroul.service.PaymentGroupService;
-import com.nasroul.service.SMSService;
+import com.nasroul.model.Project;
+import com.nasroul.service.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.sql.SQLException;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,15 +27,22 @@ public class SMSCampaignDialogController {
     @FXML private Label lblCharCount;
     @FXML private TextArea txtPreview;
     @FXML private Button btnSend;
+    @FXML private VBox progressContainer;
+    @FXML private ProgressBar progressBar;
+    @FXML private Label lblProgress;
 
     private final GroupService groupService;
     private final MemberService memberService;
     private final PaymentGroupService paymentGroupService;
+    private final ContributionService contributionService;
+    private final EventService eventService;
+    private final ProjectService projectService;
     private final SMSService smsService;
 
     private String entityType;
     private Integer entityId;
     private String entityName;
+    private String entityDeadline;
     private List<Member> recipients;
     private int smsBalance = -1;
 
@@ -42,6 +50,9 @@ public class SMSCampaignDialogController {
         this.groupService = new GroupService();
         this.memberService = new MemberService();
         this.paymentGroupService = new PaymentGroupService();
+        this.contributionService = new ContributionService();
+        this.eventService = new EventService();
+        this.projectService = new ProjectService();
         this.smsService = new SMSService();
     }
 
@@ -49,17 +60,14 @@ public class SMSCampaignDialogController {
         loadGroups();
         checkSMSBalance();
 
-        // Set variables label
         lblVariables.setText(smsService.getAvailableVariables());
 
-        // Add listeners
         cbGroup.setOnAction(e -> updateRecipients());
         txtMessage.textProperty().addListener((obs, old, newVal) -> {
             updateCharCount();
             updatePreview();
         });
 
-        // Set custom cell factory for group combo
         cbGroup.setCellFactory(lv -> new ListCell<>() {
             @Override
             protected void updateItem(Group group, boolean empty) {
@@ -96,10 +104,56 @@ public class SMSCampaignDialogController {
         this.entityType = entityType;
         this.entityId = entityId;
         this.entityName = entityName;
+        this.entityDeadline = loadEntityDeadline();
 
-        // Update entity info label
         String typeText = "EVENT".equals(entityType) ? "Événement" : "Projet";
         lblEntityInfo.setText(String.format("Pour %s : %s", typeText, entityName));
+    }
+
+    private String loadEntityDeadline() {
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            if ("EVENT".equals(entityType)) {
+                Event event = eventService.getEventById(entityId);
+                if (event != null && event.getEndDate() != null) {
+                    return event.getEndDate().format(formatter);
+                }
+            } else {
+                Project project = projectService.getProjectById(entityId);
+                if (project != null && project.getEndDate() != null) {
+                    return project.getEndDate().format(formatter);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error loading entity deadline: " + e.getMessage());
+        }
+        return "";
+    }
+
+    private double calculateGlobalRemaining() {
+        try {
+            Double totalCollected = contributionService.getTotalByEntity(entityType, entityId);
+            double collected = totalCollected != null ? totalCollected : 0.0;
+
+            double target = 0.0;
+            if ("EVENT".equals(entityType)) {
+                Event event = eventService.getEventById(entityId);
+                if (event != null && event.getContributionTarget() != null) {
+                    target = event.getContributionTarget();
+                }
+            } else {
+                Project project = projectService.getProjectById(entityId);
+                if (project != null && project.getContributionTarget() != null) {
+                    target = project.getContributionTarget();
+                }
+            }
+
+            double remaining = target - collected;
+            return remaining > 0 ? remaining : 0.0;
+        } catch (SQLException e) {
+            System.err.println("Error calculating global remaining: " + e.getMessage());
+            return 0.0;
+        }
     }
 
     private void loadGroups() {
@@ -112,7 +166,6 @@ public class SMSCampaignDialogController {
     }
 
     private void checkSMSBalance() {
-        // Check balance in background thread
         new Thread(() -> {
             smsBalance = smsService.checkSMSBalance();
             final String errorMessage = smsService.getLastErrorMessage();
@@ -124,7 +177,6 @@ public class SMSCampaignDialogController {
                 } else {
                     lblSMSBalance.setText("Erreur");
                     lblSMSBalance.setStyle("-fx-font-weight: bold; -fx-text-fill: #cf222e; -fx-cursor: hand;");
-                    // Make the label clickable to show error details
                     lblSMSBalance.setOnMouseClicked(e -> {
                         if (errorMessage != null) {
                             showError(errorMessage);
@@ -145,34 +197,17 @@ public class SMSCampaignDialogController {
         }
 
         try {
-            // Get all members of the selected group who have a phone number
             List<Member> allMembers = memberService.getActiveMembers();
-            System.out.println("Total active members: " + allMembers.size());
-            System.out.println("Selected group ID: " + selectedGroup.getId());
 
             recipients = allMembers.stream()
-                .filter(m -> {
-                    boolean hasGroups = m.getGroupIds() != null && m.getGroupIds().contains(selectedGroup.getId());
-                    if (hasGroups) {
-                        System.out.println("Member " + m.getFullName() + " is in group " + selectedGroup.getId());
-                    }
-                    return hasGroups;
-                })
-                .filter(m -> {
-                    boolean hasPhone = m.getPhone() != null && !m.getPhone().trim().isEmpty();
-                    if (!hasPhone) {
-                        System.out.println("Member " + m.getFullName() + " has no phone");
-                    }
-                    return hasPhone;
-                })
+                .filter(m -> m.getGroupIds() != null && m.getGroupIds().contains(selectedGroup.getId()))
+                .filter(m -> m.getPhone() != null && !m.getPhone().trim().isEmpty())
                 .collect(Collectors.toList());
 
-            System.out.println("Total recipients: " + recipients.size());
             lblRecipientCount.setText(String.valueOf(recipients.size()));
             updatePreview();
         } catch (SQLException e) {
             System.err.println("Error loading members: " + e.getMessage());
-            e.printStackTrace();
             showError("Erreur lors du chargement des membres: " + e.getMessage());
         }
     }
@@ -193,15 +228,16 @@ public class SMSCampaignDialogController {
             return;
         }
 
-        // Show preview with first recipient
         Member firstMember = recipients.get(0);
+        Group selectedGroup = cbGroup.getValue();
         try {
             double remainingAmount = paymentGroupService.calculateRemainingAmount(
-                firstMember.getId(), entityType, entityId);
+                firstMember.getId(), entityType, entityId, selectedGroup.getId());
 
-            // Get total amount from payment group
-            Double totalAmount = paymentGroupService.getTotalAmountByEntity(entityType, entityId);
+            Double totalAmount = paymentGroupService.getTotalAmountByEntityAndGroup(entityType, entityId, selectedGroup.getId());
             double total = totalAmount != null ? totalAmount : 0.0;
+            double amountPaid = total - remainingAmount;
+            double globalRemaining = calculateGlobalRemaining();
 
             String preview = smsService.replaceVariables(
                 txtMessage.getText(),
@@ -209,19 +245,21 @@ public class SMSCampaignDialogController {
                 firstMember.getLastName(),
                 remainingAmount,
                 total,
-                entityName
+                entityName,
+                amountPaid,
+                globalRemaining,
+                selectedGroup.getName(),
+                entityDeadline
             );
             txtPreview.setText(preview);
         } catch (Exception e) {
             System.err.println("Error updating preview: " + e.getMessage());
-            e.printStackTrace();
             txtPreview.setText("Erreur lors du calcul du montant restant: " + e.getMessage());
         }
     }
 
     @FXML
     private void handleSend() {
-        // Validate
         if (cbGroup.getValue() == null) {
             showError("Veuillez sélectionner un groupe");
             return;
@@ -237,7 +275,6 @@ public class SMSCampaignDialogController {
             return;
         }
 
-        // Check SMS balance
         if (smsBalance < 0) {
             String errorMsg = smsService.getLastErrorMessage();
             if (errorMsg != null) {
@@ -256,7 +293,6 @@ public class SMSCampaignDialogController {
             return;
         }
 
-        // Confirm send
         Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
         confirmation.setTitle("Confirmer l'envoi");
         confirmation.setHeaderText(String.format("Envoyer %d SMS ?", recipients.size()));
@@ -273,27 +309,38 @@ public class SMSCampaignDialogController {
     }
 
     private void sendCampaign() {
-        // Disable send button
         btnSend.setDisable(true);
+        progressContainer.setVisible(true);
+        progressContainer.setManaged(true);
+        progressBar.setProgress(0);
+        lblProgress.setText("0/" + recipients.size());
 
-        // Send in background thread
+        final int selectedGroupId = cbGroup.getValue().getId();
+        final String groupName = cbGroup.getValue().getName();
+        final int totalRecipients = recipients.size();
+
         new Thread(() -> {
             int successCount = 0;
             int failureCount = 0;
 
-            // Get total amount once for all messages
             double totalAmount = 0.0;
             try {
-                Double total = paymentGroupService.getTotalAmountByEntity(entityType, entityId);
+                Double total = paymentGroupService.getTotalAmountByEntityAndGroup(entityType, entityId, selectedGroupId);
                 totalAmount = total != null ? total : 0.0;
             } catch (Exception e) {
                 System.err.println("Error getting total amount: " + e.getMessage());
             }
 
-            for (Member member : recipients) {
+            double globalRemaining = calculateGlobalRemaining();
+
+            for (int i = 0; i < recipients.size(); i++) {
+                Member member = recipients.get(i);
+                final int current = i + 1;
+
                 try {
                     double remainingAmount = paymentGroupService.calculateRemainingAmount(
-                        member.getId(), entityType, entityId);
+                        member.getId(), entityType, entityId, selectedGroupId);
+                    double amountPaid = totalAmount - remainingAmount;
 
                     String message = smsService.replaceVariables(
                         txtMessage.getText(),
@@ -301,7 +348,11 @@ public class SMSCampaignDialogController {
                         member.getLastName(),
                         remainingAmount,
                         totalAmount,
-                        entityName
+                        entityName,
+                        amountPaid,
+                        globalRemaining,
+                        groupName,
+                        entityDeadline
                     );
 
                     boolean sent = smsService.sendSMS(member.getPhone(), message);
@@ -311,7 +362,11 @@ public class SMSCampaignDialogController {
                         failureCount++;
                     }
 
-                    // Small delay between messages to avoid overloading the API
+                    Platform.runLater(() -> {
+                        progressBar.setProgress((double) current / totalRecipients);
+                        lblProgress.setText(current + "/" + totalRecipients);
+                    });
+
                     Thread.sleep(500);
                 } catch (Exception e) {
                     failureCount++;
@@ -324,6 +379,8 @@ public class SMSCampaignDialogController {
 
             Platform.runLater(() -> {
                 btnSend.setDisable(false);
+                progressContainer.setVisible(false);
+                progressContainer.setManaged(false);
 
                 if (finalFailure == 0) {
                     showInfo("Succès", String.format("Tous les %d SMS ont été envoyés avec succès !", finalSuccess));
@@ -344,10 +401,6 @@ public class SMSCampaignDialogController {
     private void closeDialog() {
         Stage stage = (Stage) cbGroup.getScene().getWindow();
         stage.close();
-    }
-
-    private Stage getStage() {
-        return (Stage) cbGroup.getScene().getWindow();
     }
 
     private void showError(String message) {
