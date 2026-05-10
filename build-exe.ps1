@@ -68,7 +68,8 @@ $log = Join-Path (Get-Location) 'jpackage-output.log'
   --dest $destDir `
   --win-shortcut `
   --win-menu `
-  --app-version '1.0' `
+  --win-upgrade-uuid '8a4f3c7b-1d2e-4f6a-9b8c-3e5d7a1c9f4b' `
+  --app-version '1.0.1' `
   --vendor 'Nasroul' `
   --description 'Gestionnaire d''Association Nasroul' `
   --java-options '--enable-native-access=javafx.graphics,ALL-UNNAMED' *>&1 | Tee-Object -FilePath $log
