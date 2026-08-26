@@ -9,6 +9,9 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.input.KeyCode;
+import javafx.geometry.Rectangle2D;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 
 public class SplashScreenController {
@@ -106,7 +109,14 @@ public class SplashScreenController {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/MainView.fxml"));
         Parent root = loader.load();
 
-        Scene scene = new Scene(root, 1200, 800);
+        // La taille de depart ne doit jamais depasser l'ecran : sur un poste en
+        // 1366x768 (ou une VM), une fenetre figee a 1200x800 sort de l'ecran et
+        // la barre de titre devient inaccessible.
+        Rectangle2D screen = Screen.getPrimary().getVisualBounds();
+        double width  = Math.min(1200, screen.getWidth());
+        double height = Math.min(800, screen.getHeight());
+
+        Scene scene = new Scene(root, width, height);
         com.nasroul.ui.ThemeManager.applyTo(scene);
 
         MainController mainController = loader.getController();
@@ -117,9 +127,29 @@ public class SplashScreenController {
         mainStage.setScene(scene);
         mainStage.setTitle("Nasroul Mouminina");
         mainStage.setResizable(true);
-        mainStage.setMinWidth(1100);
-        mainStage.setMinHeight(720);
-        mainStage.centerOnScreen();
+        // Les tailles minimales suivent l'ecran, sinon l'utilisateur ne peut plus
+        // reduire la fenetre en dessous de la taille de son propre ecran.
+        mainStage.setMinWidth(Math.min(1100, screen.getWidth()));
+        mainStage.setMinHeight(Math.min(720, screen.getHeight()));
+
+        // Ouverture en plein ecran (fenetre maximisee, barre de titre conservee)
+        mainStage.setMaximized(true);
+
+        // Repli si le gestionnaire de fenetres ignore setMaximized : on cale
+        // manuellement la fenetre sur la zone utile de l'ecran.
+        if (!mainStage.isMaximized()) {
+            mainStage.setX(screen.getMinX());
+            mainStage.setY(screen.getMinY());
+            mainStage.setWidth(screen.getWidth());
+            mainStage.setHeight(screen.getHeight());
+        }
+
+        // F11 : bascule plein ecran total (sans barre de titre) / fenetre normale
+        scene.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.F11) {
+                mainStage.setFullScreen(!mainStage.isFullScreen());
+            }
+        });
 
         // Close splash screen and show main application
         stage.close();

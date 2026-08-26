@@ -5,7 +5,10 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ScrollPane;
+import javafx.geometry.Rectangle2D;
 import javafx.stage.Modality;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
@@ -73,7 +76,27 @@ public final class Dialogs {
     public static <C> Modal<C> openModal(String fxmlPath, String title, Window owner) throws IOException {
         FXMLLoader loader = new FXMLLoader(Dialogs.class.getResource(fxmlPath));
         Parent root = loader.load();
-        Scene scene = new Scene(root);
+
+        // Sur un petit ecran, un dialogue plus haut que la zone utile sortait de
+        // l'ecran et ses boutons du bas devenaient inaccessibles. On l'enveloppe
+        // alors dans un ScrollPane plutot que de le tronquer.
+        Rectangle2D visual = Screen.getPrimary().getVisualBounds();
+        double maxWidth = visual.getWidth() - 40;    // marge pour les bords
+        double maxHeight = visual.getHeight() - 60;  // marge pour la barre de titre
+        double prefWidth = root.prefWidth(-1);
+        double prefHeight = root.prefHeight(prefWidth);
+
+        Scene scene;
+        if (prefWidth > maxWidth || prefHeight > maxHeight) {
+            ScrollPane scroller = new ScrollPane(root);
+            scroller.getStyleClass().add("modal-scroll");
+            scroller.setFitToWidth(true);
+            scroller.setFitToHeight(true);
+            scroller.setPrefSize(Math.min(prefWidth, maxWidth), Math.min(prefHeight, maxHeight));
+            scene = new Scene(scroller);
+        } else {
+            scene = new Scene(root);
+        }
         ThemeManager.applyTo(scene);
 
         Stage stage = new Stage();
@@ -83,6 +106,7 @@ public final class Dialogs {
             stage.initOwner(owner);
         }
         stage.setScene(scene);
+        stage.setOnShown(e -> stage.centerOnScreen());
         return new Modal<>(stage, loader.getController());
     }
 }

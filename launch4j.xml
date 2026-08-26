@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Configuration Launch4j pour NasroulGestion.
+  Ouvrir avec Launch4j (Fichier > Ouvrir) ou construire en ligne de commande :
+      launch4jc.exe launch4j.xml
+
+  IMPORTANT : Launch4j n'embarque PAS Java. Deux modes :
+   - <path>runtime</path> : runtime genere par jlink et place a cote de l'exe
+     (voir build-launch4j.ps1) -> l'application marche sur un poste sans Java.
+   - si le dossier runtime est absent, Launch4j cherche un Java >= 17 installe
+     sur la machine (JAVA_HOME, registre, PATH).
+-->
+<launch4jConfig>
+  <dontWrapJar>false</dontWrapJar>
+  <headerType>gui</headerType>
+  <jar>target\AssociationManager-2.0.0.jar</jar>
+  <outfile>dist\NasroulGestion.exe</outfile>
+  <errTitle>NasroulGestion</errTitle>
+  <cmdLine></cmdLine>
+  <chdir>.</chdir>
+  <priority>normal</priority>
+  <downloadUrl>https://adoptium.net/</downloadUrl>
+  <supportUrl></supportUrl>
+  <stayAlive>false</stayAlive>
+  <restartOnCrash>false</restartOnCrash>
+  <manifest></manifest>
+  <icon>src\main\resources\images\icon.ico</icon>
+
+  <jre>
+    <!-- Runtime embarque genere par jlink (dossier a cote de l'exe). -->
+    <path>runtime</path>
+    <requiresJdk>false</requiresJdk>
+    <requires64Bit>true</requires64Bit>
+    <!-- Repli sur un Java installe si le dossier runtime est absent. -->
+    <minVersion>17</minVersion>
+    <opt>--enable-native-access=javafx.graphics,ALL-UNNAMED</opt>
+  </jre>
+
+  <versionInfo>
+    <fileVersion>2.0.0.0</fileVersion>
+    <txtFileVersion>2.0.0</txtFileVersion>
+    <fileDescription>Gestionnaire d'Association Nasroul</fileDescription>
+    <copyright>Nasroul</copyright>
+    <productVersion>2.0.0.0</productVersion>
+    <txtProductVersion>2.0.0</txtProductVersion>
+    <productName>NasroulGestion</productName>
+    <companyName>Nasroul</companyName>
+    <internalName>NasroulGestion</internalName>
+    <originalFilename>NasroulGestion.exe</originalFilename>
+  </versionInfo>
+</launch4jConfig>

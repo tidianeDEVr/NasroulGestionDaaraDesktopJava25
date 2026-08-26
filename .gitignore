@@ -32,3 +32,8 @@ src/main/resources/config.properties
 
 # SQLite
 association.db
+
+# Build / packaging
+dist/
+launch4j.generated.xml
+jpackage-output.log

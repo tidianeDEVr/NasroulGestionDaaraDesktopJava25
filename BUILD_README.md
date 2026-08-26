@@ -14,8 +14,18 @@ Ce guide explique comment créer un fichier .exe pour l'application NasroulGesti
      `No goals have been specified for this build`. Exemple correct : `mvnw.cmd clean package -P windows`.
    - Si vous préférez un Maven installé : [Maven Apache](https://maven.apache.org/download.cgi), vérifier avec `mvn -version`
 
-3. **WiX Toolset** (optionnel, pour l'installateur MSI)
-   - Télécharger depuis [WiX Toolset](https://wixtoolset.org/releases/)
+3. **WiX Toolset 3.x** (requis pour l'installateur `.exe` / `.msi`)
+   - ⚠️ Il faut la branche **3.x**. WiX **4, 5 et 7 ne conviennent pas** : ils ont remplacé
+     `candle.exe` et `light.exe` par un unique `wix.exe`, que le `jpackage` du JDK 21 ne sait
+     pas piloter. Symptôme : `Can not find WiX tools (light.exe, candle.exe)`.
+   - Installation sans dépendance .NET 3.5 (archive binaire) :
+     ```batch
+     powershell -Command "Invoke-WebRequest -Uri https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip -OutFile $env:TEMP\wix314.zip"
+     powershell -Command "Expand-Archive -Path $env:TEMP\wix314.zip -DestinationPath C:\wix314 -Force"
+     ```
+     `build-exe.ps1` détecte `C:\wix314` automatiquement.
+   - WiX 3.14 peut cohabiter avec une version 4+ déjà installée.
+   - **Sans WiX** : `build-exe.bat 2.0.0 portable` produit une application portable (dossier).
 
 ## Génération de l'Exécutable
 
@@ -34,6 +44,11 @@ Ce guide explique comment créer un fichier .exe pour l'application NasroulGesti
    Pour forcer un autre numéro de version :
    ```batch
    build-exe.bat 2.0.1
+   ```
+
+   Sans WiX (application portable dans `dist\NasroulGestion\`, pas d'installateur) :
+   ```batch
+   build-exe.bat 2.0.0 portable
    ```
 
 3. L'exécutable sera créé dans le dossier `dist/` avec le nom `NasroulGestion-2.0.0.exe`
@@ -67,6 +82,76 @@ Si vous préférez exécuter les commandes manuellement :
        --description "Gestionnaire d'Association Nasroul" ^
        --java-options "--enable-native-access=javafx.graphics,ALL-UNNAMED"
    ```
+
+## Alternative : Launch4j
+
+Launch4j est une autre façon de produire un `.exe`, mais avec une différence majeure :
+
+> **Launch4j n'embarque pas Java.** L'exe généré est un simple lanceur qui cherche un JRE
+> sur la machine. Si aucun Java n'est trouvé, il affiche
+> **« This application requires a Java Runtime Environment. »**
+
+C'est exactement le sens de cette erreur : le JAR est correct, c'est le runtime qui manque
+(ou que Launch4j n'arrive pas à localiser).
+
+### Solution recommandée : embarquer un runtime
+
+Le script [build-launch4j.ps1](build-launch4j.ps1) génère un runtime Java avec `jlink`
+et le place à côté de l'exe :
+
+```batch
+powershell -ExecutionPolicy Bypass -File build-launch4j.ps1
+```
+
+Résultat dans `dist/` :
+
+```
+dist\NasroulGestion.exe
+dist\runtime\          <- runtime Java embarque
+```
+
+⚠️ Les deux doivent être distribués **ensemble** (zippez le dossier `dist`). L'exe seul
+redonnera la même erreur.
+
+### Sans runtime embarqué
+
+```batch
+powershell -ExecutionPolicy Bypass -File build-launch4j.ps1 -SkipRuntime
+```
+
+L'exe fait alors ~50 Mo et fonctionne seulement si un **JDK/JRE 17 ou supérieur** est installé
+sur le poste. Dans l'interface Launch4j, l'équivalent est l'onglet **JRE** :
+
+| Champ | Valeur |
+|---|---|
+| JRE paths / Bundled JRE path | `runtime` (ou vide si aucun runtime embarqué) |
+| Min JRE version | `17` |
+| Requires 64-bit | coché |
+| JVM options | `--enable-native-access=javafx.graphics,ALL-UNNAMED` |
+
+Laisser l'onglet **JRE** entièrement vide est la cause la plus fréquente de l'erreur.
+
+### Configuration réutilisable
+
+[launch4j.xml](launch4j.xml) contient la configuration complète (icône, version, options JVM).
+Ouvrable dans l'interface Launch4j, ou en ligne de commande :
+
+```batch
+launch4jc.exe launch4j.xml
+```
+
+### Launch4j ou jpackage ?
+
+| | jpackage ([build-exe.ps1](build-exe.ps1)) | Launch4j |
+|---|---|---|
+| Java embarqué | oui, automatiquement | non (sauf runtime `jlink` ajouté à la main) |
+| Résultat | **installateur** `.exe` | exe portable + dossier `runtime` |
+| Mise à jour des postes | gérée par Windows via la version + l'upgrade UUID | remplacement manuel des fichiers |
+| Raccourcis Menu Démarrer / Bureau | oui | non |
+
+Pour la diffusion aux hôtes, **jpackage reste la méthode conseillée** : c'est la seule qui gère
+la mise à jour automatique d'une installation existante.
+
 
 ## Résultat
 
@@ -108,6 +193,30 @@ Modifier `--java-options` pour ajouter des paramètres comme :
 ```
 
 ## Dépannage
+
+### Erreur : "Can not find WiX tools (light.exe, candle.exe)"
+
+WiX 4/5/7 est installé, mais jpackage exige **WiX 3.x**. Voir les [Prérequis](#prérequis) :
+installez `wix314-binaries.zip` dans `C:\wix314`, ou générez une application portable avec
+`build-exe.bat 2.0.0 portable`.
+
+### Erreur : "jpackage n'est pas reconnu" alors que java et javac fonctionnent
+
+Le `PATH` pointe vers le raccourci Oracle `C:\Program Files\Common Files\Oracle\Java\javapath`,
+qui ne contient que `java.exe`, `javaw.exe` et `javac.exe`. Localisez le vrai JDK puis ajoutez son
+`bin` au PATH :
+
+```batch
+where /R "C:\Program Files" jpackage.exe
+set "JAVA_HOME=C:\Program Files\Java\jdk-21.0.12.1"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+```
+
+### Erreur : "This application requires a Java Runtime Environment." (exe Launch4j)
+
+L'exe Launch4j ne contient pas Java et n'en a trouvé aucun sur la machine. Voir la section
+[Alternative : Launch4j](#alternative--launch4j) — utilisez `build-launch4j.ps1` pour embarquer
+un runtime, ou renseignez l'onglet **JRE** (Min JRE version `17`).
 
 ### Erreur : "jpackage n'est pas reconnu"
 

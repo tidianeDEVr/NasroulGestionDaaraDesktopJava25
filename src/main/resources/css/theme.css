@@ -757,3 +757,14 @@
     -fx-font-family: "Plus Jakarta Sans SemiBold";
 }
 .hyperlink:hover { -fx-text-fill: -color-forest; -fx-underline: true; }
+
+/* Enveloppe de secours des dialogues plus grands que l'ecran (voir Dialogs.openModal) */
+.modal-scroll,
+.modal-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.modal-scroll {
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+}
