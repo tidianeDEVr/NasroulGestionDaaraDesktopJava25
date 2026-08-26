@@ -1,9 +1,16 @@
-# build-exe-pwsh.ps1 - PowerShell script (meilleure gestion des erreurs)
+# build-exe.ps1 - Génère l'installateur Windows NasroulGestion
+# Usage :  .\build-exe.ps1              (version par défaut)
+#          .\build-exe.ps1 -AppVersion 2.0.1
+param(
+    [string]$AppVersion = '2.0.0'
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Write-Output "========================================"
 Write-Output "Creation de l'executable NasroulGestion"
+Write-Output "Version : $AppVersion"
 Write-Output "========================================`n"
 
 # Vérifier Java
@@ -21,12 +28,19 @@ if (-not $jpackage) {
 }
 Write-Output "jpackage detecte: $($jpackage.Path)`n"
 
-# Vérifier mvn
-if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
-    Write-Error "ERREUR: Maven (mvn) introuvable."
+# Maven : on privilegie le wrapper mvnw.cmd (aucune installation requise),
+# sinon on retombe sur un mvn present dans le PATH.
+$wrapper = Join-Path (Get-Location) 'mvnw.cmd'
+if (Test-Path $wrapper) {
+    $mvnCmd = $wrapper
+    Write-Output "Maven wrapper detecte: $wrapper"
+} elseif (Get-Command mvn -ErrorAction SilentlyContinue) {
+    $mvnCmd = 'mvn'
+} else {
+    Write-Error "ERREUR: ni mvnw.cmd ni Maven (mvn) introuvables."
     exit 1
 }
-mvn -v
+& $mvnCmd -v
 
 # Nettoyer le dossier dist s'il existe
 $destDir = Join-Path (Get-Location) 'dist'
@@ -37,7 +51,7 @@ if (Test-Path $destDir) {
 
 # Build Maven
 Write-Output "[1/3] Compilation Maven..."
-& mvn clean package -P windows
+& $mvnCmd clean package -P windows
 if ($LASTEXITCODE -ne 0) {
     Write-Error "ERREUR: La compilation Maven a échoué."
     exit $LASTEXITCODE
@@ -69,7 +83,7 @@ $log = Join-Path (Get-Location) 'jpackage-output.log'
   --win-shortcut `
   --win-menu `
   --win-upgrade-uuid '8a4f3c7b-1d2e-4f6a-9b8c-3e5d7a1c9f4b' `
-  --app-version '1.0.1' `
+  --app-version $AppVersion `
   --vendor 'Nasroul' `
   --description 'Gestionnaire d''Association Nasroul' `
   --java-options '--enable-native-access=javafx.graphics,ALL-UNNAMED' *>&1 | Tee-Object -FilePath $log

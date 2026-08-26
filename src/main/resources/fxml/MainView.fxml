@@ -40,7 +40,7 @@
             </VBox>
 
             <Region VBox.vgrow="ALWAYS"/>
-            <Label styleClass="sidebar-footer" text="Nasroul Mouminina · v2.0"/>
+            <Label styleClass="sidebar-footer" text="Nasroul Mouminina · v2.0.0"/>
         </VBox>
     </left>
 

@@ -33,7 +33,7 @@ Ce guide vous aide à diagnostiquer et résoudre les problèmes courants avec l'
    Avant de créer l'installateur, testez si le JAR fonctionne :
    ```powershell
    cd target
-   java -jar AssociationManager-1.0-SNAPSHOT.jar
+   java -jar AssociationManager-2.0.0.jar
    ```
 
    Si le JAR ne fonctionne pas, le problème est dans le code, pas dans l'installateur.
