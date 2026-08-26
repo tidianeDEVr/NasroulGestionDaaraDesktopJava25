@@ -171,6 +171,54 @@ class MigrationTest {
     }
 
     @Test
+    void reportsDuplicateTargetsWithDivergentAmounts() throws Exception {
+        stmt.execute("CREATE TABLE `groups` (id INTEGER PRIMARY KEY, name TEXT, deleted_at TEXT)");
+        stmt.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, name TEXT, contribution_target REAL, deleted_at TEXT)");
+        stmt.execute("CREATE TABLE projects (id INTEGER PRIMARY KEY, name TEXT, contribution_target REAL, deleted_at TEXT)");
+        stmt.execute("INSERT INTO `groups` VALUES (5, 'Dahira Fass', NULL)");
+        stmt.execute("INSERT INTO events VALUES (10, 'Gamou 2026', 0, NULL)");
+        // Deux objectifs pour le même groupe/collecte, montants différents
+        stmt.execute("INSERT INTO payment_groups (group_id, entity_type, entity_id, amount) VALUES (5, 'EVENT', 10, 5000)");
+        stmt.execute("INSERT INTO payment_groups (group_id, entity_type, entity_id, amount) VALUES (5, 'EVENT', 10, 10000)");
+        // Doublon aux montants identiques : rien à signaler
+        stmt.execute("INSERT INTO payment_groups (group_id, entity_type, entity_id, amount) VALUES (6, 'EVENT', 10, 2000)");
+        stmt.execute("INSERT INTO payment_groups (group_id, entity_type, entity_id, amount) VALUES (6, 'EVENT', 10, 2000)");
+
+        java.util.List<String> report = new java.util.ArrayList<>();
+        DatabaseManager.collectDuplicateTargetWarnings(stmt, report);
+
+        assertEquals(1, report.size(), "seul le doublon aux montants divergents est signalé");
+        assertTrue(report.get(0).contains("Dahira Fass"));
+        assertTrue(report.get(0).contains("Gamou 2026"));
+        assertTrue(report.get(0).contains("10000"), "le montant conservé est indiqué");
+    }
+
+    @Test
+    void reportsLegacyTargetsAndUnattachedContributions() throws Exception {
+        stmt.execute("CREATE TABLE `groups` (id INTEGER PRIMARY KEY, name TEXT, deleted_at TEXT)");
+        stmt.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, name TEXT, contribution_target REAL, deleted_at TEXT)");
+        stmt.execute("CREATE TABLE projects (id INTEGER PRIMARY KEY, name TEXT, contribution_target REAL, deleted_at TEXT)");
+        // Ancien budget cible saisi à la main, sans objectif par groupe
+        stmt.execute("INSERT INTO events VALUES (10, 'Magal 2025', 1500000, NULL)");
+        // Collecte déjà équipée d'un objectif : rien à signaler
+        stmt.execute("INSERT INTO events VALUES (11, 'Gamou 2026', 800000, NULL)");
+        stmt.execute("INSERT INTO payment_groups (group_id, entity_type, entity_id, amount) VALUES (5, 'EVENT', 11, 5000)");
+        // Cotisation d'un membre sans groupe : le backfill ne pourra pas la rattacher
+        stmt.execute("INSERT INTO contributions (member_id, entity_type, entity_id, amount, status) VALUES (1, 'EVENT', 10, 3000, 'PAID')");
+
+        // Ordre réel : le rapport est établi après l'ajout/backfill de group_id
+        DatabaseManager.migrateContributionGroupColumn(stmt);
+
+        java.util.List<String> report = new java.util.ArrayList<>();
+        DatabaseManager.collectPostMigrationWarnings(stmt, report);
+
+        assertEquals(2, report.size());
+        assertTrue(report.stream().anyMatch(r -> r.contains("Magal 2025") && r.contains("OBJECTIF À DÉFINIR")));
+        assertFalse(report.stream().anyMatch(r -> r.contains("Gamou 2026")), "collecte déjà équipée : pas d'alerte");
+        assertTrue(report.stream().anyMatch(r -> r.contains("COTISATIONS SANS GROUPE") && r.contains("1 cotisation")));
+    }
+
+    @Test
     void smsLogEnforcesOnePhonePerCampaign() throws Exception {
         runMigrations();
 

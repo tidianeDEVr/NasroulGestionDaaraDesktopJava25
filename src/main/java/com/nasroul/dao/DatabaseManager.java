@@ -4,8 +4,11 @@ import com.nasroul.util.ConfigManager;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DatabaseManager {
     private static DatabaseManager instance;
@@ -102,11 +105,19 @@ public class DatabaseManager {
             // MIGRATION: Add contribution_target to projects (for existing DBs that only have target_budget)
             addColumnIfNotExists(stmt, "projects", "contribution_target", "REAL DEFAULT 0");
 
+            // Points d'attention à relever AVANT de modifier quoi que ce soit
+            // (les doublons d'objectifs disparaissent à l'étape suivante)
+            List<String> report = new ArrayList<>();
+            collectDuplicateTargetWarnings(stmt, report);
+
             // MIGRATION: Attach contributions to a group (rule: one payment target per group per entity)
             migrateContributionGroupColumn(stmt);
 
             // MIGRATION: Deduplicate payment_groups then enforce uniqueness (one target per group/entity)
             deduplicatePaymentGroups(stmt);
+
+            collectPostMigrationWarnings(stmt, report);
+            writeMigrationReport(report);
 
             // Local-only SMS send journal (never synced - per-device execution state)
             createSmsLogTableSQLite(stmt);
@@ -150,6 +161,119 @@ public class DatabaseManager {
             System.out.println("MySQL database also initialized (for sync)");
         } catch (SQLException e) {
             System.out.println("MySQL not available (offline mode): " + e.getMessage());
+        }
+    }
+
+    /**
+     * Doublons d'objectifs de cotisation aux montants DIFFÉRENTS : la
+     * déduplication ne garde que le plus récent, l'autre montant est perdu.
+     * À relever avant l'opération, pendant que les deux lignes existent encore.
+     */
+    static void collectDuplicateTargetWarnings(Statement stmt, List<String> report) {
+        String sql = """
+            SELECT g.name AS group_name, pg.entity_type, pg.entity_id,
+                   COUNT(*) AS nb, MIN(pg.amount) AS min_amount, MAX(pg.amount) AS max_amount,
+                   COALESCE(e.name, p.name) AS entity_name
+            FROM payment_groups pg
+            LEFT JOIN `groups` g ON g.id = pg.group_id
+            LEFT JOIN events e ON pg.entity_type = 'EVENT' AND e.id = pg.entity_id
+            LEFT JOIN projects p ON pg.entity_type = 'PROJECT' AND p.id = pg.entity_id
+            WHERE pg.deleted_at IS NULL
+            GROUP BY pg.group_id, pg.entity_type, pg.entity_id
+            HAVING COUNT(*) > 1 AND MIN(pg.amount) <> MAX(pg.amount)
+            """;
+        try (ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                report.add(String.format(
+                    "OBJECTIF EN DOUBLE — groupe « %s » / collecte « %s » : %d objectifs de montants "
+                    + "différents (%.0f à %.0f CFA). Le plus récent (%.0f CFA) est conservé, "
+                    + "vérifiez que c'est le bon dans l'onglet Objectifs.",
+                    rs.getString("group_name"), rs.getString("entity_name"), rs.getInt("nb"),
+                    rs.getDouble("min_amount"), rs.getDouble("max_amount"), rs.getDouble("max_amount")));
+            }
+        } catch (SQLException e) {
+            System.err.println("Rapport de migration (doublons) indisponible : " + e.getMessage());
+        }
+    }
+
+    /**
+     * Points à traiter par l'utilisateur après migration : anciens budgets
+     * cibles sans objectif par groupe (montant attendu à 0), et cotisations
+     * que le backfill n'a pas pu rattacher à un groupe.
+     */
+    static void collectPostMigrationWarnings(Statement stmt, List<String> report) {
+        // Collectes ayant un ancien « budget de cotisation cible » mais aucun objectif par groupe
+        String legacyTargets = """
+            SELECT 'Événement' AS type, name, contribution_target AS target FROM events
+            WHERE deleted_at IS NULL AND COALESCE(contribution_target, 0) > 0
+              AND id NOT IN (SELECT entity_id FROM payment_groups
+                             WHERE entity_type = 'EVENT' AND deleted_at IS NULL)
+            UNION ALL
+            SELECT 'Projet', name, contribution_target FROM projects
+            WHERE deleted_at IS NULL AND COALESCE(contribution_target, 0) > 0
+              AND id NOT IN (SELECT entity_id FROM payment_groups
+                             WHERE entity_type = 'PROJECT' AND deleted_at IS NULL)
+            """;
+        try (ResultSet rs = stmt.executeQuery(legacyTargets)) {
+            while (rs.next()) {
+                report.add(String.format(
+                    "OBJECTIF À DÉFINIR — %s « %s » avait un budget cible de %.0f CFA saisi à la main. "
+                    + "Le montant attendu se calcule désormais à partir des objectifs par groupe : "
+                    + "ouvrez la collecte, onglet Objectifs, et définissez le montant par membre.",
+                    rs.getString("type"), rs.getString("name"), rs.getDouble("target")));
+            }
+        } catch (SQLException e) {
+            System.err.println("Rapport de migration (budgets cibles) indisponible : " + e.getMessage());
+        }
+
+        // Cotisations restées sans groupe (membre appartenant à plusieurs groupes)
+        String unattached = """
+            SELECT COUNT(*) FROM contributions
+            WHERE group_id IS NULL AND deleted_at IS NULL
+            """;
+        try (ResultSet rs = stmt.executeQuery(unattached)) {
+            if (rs.next() && rs.getInt(1) > 0) {
+                report.add(String.format(
+                    "COTISATIONS SANS GROUPE — %d cotisation(s) n'ont pas pu être rattachées "
+                    + "automatiquement à un groupe (membre appartenant à plusieurs groupes). "
+                    + "Elles restent comptées pour le membre, mais pas dans le recouvrement par groupe. "
+                    + "Modifiez-les depuis l'écran Cotisations pour choisir le groupe.",
+                    rs.getInt(1)));
+            }
+        } catch (SQLException e) {
+            System.err.println("Rapport de migration (cotisations) indisponible : " + e.getMessage());
+        }
+    }
+
+    /**
+     * Écrit le rapport à côté de la base : dans une application packagée la
+     * console n'est pas visible, l'utilisateur doit pouvoir le relire.
+     */
+    private void writeMigrationReport(List<String> report) {
+        if (report.isEmpty()) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("RAPPORT DE MIGRATION — Nasroul Mouminina\n");
+        sb.append("Généré le ").append(java.time.LocalDateTime.now()
+            .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy à HH:mm"))).append("\n");
+        sb.append("=".repeat(70)).append("\n\n");
+        sb.append("Vos données ont été migrées automatiquement. Les points ci-dessous\n");
+        sb.append("demandent une vérification de votre part :\n\n");
+        for (String line : report) {
+            sb.append("• ").append(line).append("\n\n");
+            System.out.println("MIGRATION: " + line);
+        }
+
+        try {
+            java.io.File db = new java.io.File(config.getSQLitePath());
+            java.io.File parent = db.getParentFile();
+            java.io.File out = new java.io.File(parent != null ? parent : new java.io.File("."),
+                "rapport-migration.txt");
+            java.nio.file.Files.writeString(out.toPath(), sb.toString());
+            System.out.println("Rapport de migration écrit : " + out.getAbsolutePath());
+        } catch (Exception e) {
+            System.err.println("Impossible d'écrire le rapport de migration : " + e.getMessage());
         }
     }
 
