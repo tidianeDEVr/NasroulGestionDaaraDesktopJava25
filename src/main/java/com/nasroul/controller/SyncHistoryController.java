@@ -93,13 +93,15 @@ public class SyncHistoryController {
                     setText(null);
                     setStyle("");
                 } else {
-                    setText(item);
                     if ("SUCCESS".equals(item)) {
-                        setStyle("-fx-text-fill: #4caf50; -fx-font-weight: bold;");
+                        setText("Succès");
+                        setStyle("-fx-text-fill: #2E7D32; -fx-font-weight: bold;");
                     } else if ("FAILED".equals(item)) {
-                        setStyle("-fx-text-fill: #f44336; -fx-font-weight: bold;");
+                        setText("Échec");
+                        setStyle("-fx-text-fill: #B3261E; -fx-font-weight: bold;");
                     } else {
-                        setStyle("-fx-text-fill: #ff9800;");
+                        setText(item);
+                        setStyle("-fx-text-fill: #8A5A00;");
                     }
                 }
             }
@@ -113,8 +115,7 @@ public class SyncHistoryController {
                 if (empty || item == null) {
                     setText(null);
                 } else {
-                    String icon = "PULL".equals(item) ? "📥" : "📤";
-                    setText(icon + " " + item);
+                    setText("PULL".equals(item) ? "Reçu" : "Envoyé");
                 }
             }
         });
@@ -181,7 +182,7 @@ public class SyncHistoryController {
             .collect(Collectors.toList());
 
         historyTable.setItems(FXCollections.observableArrayList(filtered));
-        statsLabel.setText(String.format("Total: %d logs (affichés: %d)", allLogs.size(), filtered.size()));
+        statsLabel.setText(String.format("Total : %d (affichés : %d)", allLogs.size(), filtered.size()));
     }
 
     /**
@@ -193,10 +194,10 @@ public class SyncHistoryController {
         long pullCount = allLogs.stream().filter(l -> "PULL".equals(l.getSyncDirection())).count();
         long pushCount = allLogs.stream().filter(l -> "PUSH".equals(l.getSyncDirection())).count();
 
-        totalSuccessLabel.setText(String.format("✅ Succès: %d", successCount));
-        totalFailedLabel.setText(String.format("❌ Échecs: %d", failedCount));
-        totalPullLabel.setText(String.format("📥 PULL: %d", pullCount));
-        totalPushLabel.setText(String.format("📤 PUSH: %d", pushCount));
+        totalSuccessLabel.setText(String.format("Succès : %d", successCount));
+        totalFailedLabel.setText(String.format("Échecs : %d", failedCount));
+        totalPullLabel.setText(String.format("Reçus : %d", pullCount));
+        totalPushLabel.setText(String.format("Envoyés : %d", pushCount));
 
         // Update last sync time
         if (!allLogs.isEmpty()) {

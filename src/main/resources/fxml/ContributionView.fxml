@@ -1,36 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import com.nasroul.ui.PhosphorIcon?>
 
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.nasroul.controller.ContributionController"
-      spacing="16" style="-fx-padding: 24;">
+      fx:id="rootBox" styleClass="container">
 
-    <HBox alignment="CENTER_LEFT" spacing="16">
-        <Label text="Gestion des cotisations" styleClass="section-title"/>
+    <HBox alignment="CENTER_LEFT" spacing="12">
+        <TextField fx:id="searchField" styleClass="search-field" promptText="Rechercher un membre…" prefWidth="260"/>
+        <ComboBox fx:id="cbTypeFilter" prefWidth="150"/>
+        <ComboBox fx:id="cbStatusFilter" prefWidth="150"/>
         <Region HBox.hgrow="ALWAYS"/>
-        <Button text="Nouvelle cotisation" onAction="#handleAddContribution" styleClass="primary-button"/>
+        <Button text="Nouvelle cotisation" onAction="#handleAddContribution" styleClass="primary-button">
+            <graphic><PhosphorIcon icon="PLUS" size="15"/></graphic>
+        </Button>
     </HBox>
 
     <TableView fx:id="contributionTable" VBox.vgrow="ALWAYS">
+        <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN"/></columnResizePolicy>
+        <placeholder><Label styleClass="empty-state" text="Aucune cotisation. Cliquez sur « Nouvelle cotisation » pour en saisir une."/></placeholder>
         <columns>
-            <TableColumn fx:id="colMember" text="Membre" prefWidth="150"/>
-            <TableColumn fx:id="colEntityType" text="Type" prefWidth="100"/>
-            <TableColumn fx:id="colEntityName" text="Événement/Projet" prefWidth="150"/>
-            <TableColumn fx:id="colAmount" text="Montant (CFA)" prefWidth="120"/>
+            <TableColumn fx:id="colMember" text="Membre" minWidth="170"/>
+            <TableColumn fx:id="colEntityType" text="Type" prefWidth="110"/>
+            <TableColumn fx:id="colEntityName" text="Collecte" minWidth="150"/>
+            <TableColumn fx:id="colAmount" text="Montant" prefWidth="120"/>
             <TableColumn fx:id="colDate" text="Date" prefWidth="100"/>
-            <TableColumn fx:id="colStatus" text="Statut" prefWidth="100"/>
-            <TableColumn fx:id="colPaymentMethod" text="Méthode de paiement" prefWidth="150"/>
+            <TableColumn fx:id="colStatus" text="Statut" prefWidth="110"/>
+            <TableColumn fx:id="colPaymentMethod" text="Méthode" prefWidth="130"/>
         </columns>
     </TableView>
 
-    <HBox spacing="8" alignment="CENTER_RIGHT">
-        <Button text="Modifier" onAction="#handleEditContribution" styleClass="secondary-button"/>
-        <Button text="Supprimer" onAction="#handleDeleteContribution" styleClass="danger-button"/>
-        <Button text="Actualiser" onAction="#handleRefresh" styleClass="secondary-button"/>
+    <HBox styleClass="action-bar">
+        <Button fx:id="btnDelete" text="Supprimer" onAction="#handleDeleteContribution" styleClass="danger-button"/>
+        <Button fx:id="btnEdit" text="Modifier" onAction="#handleEditContribution" styleClass="secondary-button"/>
     </HBox>
 
 </VBox>

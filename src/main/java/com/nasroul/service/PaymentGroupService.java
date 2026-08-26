@@ -1,24 +1,23 @@
 package com.nasroul.service;
 
 import com.nasroul.dao.PaymentGroupDAO;
-import com.nasroul.dao.ContributionDAO;
 import com.nasroul.model.PaymentGroup;
-import com.nasroul.model.Contribution;
 
 import java.sql.SQLException;
 import java.util.List;
 
 public class PaymentGroupService {
     private final PaymentGroupDAO paymentGroupDAO;
-    private final ContributionDAO contributionDAO;
+    private final ContributionCalculator calculator;
 
     public PaymentGroupService() {
         this.paymentGroupDAO = new PaymentGroupDAO();
-        this.contributionDAO = new ContributionDAO();
+        this.calculator = new ContributionCalculator();
     }
 
     public void createPaymentGroup(PaymentGroup paymentGroup) throws SQLException {
         validatePaymentGroup(paymentGroup);
+        ensureUniqueTarget(paymentGroup);
         paymentGroupDAO.create(paymentGroup);
     }
 
@@ -40,6 +39,7 @@ public class PaymentGroupService {
 
     public void updatePaymentGroup(PaymentGroup paymentGroup) throws SQLException {
         validatePaymentGroup(paymentGroup);
+        ensureUniqueTarget(paymentGroup);
         paymentGroupDAO.update(paymentGroup);
     }
 
@@ -51,89 +51,31 @@ public class PaymentGroupService {
         return paymentGroupDAO.getTotalByEntity(entityType, entityId);
     }
 
-    public Double getTotalAmountByEntityAndGroup(String entityType, int entityId, int groupId) throws SQLException {
-        return paymentGroupDAO.getTotalByEntityAndGroup(entityType, entityId, groupId);
-    }
-
     /**
-     * Calculate the total expected amount across all payment groups
-     * This sums up all payment group amounts (amount per member for each group/entity combination)
-     *
-     * @return the total expected amount
-     * @throws SQLException if database error
+     * Total expected across all live entities: for each payment target,
+     * target amount × active member count of the group. Delegates to
+     * ContributionCalculator, the single source of truth for these figures.
      */
     public double getTotalExpectedAmount() throws SQLException {
-        List<PaymentGroup> paymentGroups = paymentGroupDAO.findAll();
-        return paymentGroups.stream()
-            .mapToDouble(pg -> pg.getAmount() != null ? pg.getAmount() : 0.0)
-            .sum();
+        return calculator.totalExpectedAll();
     }
 
     /**
-     * Calculate the remaining amount for a specific member for a given entity (event or project)
-     * Formula: PaymentGroup.amount - SUM(Contributions WHERE status='PAID' AND memberId=X)
-     *
-     * @param memberId the member ID
-     * @param entityType the entity type ("EVENT" or "PROJECT")
-     * @param entityId the entity ID
-     * @return the remaining amount to pay, or 0.0 if no payment group defined
-     * @throws SQLException if database error
+     * Reject a second payment target for the same (group, entity): duplicates
+     * used to make every downstream amount ambiguous. The partial unique index
+     * in SQLite is the safety net; this gives the user a readable message.
      */
-    public double calculateRemainingAmount(int memberId, String entityType, int entityId) throws SQLException {
-        // Get all payment groups for this entity
-        List<PaymentGroup> paymentGroups = paymentGroupDAO.findByEntity(entityType, entityId);
-
-        if (paymentGroups.isEmpty()) {
-            return 0.0; // No payment group defined for this entity
+    private void ensureUniqueTarget(PaymentGroup paymentGroup) throws SQLException {
+        List<PaymentGroup> existing = paymentGroupDAO.findByEntityAndGroup(
+                paymentGroup.getEntityType(), paymentGroup.getEntityId(), paymentGroup.getGroupId());
+        for (PaymentGroup pg : existing) {
+            if (paymentGroup.getId() == null || !pg.getId().equals(paymentGroup.getId())) {
+                throw new IllegalArgumentException(
+                        "Un objectif de cotisation existe déjà pour ce groupe et cette entité ("
+                        + String.format("%.0f", pg.getAmount()) + " CFA). "
+                        + "Modifiez l'objectif existant au lieu d'en créer un nouveau.");
+            }
         }
-
-        // Get the expected amount per member (from payment groups)
-        // Assume we take the first payment group's amount (there should only be one per entity)
-        double expectedAmount = paymentGroups.get(0).getAmount();
-
-        // Get all PAID contributions for this member and entity
-        List<Contribution> contributions = contributionDAO.findByMember(memberId);
-        double totalPaid = contributions.stream()
-            .filter(c -> "PAID".equals(c.getStatus()))
-            .filter(c -> entityType.equals(c.getEntityType()) && entityId == c.getEntityId())
-            .mapToDouble(Contribution::getAmount)
-            .sum();
-
-        // Calculate remaining amount
-        double remaining = expectedAmount - totalPaid;
-        return remaining > 0 ? remaining : 0.0;
-    }
-
-    /**
-     * Calculate the remaining amount for a specific member filtered by group
-     * This ensures the correct PaymentGroup amount is used when multiple groups
-     * contribute to the same entity with different amounts.
-     *
-     * @param memberId the member ID
-     * @param entityType the entity type ("EVENT" or "PROJECT")
-     * @param entityId the entity ID
-     * @param groupId the group ID to filter the payment group
-     * @return the remaining amount to pay, or 0.0 if no payment group defined
-     * @throws SQLException if database error
-     */
-    public double calculateRemainingAmount(int memberId, String entityType, int entityId, int groupId) throws SQLException {
-        List<PaymentGroup> paymentGroups = paymentGroupDAO.findByEntityAndGroup(entityType, entityId, groupId);
-
-        if (paymentGroups.isEmpty()) {
-            return 0.0;
-        }
-
-        double expectedAmount = paymentGroups.get(0).getAmount();
-
-        List<Contribution> contributions = contributionDAO.findByMember(memberId);
-        double totalPaid = contributions.stream()
-            .filter(c -> "PAID".equals(c.getStatus()))
-            .filter(c -> entityType.equals(c.getEntityType()) && entityId == c.getEntityId())
-            .mapToDouble(Contribution::getAmount)
-            .sum();
-
-        double remaining = expectedAmount - totalPaid;
-        return remaining > 0 ? remaining : 0.0;
     }
 
     private void validatePaymentGroup(PaymentGroup paymentGroup) {

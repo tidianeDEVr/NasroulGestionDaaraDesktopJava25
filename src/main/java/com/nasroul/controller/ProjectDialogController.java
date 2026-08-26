@@ -3,6 +3,7 @@ package com.nasroul.controller;
 import com.nasroul.model.Member;
 import com.nasroul.model.Project;
 import com.nasroul.service.MemberService;
+import com.nasroul.ui.Forms;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -18,7 +19,6 @@ public class ProjectDialogController {
     @FXML private DatePicker dpEndDate;
     @FXML private ComboBox<Member> cbManager;
     @FXML private TextField txtBudget;
-    @FXML private TextField txtContributionTarget;
     @FXML private ComboBox<String> cbStatus;
 
     private Project project;
@@ -68,8 +68,8 @@ public class ProjectDialogController {
 
         if (project.getId() != null) {
             // Edit mode - populate fields
-            txtName.setText(project.getName());
-            txtDescription.setText(project.getDescription());
+            Forms.setText(txtName, project.getName());
+            Forms.setText(txtDescription, project.getDescription());
 
             if (project.getEndDate() != null) {
                 dpEndDate.setValue(project.getEndDate());
@@ -79,10 +79,6 @@ public class ProjectDialogController {
 
             if (project.getBudget() != null) {
                 txtBudget.setText(project.getBudget().toString());
-            }
-
-            if (project.getContributionTarget() != null) {
-                txtContributionTarget.setText(project.getContributionTarget().toString());
             }
 
             // Select manager
@@ -98,21 +94,16 @@ public class ProjectDialogController {
     @FXML
     private void handleSave() {
         // Validate required fields
-        if (txtName.getText().trim().isEmpty()) {
+        if (Forms.text(txtName).isEmpty()) {
             showError("Le nom est obligatoire");
-            return;
-        }
-
-        if (txtContributionTarget.getText().trim().isEmpty()) {
-            showError("Le budget de cotisation cible est obligatoire");
             return;
         }
 
         // Validate budget
         Double budget = 0.0;
-        if (!txtBudget.getText().trim().isEmpty()) {
+        if (!Forms.text(txtBudget).isEmpty()) {
             try {
-                budget = Double.parseDouble(txtBudget.getText().trim());
+                budget = Double.parseDouble(Forms.text(txtBudget));
                 if (budget < 0) {
                     showError("Le budget ne peut pas être négatif");
                     return;
@@ -123,31 +114,19 @@ public class ProjectDialogController {
             }
         }
 
-        // Validate contribution target
-        Double contributionTarget;
-        try {
-            contributionTarget = Double.parseDouble(txtContributionTarget.getText().trim());
-            if (contributionTarget <= 0) {
-                showError("Le budget de cotisation cible doit être supérieur à 0");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            showError("Format de budget de cotisation invalide");
-            return;
-        }
-
         // Update project object
         if (project == null) {
             project = new Project();
         }
 
-        project.setName(txtName.getText().trim());
-        project.setDescription(txtDescription.getText().trim().isEmpty() ? null : txtDescription.getText().trim());
+        project.setName(Forms.text(txtName));
+        project.setDescription(Forms.textOrNull(txtDescription));
         project.setStartDate(null); // Date de début supprimée
         project.setEndDate(dpEndDate.getValue());
+        // Le budget cible n'est plus saisi ici : il est dérivé des objectifs de
+        // cotisation par groupe (montant par membre × effectif)
         project.setStatus(translateStatusToEnglish(cbStatus.getValue()));
         project.setBudget(budget);
-        project.setContributionTarget(contributionTarget);
 
         if (cbManager.getValue() != null) {
             project.setManagerId(cbManager.getValue().getId());

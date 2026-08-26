@@ -1,12 +1,8 @@
 package com.nasroul.controller;
 
 import com.nasroul.model.Contribution;
-import com.nasroul.model.Event;
-import com.nasroul.model.Member;
 import com.nasroul.service.ContributionService;
-import com.nasroul.service.EventService;
-import com.nasroul.service.MemberService;
-import com.nasroul.service.ProjectService;
+import com.nasroul.ui.Forms;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -20,7 +16,11 @@ import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-public class ContributionController {
+public class ContributionController implements com.nasroul.ui.Refreshable {
+
+    /** Filtre optionnel : la vue est réutilisée dans la fiche Collecte. */
+    private String filterEntityType;
+    private Integer filterEntityId;
 
     @FXML
     private TableView<Contribution> contributionTable;
@@ -46,18 +46,32 @@ public class ContributionController {
     @FXML
     private TableColumn<Contribution, String> colPaymentMethod;
 
+    @FXML
+    private javafx.scene.layout.VBox rootBox;
+
+    @FXML
+    private TextField searchField;
+
+    @FXML
+    private ComboBox<String> cbTypeFilter;
+
+    @FXML
+    private ComboBox<String> cbStatusFilter;
+
+    @FXML
+    private Button btnEdit;
+
+    @FXML
+    private Button btnDelete;
+
+    private javafx.collections.transformation.FilteredList<Contribution> filteredContributions;
+
     private final ContributionService contributionService;
-    private final EventService eventService;
-    private final ProjectService projectService;
-    private final MemberService memberService;
     private final NumberFormat formatter;
     private final ObservableList<Contribution> contributionList;
 
     public ContributionController() {
         this.contributionService = new ContributionService();
-        this.eventService = new EventService();
-        this.projectService = new ProjectService();
-        this.memberService = new MemberService();
         this.formatter = NumberFormat.getInstance(Locale.FRANCE);
         this.contributionList = FXCollections.observableArrayList();
     }
@@ -65,7 +79,23 @@ public class ContributionController {
     @FXML
     public void initialize() {
         setupTableColumns();
-        contributionTable.setItems(contributionList);
+        setupFilters();
+
+        // Boutons actifs seulement quand une ligne est sélectionnée
+        var noSelection = contributionTable.getSelectionModel().selectedItemProperty().isNull();
+        btnEdit.disableProperty().bind(noSelection);
+        btnDelete.disableProperty().bind(noSelection);
+
+        // Double-clic = modifier
+        contributionTable.setRowFactory(tv -> {
+            var row = new javafx.scene.control.TableRow<Contribution>();
+            row.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2 && !row.isEmpty()) {
+                    handleEditContribution();
+                }
+            });
+            return row;
+        });
 
         try {
             loadContributions();
@@ -74,35 +104,49 @@ public class ContributionController {
         }
     }
 
-    private void setupTableColumns() {
-        colMember.setCellValueFactory(data -> {
-            try {
-                Member member = memberService.getMemberById(data.getValue().getMemberId());
-                return new SimpleStringProperty(member != null ? member.getFullName() : "Inconnu");
-            } catch (SQLException e) {
-                return new SimpleStringProperty("Erreur");
+    private void setupFilters() {
+        filteredContributions = new javafx.collections.transformation.FilteredList<>(contributionList);
+        contributionTable.setItems(filteredContributions);
+
+        cbTypeFilter.getItems().setAll("Tous les types", "Événements", "Projets");
+        cbTypeFilter.setValue("Tous les types");
+        cbStatusFilter.getItems().setAll("Tous les statuts", "Payé", "En attente");
+        cbStatusFilter.setValue("Tous les statuts");
+
+        searchField.textProperty().addListener((obs, old, val) -> applyFilters());
+        cbTypeFilter.setOnAction(e -> applyFilters());
+        cbStatusFilter.setOnAction(e -> applyFilters());
+    }
+
+    private void applyFilters() {
+        String search = searchField.getText() == null ? "" : Forms.text(searchField).toLowerCase();
+        String type = cbTypeFilter.getValue();
+        String status = cbStatusFilter.getValue();
+
+        filteredContributions.setPredicate(c -> {
+            if ("Événements".equals(type) && !"EVENT".equals(c.getEntityType())) return false;
+            if ("Projets".equals(type) && !"PROJECT".equals(c.getEntityType())) return false;
+            if ("Payé".equals(status) && !"PAID".equals(c.getStatus())) return false;
+            if ("En attente".equals(status) && !"PENDING".equals(c.getStatus())) return false;
+            if (!search.isEmpty()) {
+                String haystack = ((c.getMemberName() != null ? c.getMemberName() : "") + " "
+                    + (c.getEntityName() != null ? c.getEntityName() : "")).toLowerCase();
+                return haystack.contains(search);
             }
+            return true;
         });
+    }
+
+    private void setupTableColumns() {
+        // Les noms sont déjà joints par le DAO : aucune requête par cellule
+        colMember.setCellValueFactory(data -> new SimpleStringProperty(
+            data.getValue().getMemberName() != null ? data.getValue().getMemberName() : "Inconnu"));
 
         colEntityType.setCellValueFactory(data ->
             new SimpleStringProperty(getEntityTypeLabel(data.getValue().getEntityType())));
 
-        colEntityName.setCellValueFactory(data -> {
-            try {
-                String entityType = data.getValue().getEntityType();
-                int entityId = data.getValue().getEntityId();
-                if ("EVENT".equals(entityType)) {
-                    Event event = eventService.getEventById(entityId);
-                    return new SimpleStringProperty(event != null ? event.getName() : "Inconnu");
-                } else if ("PROJECT".equals(entityType)) {
-                    var project = projectService.getProjectById(entityId);
-                    return new SimpleStringProperty(project != null ? project.getName() : "Inconnu");
-                }
-                return new SimpleStringProperty("N/A");
-            } catch (SQLException e) {
-                return new SimpleStringProperty("Erreur");
-            }
-        });
+        colEntityName.setCellValueFactory(data -> new SimpleStringProperty(
+            data.getValue().getEntityName() != null ? data.getValue().getEntityName() : "Inconnu"));
 
         colAmount.setCellValueFactory(data ->
             new SimpleStringProperty(formatter.format(data.getValue().getAmount()) + " CFA"));
@@ -114,6 +158,18 @@ public class ContributionController {
 
         colStatus.setCellValueFactory(data ->
             new SimpleStringProperty(getStatusLabel(data.getValue().getStatus())));
+        colStatus.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String label, boolean empty) {
+                super.updateItem(label, empty);
+                if (empty || label == null) {
+                    setGraphic(null);
+                    return;
+                }
+                setGraphic(CollecteController.badge(label,
+                    "Payé".equals(label) ? "badge-success" : "badge-warning"));
+            }
+        });
 
         colPaymentMethod.setCellValueFactory(data ->
             new SimpleStringProperty(getPaymentMethodLabel(data.getValue().getPaymentMethod())));
@@ -150,23 +206,52 @@ public class ContributionController {
 
     private void loadContributions() throws SQLException {
         contributionList.clear();
-        contributionList.addAll(contributionService.getAllContributions());
+        if (filterEntityType != null && filterEntityId != null) {
+            contributionList.addAll(contributionService.getContributionsByEntity(filterEntityType, filterEntityId));
+        } else {
+            contributionList.addAll(contributionService.getAllContributions());
+        }
+    }
+
+    /** Restreint la vue aux cotisations d'un événement/projet (fiche Collecte). */
+    public void setEntityFilter(String entityType, Integer entityId) {
+        this.filterEntityType = entityType;
+        this.filterEntityId = entityId;
+        // Mode embarqué dans la fiche : padding réduit, filtres redondants masqués
+        if (rootBox != null) {
+            rootBox.getStyleClass().remove("container");
+            rootBox.getStyleClass().add("embedded");
+        }
+        if (cbTypeFilter != null) {
+            cbTypeFilter.setVisible(false);
+            cbTypeFilter.setManaged(false);
+        }
+        onShown();
+    }
+
+    @Override
+    public void onShown() {
+        try {
+            loadContributions();
+        } catch (SQLException e) {
+            System.err.println("Error loading contributions: " + e.getMessage());
+        }
     }
 
     @FXML
     private void handleAddContribution() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/ContributionDialog.fxml"));
-            Parent root = loader.load();
+            com.nasroul.ui.Dialogs.Modal<ContributionDialogController> modal =
+                com.nasroul.ui.Dialogs.openModal("/fxml/ContributionDialog.fxml",
+                    "Nouvelle cotisation", contributionTable.getScene().getWindow());
+            modal.controller().setDialogStage(modal.stage());
+            // Ouvert depuis la fiche d'une collecte : type + collecte connus, masqués
+            if (filterEntityType != null && filterEntityId != null) {
+                modal.controller().lockEntity(filterEntityType, filterEntityId);
+            }
+            modal.stage().showAndWait();
 
-            ContributionDialogController controller = loader.getController();
-            controller.setDialogStage(new javafx.stage.Stage());
-            controller.getDialogStage().setTitle("Nouvelle Cotisation");
-            controller.getDialogStage().initModality(javafx.stage.Modality.APPLICATION_MODAL);
-            controller.getDialogStage().setScene(new javafx.scene.Scene(root));
-            controller.getDialogStage().showAndWait();
-
-            if (controller.isConfirmed()) {
+            if (modal.controller().isConfirmed()) {
                 loadContributions();
             }
         } catch (Exception e) {
@@ -183,18 +268,19 @@ public class ContributionController {
         }
 
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/ContributionDialog.fxml"));
-            Parent root = loader.load();
+            com.nasroul.ui.Dialogs.Modal<ContributionDialogController> modal =
+                com.nasroul.ui.Dialogs.openModal("/fxml/ContributionDialog.fxml",
+                    "Modifier la cotisation", contributionTable.getScene().getWindow());
+            modal.controller().setDialogStage(modal.stage());
+            modal.controller().setContribution(selected);
+            // Dans la fiche d'une collecte, la cotisation lui appartient déjà :
+            // inutile d'exposer le choix du type et de la collecte
+            if (filterEntityType != null && filterEntityId != null) {
+                modal.controller().lockEntity(filterEntityType, filterEntityId);
+            }
+            modal.stage().showAndWait();
 
-            ContributionDialogController controller = loader.getController();
-            controller.setDialogStage(new javafx.stage.Stage());
-            controller.setContribution(selected);
-            controller.getDialogStage().setTitle("Modifier Cotisation");
-            controller.getDialogStage().initModality(javafx.stage.Modality.APPLICATION_MODAL);
-            controller.getDialogStage().setScene(new javafx.scene.Scene(root));
-            controller.getDialogStage().showAndWait();
-
-            if (controller.isConfirmed()) {
+            if (modal.controller().isConfirmed()) {
                 loadContributions();
             }
         } catch (Exception e) {
@@ -228,14 +314,6 @@ public class ContributionController {
         });
     }
 
-    @FXML
-    private void handleRefresh() {
-        try {
-            loadContributions();
-        } catch (SQLException e) {
-            showError("Erreur lors du rafraîchissement", e.getMessage());
-        }
-    }
 
     private void showError(String title, String content) {
         Alert alert = new Alert(Alert.AlertType.ERROR);

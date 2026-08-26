@@ -160,7 +160,14 @@ public class GroupDAO {
     }
 
     public int getMemberCount(int groupId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM members WHERE group_id = ? AND deleted_at IS NULL";
+        // Membership lives in member_groups (N-N); members.group_id is legacy.
+        // Actifs uniquement : même définition que les montants attendus
+        // (ContributionCalculator), pour que effectif × objectif = attendu.
+        String sql = """
+            SELECT COUNT(DISTINCT mg.member_id) FROM member_groups mg
+            JOIN members m ON m.id = mg.member_id AND m.deleted_at IS NULL AND m.active = 1
+            WHERE mg.group_id = ?
+            """;
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {

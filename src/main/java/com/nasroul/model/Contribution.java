@@ -16,6 +16,7 @@ public class Contribution extends SyncableEntity {
     private String status; // "PENDING", "PAID", "OVERDUE"
     private String paymentMethod;
     private String notes;
+    private Integer groupId; // group whose payment target this contribution counts toward (nullable for legacy rows)
 
     public Contribution() {
         super();
@@ -34,6 +35,7 @@ public class Contribution extends SyncableEntity {
         fields.put("status", status);
         fields.put("paymentMethod", paymentMethod);
         fields.put("notes", notes);
+        fields.put("groupId", groupId);
         return fields;
     }
 
@@ -123,5 +125,13 @@ public class Contribution extends SyncableEntity {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public Integer getGroupId() {
+        return groupId;
+    }
+
+    public void setGroupId(Integer groupId) {
+        this.groupId = groupId;
     }
 }

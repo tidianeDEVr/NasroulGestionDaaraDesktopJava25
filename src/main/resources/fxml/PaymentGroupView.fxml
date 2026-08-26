@@ -2,32 +2,37 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import com.nasroul.ui.PhosphorIcon?>
 
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.nasroul.controller.PaymentGroupController"
-      spacing="16" style="-fx-padding: 24;">
+      spacing="14" style="-fx-padding: 16 0 0 0;">
 
     <HBox alignment="CENTER_LEFT" spacing="16">
-        <Label text="Objectifs de cotisation" styleClass="section-title"/>
+        <Label styleClass="text-muted" wrapText="true"
+               text="Un objectif définit le montant que chaque membre d'un groupe doit payer pour une collecte."/>
         <Region HBox.hgrow="ALWAYS"/>
-        <Button text="Nouvel objectif" onAction="#handleAdd" styleClass="primary-button"/>
+        <Button text="Nouvel objectif" onAction="#handleAdd" styleClass="primary-button">
+            <graphic><PhosphorIcon icon="TARGET" size="15"/></graphic>
+        </Button>
     </HBox>
 
     <TableView fx:id="paymentGroupTable" VBox.vgrow="ALWAYS">
+        <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN"/></columnResizePolicy>
+        <placeholder><Label styleClass="empty-state" text="Aucun objectif de cotisation. Cliquez sur « Nouvel objectif » pour définir un montant par membre."/></placeholder>
         <columns>
             <TableColumn fx:id="colId" text="ID" prefWidth="50"/>
             <TableColumn fx:id="colGroup" text="Groupe" prefWidth="180"/>
             <TableColumn fx:id="colEntityType" text="Type" prefWidth="120"/>
-            <TableColumn fx:id="colEntity" text="Événement/Projet" prefWidth="250"/>
-            <TableColumn fx:id="colAmount" text="Montant par membre" prefWidth="150"/>
+            <TableColumn fx:id="colEntity" text="Collecte" prefWidth="250"/>
+            <TableColumn fx:id="colAmount" text="Montant par membre" prefWidth="160"/>
         </columns>
     </TableView>
 
-    <HBox spacing="8" alignment="CENTER_RIGHT">
-        <Button text="Modifier" onAction="#handleEdit" styleClass="secondary-button"/>
+    <HBox styleClass="action-bar">
         <Button text="Supprimer" onAction="#handleDelete" styleClass="danger-button"/>
-        <Button text="Actualiser" onAction="#handleRefresh" styleClass="secondary-button"/>
+        <Button text="Modifier" onAction="#handleEdit" styleClass="secondary-button"/>
     </HBox>
 
 </VBox>

@@ -202,13 +202,12 @@ public class MemberDetailsDialogController {
         lblGroup.setText(member.getGroupName() != null ? member.getGroupName() : "-");
         lblAddress.setText(member.getAddress() != null ? member.getAddress() : "-");
 
-        // Load avatar
+        // Load avatar (découpe circulaire dans tous les cas)
+        Circle clip = new Circle(60, 60, 60);
+        avatarImageView.setClip(clip);
         if (member.getAvatar() != null && member.getAvatar().length > 0) {
             try {
-                Image avatarImage = new Image(new ByteArrayInputStream(member.getAvatar()));
-                // Remove any default avatar SVG
-                avatarContainer.getChildren().removeIf(node -> node instanceof Circle || node instanceof SVGPath);
-                avatarImageView.setImage(avatarImage);
+                avatarImageView.setImage(new Image(new ByteArrayInputStream(member.getAvatar())));
             } catch (Exception e) {
                 setDefaultAvatar();
             }
@@ -218,25 +217,8 @@ public class MemberDetailsDialogController {
     }
 
     private void setDefaultAvatar() {
-        // Clear the ImageView
-        avatarImageView.setImage(null);
-
-        // Remove any previous default avatar SVG
-        avatarContainer.getChildren().removeIf(node -> node instanceof Circle || node instanceof SVGPath);
-
-        // Create a circular background
-        Circle background = new Circle(60);
-        background.setFill(Color.web("#e1e4e8"));
-
-        // Create user icon SVG path (simplified user silhouette)
-        SVGPath userIcon = new SVGPath();
-        userIcon.setContent("M 0,-20 C -11,-20 -20,-11 -20,0 C -20,11 -11,20 0,20 C 11,20 20,11 20,0 C 20,-11 11,-20 0,-20 Z M 0,25 C -22,25 -40,35 -40,50 L -40,60 L 40,60 L 40,50 C 40,35 22,25 0,25 Z");
-        userIcon.setFill(Color.web("#57606a"));
-        userIcon.setScaleX(1.2);
-        userIcon.setScaleY(1.2);
-        userIcon.setTranslateY(5);
-
-        avatarContainer.getChildren().addAll(background, userIcon);
+        avatarImageView.setImage(new Image(
+            getClass().getResourceAsStream("/images/avatar-default.png")));
     }
 
     private void loadContributions() {

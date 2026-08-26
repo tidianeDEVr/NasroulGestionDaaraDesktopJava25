@@ -236,6 +236,14 @@ public class ConfigManager {
     }
 
     /**
+     * Sync globally enabled? (sync.enabled=false masque toute l'UI de
+     * synchronisation et évite les tentatives de connexion MySQL)
+     */
+    public boolean isSyncEnabled() {
+        return Boolean.parseBoolean(getProperty("sync.enabled", "true"));
+    }
+
+    /**
      * Get sync timeout in seconds
      */
     public int getSyncTimeout() {

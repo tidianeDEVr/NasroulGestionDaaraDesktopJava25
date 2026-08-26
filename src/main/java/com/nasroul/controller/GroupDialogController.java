@@ -1,6 +1,7 @@
 package com.nasroul.controller;
 
 import com.nasroul.model.Group;
+import com.nasroul.ui.Forms;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -23,8 +24,8 @@ public class GroupDialogController {
 
         if (group.getId() != null) {
             // Edit mode - populate fields
-            txtName.setText(group.getName());
-            txtDescription.setText(group.getDescription());
+            Forms.setText(txtName, group.getName());
+            Forms.setText(txtDescription, group.getDescription());
             cbActive.setSelected(group.isActive());
         }
     }
@@ -32,7 +33,7 @@ public class GroupDialogController {
     @FXML
     private void handleSave() {
         // Validate required fields
-        if (txtName.getText().trim().isEmpty()) {
+        if (Forms.text(txtName).isEmpty()) {
             showError("Le nom est obligatoire");
             return;
         }
@@ -42,10 +43,9 @@ public class GroupDialogController {
             group = new Group();
         }
 
-        group.setName(txtName.getText().trim());
+        group.setName(Forms.text(txtName));
 
-        String description = txtDescription.getText();
-        group.setDescription(description != null && !description.trim().isEmpty() ? description.trim() : null);
+        group.setDescription(Forms.textOrNull(txtDescription));
 
         group.setActive(cbActive.isSelected());
 

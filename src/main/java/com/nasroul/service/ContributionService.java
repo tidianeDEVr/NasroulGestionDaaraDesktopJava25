@@ -41,6 +41,11 @@ public class ContributionService {
         contributionDAO.delete(id);
     }
 
+    /** Totaux payés par entité en une requête (clé "TYPE:id"). */
+    public java.util.Map<String, Double> getPaidTotalsByEntity() throws SQLException {
+        return contributionDAO.getPaidTotalsByEntity();
+    }
+
     public Double getTotalByEntity(String entityType, int entityId) throws SQLException {
         return contributionDAO.getTotalByEntity(entityType, entityId);
     }

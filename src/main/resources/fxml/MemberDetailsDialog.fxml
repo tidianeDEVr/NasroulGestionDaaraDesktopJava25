@@ -31,25 +31,25 @@
                 <ColumnConstraints hgrow="ALWAYS"/>
             </columnConstraints>
 
-            <Label text="Email :" GridPane.columnIndex="0" GridPane.rowIndex="0" style="-fx-text-fill: #57606a;"/>
+            <Label text="Email :" GridPane.columnIndex="0" GridPane.rowIndex="0" style="-fx-text-fill: #68766A;"/>
             <Label fx:id="lblEmail" text="-" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
-            <Label text="Téléphone :" GridPane.columnIndex="0" GridPane.rowIndex="1" style="-fx-text-fill: #57606a;"/>
+            <Label text="Téléphone :" GridPane.columnIndex="0" GridPane.rowIndex="1" style="-fx-text-fill: #68766A;"/>
             <Label fx:id="lblPhone" text="-" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
 
-            <Label text="Date de naissance :" GridPane.columnIndex="0" GridPane.rowIndex="2" style="-fx-text-fill: #57606a;"/>
+            <Label text="Date de naissance :" GridPane.columnIndex="0" GridPane.rowIndex="2" style="-fx-text-fill: #68766A;"/>
             <Label fx:id="lblBirthDate" text="-" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
 
-            <Label text="Date d'adhésion :" GridPane.columnIndex="0" GridPane.rowIndex="3" style="-fx-text-fill: #57606a;"/>
+            <Label text="Date d'adhésion :" GridPane.columnIndex="0" GridPane.rowIndex="3" style="-fx-text-fill: #68766A;"/>
             <Label fx:id="lblJoinDate" text="-" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
 
-            <Label text="Rôle :" GridPane.columnIndex="0" GridPane.rowIndex="4" style="-fx-text-fill: #57606a;"/>
+            <Label text="Rôle :" GridPane.columnIndex="0" GridPane.rowIndex="4" style="-fx-text-fill: #68766A;"/>
             <Label fx:id="lblRole" text="-" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
 
-            <Label text="Groupe :" GridPane.columnIndex="0" GridPane.rowIndex="5" style="-fx-text-fill: #57606a;"/>
+            <Label text="Groupe :" GridPane.columnIndex="0" GridPane.rowIndex="5" style="-fx-text-fill: #68766A;"/>
             <Label fx:id="lblGroup" text="-" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
 
-            <Label text="Adresse :" GridPane.columnIndex="0" GridPane.rowIndex="6" style="-fx-text-fill: #57606a;"/>
+            <Label text="Adresse :" GridPane.columnIndex="0" GridPane.rowIndex="6" style="-fx-text-fill: #68766A;"/>
             <Label fx:id="lblAddress" text="-" GridPane.columnIndex="1" GridPane.rowIndex="6"/>
         </GridPane>
     </HBox>
@@ -58,26 +58,26 @@
     <HBox spacing="16">
         <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
             <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-            <Label text="Total cotisé" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
-            <Label fx:id="lblTotalContributed" text="0 CFA" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-text-fill: #1a7f37;"/>
+            <Label text="Total cotisé" style="-fx-text-fill: #68766A; -fx-font-size: 12px;"/>
+            <Label fx:id="lblTotalContributed" text="0 CFA" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-text-fill: #2E7D32;"/>
         </VBox>
 
         <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
             <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-            <Label text="Cotisations payées" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
-            <Label fx:id="lblTotalPaid" text="0 CFA" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-text-fill: #1a7f37;"/>
+            <Label text="Cotisations payées" style="-fx-text-fill: #68766A; -fx-font-size: 12px;"/>
+            <Label fx:id="lblTotalPaid" text="0 CFA" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-text-fill: #2E7D32;"/>
         </VBox>
 
         <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
             <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-            <Label text="En attente" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
-            <Label fx:id="lblTotalPending" text="0 CFA" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-text-fill: #bf8700;"/>
+            <Label text="En attente" style="-fx-text-fill: #68766A; -fx-font-size: 12px;"/>
+            <Label fx:id="lblTotalPending" text="0 CFA" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-text-fill: #8A5A00;"/>
         </VBox>
 
         <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
             <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-            <Label text="Nombre de cotisations" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
-            <Label fx:id="lblContributionCount" text="0" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-text-fill: #0969da;"/>
+            <Label text="Nombre de cotisations" style="-fx-text-fill: #68766A; -fx-font-size: 12px;"/>
+            <Label fx:id="lblContributionCount" text="0" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-text-fill: #1A5C1A;"/>
         </VBox>
     </HBox>
 
@@ -92,6 +92,7 @@
         </HBox>
 
         <TableView fx:id="contributionTable" VBox.vgrow="ALWAYS">
+            <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN"/></columnResizePolicy>
             <columns>
                 <TableColumn fx:id="colType" text="Type" prefWidth="100"/>
                 <TableColumn fx:id="colEntity" text="Événement/Projet" prefWidth="200"/>
@@ -105,7 +106,7 @@
 
     <!-- Action Buttons -->
     <HBox spacing="8" alignment="CENTER_RIGHT">
-        <Button text="Fermer" onAction="#handleClose" styleClass="secondary-button" prefWidth="100"/>
+        <Button text="Fermer" onAction="#handleClose" styleClass="secondary-button" prefWidth="100" cancelButton="true"/>
     </HBox>
 
 </VBox>

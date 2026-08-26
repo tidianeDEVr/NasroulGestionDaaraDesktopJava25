@@ -7,18 +7,19 @@
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.nasroul.controller.MemberController"
-      spacing="16" style="-fx-padding: 24;">
+      spacing="16" style="-fx-padding: 16 0 0 0;">
 
     <HBox alignment="CENTER_LEFT" spacing="16">
-        <Label text="Gestion des membres" styleClass="section-title"/>
+        <TextField fx:id="searchField" styleClass="search-field" promptText="Rechercher un membre…" prefWidth="280"/>
         <Region HBox.hgrow="ALWAYS"/>
-        <TextField fx:id="searchField" promptText="Rechercher..." prefWidth="250"/>
         <Button text="Importer Excel" onAction="#handleImportExcel" styleClass="secondary-button"/>
         <Button text="Télécharger Modèle" onAction="#handleExportTemplate" styleClass="secondary-button"/>
         <Button text="Nouveau Membre" onAction="#handleAdd" styleClass="primary-button"/>
     </HBox>
 
     <TableView fx:id="memberTable" VBox.vgrow="ALWAYS">
+        <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN"/></columnResizePolicy>
+        <placeholder><Label styleClass="empty-state" text="Aucun membre. Cliquez sur « Nouveau Membre » pour commencer."/></placeholder>
         <columns>
             <TableColumn fx:id="colId" text="ID" prefWidth="50" minWidth="50" maxWidth="80"/>
             <TableColumn fx:id="colFirstName" text="Prénom" minWidth="100"/>
@@ -32,10 +33,10 @@
     </TableView>
 
     <HBox spacing="8" alignment="CENTER_RIGHT">
-        <Button text="Détails" onAction="#handleDetails" styleClass="secondary-button"/>
-        <Button text="Modifier" onAction="#handleEdit" styleClass="secondary-button"/>
+        <Label styleClass="stat-hint" text="Double-cliquez sur un membre pour voir ses détails"/>
+        <Region HBox.hgrow="ALWAYS"/>
         <Button text="Supprimer" onAction="#handleDelete" styleClass="danger-button"/>
-        <Button text="Actualiser" onAction="#handleRefresh" styleClass="secondary-button"/>
+        <Button text="Modifier" onAction="#handleEdit" styleClass="secondary-button"/>
     </HBox>
 
 </VBox>

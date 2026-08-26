@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import com.nasroul.ui.PhosphorIcon?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.BulkCollectionController"
+      spacing="14" prefWidth="860" prefHeight="620">
+    <padding><Insets top="24" right="28" bottom="20" left="28"/></padding>
+
+    <VBox spacing="4">
+        <HBox alignment="CENTER_LEFT" spacing="12">
+            <Label styleClass="dialog-title" text="Collecte en masse"/>
+            <Label fx:id="lblContext" styleClass="badge"/>
+        </HBox>
+        <Label styleClass="text-muted"
+               text="Cochez les membres qui ont payé — le montant est pré-rempli avec leur restant dû."/>
+    </VBox>
+
+    <HBox alignment="CENTER_LEFT" spacing="12">
+        <DatePicker fx:id="dpDate" prefWidth="150"/>
+        <ComboBox fx:id="cbDefaultMethod" prefWidth="200"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Hyperlink fx:id="linkCheckLate" text="Cocher tous les retardataires" onAction="#handleCheckAllLate"/>
+    </HBox>
+
+    <TableView fx:id="bulkTable" VBox.vgrow="ALWAYS" editable="true">
+        <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN"/></columnResizePolicy>
+        <placeholder><Label styleClass="empty-state" text="Aucun membre dans ce groupe."/></placeholder>
+        <columns>
+            <TableColumn fx:id="colCheck" text="" prefWidth="46" minWidth="46" maxWidth="46" sortable="false"/>
+            <TableColumn fx:id="colMember" text="Membre" minWidth="220"/>
+            <TableColumn fx:id="colRemaining" text="Restant dû" prefWidth="120"/>
+            <TableColumn fx:id="colAmount" text="Montant" prefWidth="130" sortable="false"/>
+            <TableColumn fx:id="colMethod" text="Méthode" prefWidth="160" sortable="false"/>
+        </columns>
+    </TableView>
+
+    <HBox alignment="CENTER_LEFT" spacing="12">
+        <Label fx:id="lblSummary" styleClass="font-semibold" text="0 paiement sélectionné"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button" cancelButton="true"/>
+        <Button fx:id="btnSave" text="Enregistrer" onAction="#handleSave" styleClass="primary-button" defaultButton="true">
+            <graphic><PhosphorIcon icon="CHECK" size="15"/></graphic>
+        </Button>
+    </HBox>
+
+</VBox>

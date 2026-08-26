@@ -7,18 +7,20 @@ import com.nasroul.model.Project;
 import com.nasroul.service.EventService;
 import com.nasroul.service.GroupService;
 import com.nasroul.service.ProjectService;
+import com.nasroul.ui.Forms;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.util.List;
 
 public class PaymentGroupDialogController {
 
     @FXML private ComboBox<Group> cbGroup;
+    @FXML private Label lblEntityType;
     @FXML private ComboBox<String> cbEntityType;
+    @FXML private Label lblEntity;
     @FXML private ComboBox<Object> cbEntity;
     @FXML private TextField txtAmount;
 
@@ -71,54 +73,88 @@ public class PaymentGroupDialogController {
     private void setupEntityTypeListener() {
         cbEntityType.setOnAction(event -> {
             String selectedType = cbEntityType.getValue();
-            cbEntity.getItems().clear();
-
-            if (selectedType == null) {
-                return;
-            }
-
-            String typeCode = getEntityTypeCode(selectedType);
-
-            try {
-                if ("EVENT".equals(typeCode)) {
-                    List<Event> events = eventService.getAllEvents();
-                    cbEntity.getItems().addAll(events);
-                    cbEntity.setCellFactory(param -> new ListCell<>() {
-                        @Override
-                        protected void updateItem(Object item, boolean empty) {
-                            super.updateItem(item, empty);
-                            setText(empty || item == null ? null : ((Event) item).getName());
-                        }
-                    });
-                    cbEntity.setButtonCell(new ListCell<>() {
-                        @Override
-                        protected void updateItem(Object item, boolean empty) {
-                            super.updateItem(item, empty);
-                            setText(empty || item == null ? null : ((Event) item).getName());
-                        }
-                    });
-                } else if ("PROJECT".equals(typeCode)) {
-                    List<Project> projects = projectService.getAllProjects();
-                    cbEntity.getItems().addAll(projects);
-                    cbEntity.setCellFactory(param -> new ListCell<>() {
-                        @Override
-                        protected void updateItem(Object item, boolean empty) {
-                            super.updateItem(item, empty);
-                            setText(empty || item == null ? null : ((Project) item).getName());
-                        }
-                    });
-                    cbEntity.setButtonCell(new ListCell<>() {
-                        @Override
-                        protected void updateItem(Object item, boolean empty) {
-                            super.updateItem(item, empty);
-                            setText(empty || item == null ? null : ((Project) item).getName());
-                        }
-                    });
-                }
-            } catch (SQLException e) {
-                showError("Erreur lors du chargement des données: " + e.getMessage());
+            if (selectedType != null) {
+                loadEntities(getEntityTypeCode(selectedType));
+            } else {
+                cbEntity.getItems().clear();
             }
         });
+
+        // Affichage du nom, quel que soit le type (Event ou Project)
+        cbEntity.setCellFactory(param -> entityCell());
+        cbEntity.setButtonCell(entityCell());
+    }
+
+    private ListCell<Object> entityCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(Object item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : entityName(item));
+            }
+        };
+    }
+
+    private String entityName(Object item) {
+        if (item instanceof Event event) {
+            return event.getName();
+        }
+        if (item instanceof Project project) {
+            return project.getName();
+        }
+        return String.valueOf(item);
+    }
+
+    private Integer entityId(Object item) {
+        if (item instanceof Event event) {
+            return event.getId();
+        }
+        if (item instanceof Project project) {
+            return project.getId();
+        }
+        return null;
+    }
+
+    /** Remplit la liste des collectes du type donné (appel synchrone). */
+    private void loadEntities(String typeCode) {
+        cbEntity.getItems().clear();
+        try {
+            if ("EVENT".equals(typeCode)) {
+                cbEntity.getItems().addAll(eventService.getAllEvents());
+            } else if ("PROJECT".equals(typeCode)) {
+                cbEntity.getItems().addAll(projectService.getAllProjects());
+            }
+        } catch (SQLException e) {
+            showError("Erreur lors du chargement des données: " + e.getMessage());
+        }
+    }
+
+    /** Sélectionne la collecte correspondante dans la liste déjà chargée. */
+    private void selectEntity(int entityId) {
+        for (Object item : cbEntity.getItems()) {
+            Integer itemId = entityId(item);
+            if (itemId != null && itemId == entityId) {
+                cbEntity.setValue(item);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Ouvert depuis la fiche d'une collecte : le type et la collecte sont
+     * connus, on les pré-remplit et on masque les deux champs.
+     * Tout est fait de façon synchrone — ne pas dépendre de l'événement
+     * onAction du combo Type, qui laissait la collecte non sélectionnée.
+     */
+    public void lockEntity(String entityType, int entityId) {
+        cbEntityType.setValue(getEntityTypeLabel(entityType));
+        loadEntities(entityType);
+        selectEntity(entityId);
+
+        for (javafx.scene.Node node : new javafx.scene.Node[]{lblEntityType, cbEntityType, lblEntity, cbEntity}) {
+            node.setVisible(false);
+            node.setManaged(false);
+        }
     }
 
     public void setPaymentGroup(PaymentGroup paymentGroup) {
@@ -131,31 +167,10 @@ public class PaymentGroupDialogController {
                 .findFirst()
                 .ifPresent(cbGroup::setValue);
 
+            // Synchrone : même raison que dans lockEntity
             cbEntityType.setValue(getEntityTypeLabel(paymentGroup.getEntityType()));
-
-            javafx.application.Platform.runLater(() -> {
-                try {
-                    if ("EVENT".equals(paymentGroup.getEntityType())) {
-                        Event event = eventService.getEventById(paymentGroup.getEntityId());
-                        for (Object item : cbEntity.getItems()) {
-                            if (item instanceof Event && ((Event) item).getId().equals(event.getId())) {
-                                cbEntity.setValue(item);
-                                break;
-                            }
-                        }
-                    } else if ("PROJECT".equals(paymentGroup.getEntityType())) {
-                        Project project = projectService.getProjectById(paymentGroup.getEntityId());
-                        for (Object item : cbEntity.getItems()) {
-                            if (item instanceof Project && ((Project) item).getId().equals(project.getId())) {
-                                cbEntity.setValue(item);
-                                break;
-                            }
-                        }
-                    }
-                } catch (SQLException e) {
-                    showError("Erreur lors du chargement de l'entité: " + e.getMessage());
-                }
-            });
+            loadEntities(paymentGroup.getEntityType());
+            selectEntity(paymentGroup.getEntityId());
 
             txtAmount.setText(String.valueOf(paymentGroup.getAmount()));
         }
@@ -171,7 +186,7 @@ public class PaymentGroupDialogController {
             Group selectedGroup = cbGroup.getValue();
             String entityTypeFr = cbEntityType.getValue();
             Object selectedEntity = cbEntity.getValue();
-            double amount = Double.parseDouble(txtAmount.getText().trim());
+            double amount = Double.parseDouble(Forms.text(txtAmount));
 
             // Convert labels to codes
             String entityType = getEntityTypeCode(entityTypeFr);
@@ -217,17 +232,21 @@ public class PaymentGroupDialogController {
         }
 
         if (cbEntity.getValue() == null) {
-            showWarning("Validation", "Veuillez sélectionner un événement ou projet.");
+            // Champ masqué (ouvert depuis une fiche) : inutile de demander une
+            // sélection que l'utilisateur ne peut pas faire
+            showWarning("Validation", cbEntity.isVisible()
+                ? "Veuillez sélectionner un événement ou projet."
+                : "La collecte n'a pas pu être déterminée. Fermez la fiche et rouvrez-la.");
             return false;
         }
 
-        if (txtAmount.getText() == null || txtAmount.getText().trim().isEmpty()) {
+        if (txtAmount.getText() == null || Forms.text(txtAmount).isEmpty()) {
             showWarning("Validation", "Veuillez saisir un montant.");
             return false;
         }
 
         try {
-            double amount = Double.parseDouble(txtAmount.getText().trim());
+            double amount = Double.parseDouble(Forms.text(txtAmount));
             if (amount <= 0) {
                 showWarning("Validation", "Le montant par membre doit être positif.");
                 return false;

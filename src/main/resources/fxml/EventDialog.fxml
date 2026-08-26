@@ -35,20 +35,16 @@
         <Label text="Organisateur" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
         <ComboBox fx:id="cbOrganizer" GridPane.columnIndex="1" GridPane.rowIndex="5" maxWidth="Infinity"/>
 
-        <Label text="Budget de cotisation cible (CFA)" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
-        <TextField fx:id="txtContributionTarget" GridPane.columnIndex="1" GridPane.rowIndex="6"
-                   promptText="0.00"/>
+        <Label text="Statut" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+        <ComboBox fx:id="cbStatus" GridPane.columnIndex="1" GridPane.rowIndex="6" maxWidth="Infinity"/>
 
-        <Label text="Statut" GridPane.columnIndex="0" GridPane.rowIndex="7"/>
-        <ComboBox fx:id="cbStatus" GridPane.columnIndex="1" GridPane.rowIndex="7" maxWidth="Infinity"/>
-
-        <Label text="Actif" GridPane.columnIndex="0" GridPane.rowIndex="8"/>
-        <CheckBox fx:id="cbActive" GridPane.columnIndex="1" GridPane.rowIndex="8"/>
+        <Label text="Actif" GridPane.columnIndex="0" GridPane.rowIndex="7"/>
+        <CheckBox fx:id="cbActive" GridPane.columnIndex="1" GridPane.rowIndex="7"/>
     </GridPane>
 
     <HBox spacing="8" alignment="CENTER_RIGHT">
-        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button"/>
-        <Button text="Enregistrer" onAction="#handleSave" styleClass="primary-button"/>
+        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button" cancelButton="true"/>
+        <Button text="Enregistrer" onAction="#handleSave" styleClass="primary-button" defaultButton="true"/>
     </HBox>
 
 </VBox>

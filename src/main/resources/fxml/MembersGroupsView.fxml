@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.MembersGroupsController"
+      styleClass="container">
+
+    <TabPane fx:id="tabPane" VBox.vgrow="ALWAYS" tabClosingPolicy="UNAVAILABLE">
+        <Tab text="Membres">
+            <fx:include fx:id="memberView" source="MemberView.fxml"/>
+        </Tab>
+        <Tab text="Groupes">
+            <fx:include fx:id="groupView" source="GroupView.fxml"/>
+        </Tab>
+    </TabPane>
+
+</VBox>

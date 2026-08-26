@@ -4,6 +4,7 @@ import com.nasroul.model.Group;
 import com.nasroul.model.Member;
 import com.nasroul.service.GroupService;
 import com.nasroul.util.ImageUtil;
+import com.nasroul.ui.Forms;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -81,8 +82,8 @@ public class MemberDialogController {
 
         if (member.getId() != null) {
             // Edit mode - populate fields
-            txtFirstName.setText(member.getFirstName());
-            txtLastName.setText(member.getLastName());
+            Forms.setText(txtFirstName, member.getFirstName());
+            Forms.setText(txtLastName, member.getLastName());
             txtEmail.setText(member.getEmail() != null ? member.getEmail() : "");
             txtPhone.setText(member.getPhone() != null ? member.getPhone() : "");
             dpBirthDate.setValue(member.getBirthDate());
@@ -138,12 +139,12 @@ public class MemberDialogController {
     @FXML
     private void handleSave() {
         // Validate required fields
-        if (txtFirstName.getText().trim().isEmpty()) {
+        if (Forms.text(txtFirstName).isEmpty()) {
             showError("Le prénom est obligatoire");
             return;
         }
 
-        if (txtLastName.getText().trim().isEmpty()) {
+        if (Forms.text(txtLastName).isEmpty()) {
             showError("Le nom est obligatoire");
             return;
         }
@@ -154,7 +155,7 @@ public class MemberDialogController {
         }
 
         // Validate email format if provided
-        String email = txtEmail.getText().trim();
+        String email = Forms.text(txtEmail);
         if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
             showError("Format d'email invalide");
             return;
@@ -165,14 +166,14 @@ public class MemberDialogController {
             member = new Member();
         }
 
-        member.setFirstName(txtFirstName.getText().trim());
-        member.setLastName(txtLastName.getText().trim());
+        member.setFirstName(Forms.text(txtFirstName));
+        member.setLastName(Forms.text(txtLastName));
         member.setEmail(email.isEmpty() ? null : email);
-        member.setPhone(txtPhone.getText().trim().isEmpty() ? null : txtPhone.getText().trim());
+        member.setPhone(Forms.textOrNull(txtPhone));
         member.setBirthDate(dpBirthDate.getValue());
-        member.setAddress(txtAddress.getText().trim().isEmpty() ? null : txtAddress.getText().trim());
+        member.setAddress(Forms.textOrNull(txtAddress));
         member.setJoinDate(dpJoinDate.getValue());
-        member.setRole(txtRole.getText().trim().isEmpty() ? null : txtRole.getText().trim());
+        member.setRole(Forms.textOrNull(txtRole));
         member.setActive(cbActive.isSelected());
         member.setAvatar(avatarData);
 

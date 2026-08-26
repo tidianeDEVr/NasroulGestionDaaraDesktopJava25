@@ -11,9 +11,21 @@ public class AssociationApp extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
+        // Filet de sécurité : une exception non attrapée sur le thread JavaFX
+        // ne doit plus faire planter l'application silencieusement
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            throwable.printStackTrace();
+            if (javafx.application.Platform.isFxApplicationThread()) {
+                com.nasroul.ui.Dialogs.error(null, "Erreur inattendue",
+                    "Une erreur inattendue s'est produite :\n" + throwable
+                    + "\n\nL'application reste ouverte ; si le problème se répète, redémarrez-la.");
+            }
+        });
+
         // Load Splash Screen
         FXMLLoader splashLoader = new FXMLLoader(getClass().getResource("/fxml/SplashScreen.fxml"));
         Scene splashScene = new Scene(splashLoader.load(), 600, 400);
+        com.nasroul.ui.ThemeManager.applyTo(splashScene);
 
         SplashScreenController splashController = splashLoader.getController();
         splashController.setStage(primaryStage);

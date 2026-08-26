@@ -7,6 +7,7 @@ import com.nasroul.model.Project;
 import com.nasroul.service.EventService;
 import com.nasroul.service.MemberService;
 import com.nasroul.service.ProjectService;
+import com.nasroul.ui.Forms;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -68,7 +69,7 @@ public class ExpenseDialogController {
 
         if (expense.getId() != null) {
             // Edit mode - populate fields
-            txtDescription.setText(expense.getDescription());
+            Forms.setText(txtDescription, expense.getDescription());
             txtAmount.setText(expense.getAmount().toString());
             datePicker.setValue(expense.getDate());
             cbCategory.setValue(expense.getCategory());
@@ -141,12 +142,12 @@ public class ExpenseDialogController {
     @FXML
     private void handleSave() {
         // Validate required fields
-        if (txtDescription.getText().trim().isEmpty()) {
+        if (Forms.text(txtDescription).isEmpty()) {
             showError("Champ obligatoire", "La description est obligatoire");
             return;
         }
 
-        if (txtAmount.getText().trim().isEmpty()) {
+        if (Forms.text(txtAmount).isEmpty()) {
             showError("Champ obligatoire", "Le montant est obligatoire");
             return;
         }
@@ -169,7 +170,7 @@ public class ExpenseDialogController {
         // Validate amount
         Double amount;
         try {
-            amount = Double.parseDouble(txtAmount.getText().trim());
+            amount = Double.parseDouble(Forms.text(txtAmount));
             if (amount < 0) {
                 showError("Montant invalide", "Le montant ne peut pas être négatif");
                 return;
@@ -184,7 +185,7 @@ public class ExpenseDialogController {
             expense = new Expense();
         }
 
-        expense.setDescription(txtDescription.getText().trim());
+        expense.setDescription(Forms.text(txtDescription));
         expense.setAmount(amount);
         expense.setDate(datePicker.getValue());
         expense.setCategory(cbCategory.getValue());

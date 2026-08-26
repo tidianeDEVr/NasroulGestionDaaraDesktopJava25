@@ -44,11 +44,11 @@ public class ConflictResolutionDialog extends Stage {
 
         VBox root = new VBox(15);
         root.setPadding(new Insets(20));
-        root.setStyle("-fx-background-color: #f5f5f5;");
+        root.setStyle("-fx-background-color: #F2F2EB;");
 
         // Header
         Label titleLabel = new Label("⚠️ Conflit de Synchronisation Détecté");
-        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #d32f2f;");
+        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #B3261E;");
 
         Label descLabel = new Label(
             "Les versions locale et distante de cet enregistrement sont différentes.\n" +
@@ -73,11 +73,11 @@ public class ConflictResolutionDialog extends Stage {
 
         // Local version panel
         VBox localPanel = createVersionPanel("Version Locale", localEntity, true);
-        localPanel.setStyle("-fx-background-color: #e3f2fd; -fx-border-color: #2196f3; -fx-border-width: 2; -fx-border-radius: 5; -fx-background-radius: 5; -fx-padding: 15;");
+        localPanel.setStyle("-fx-background-color: #E4F2D5; -fx-border-color: #1A5C1A; -fx-border-width: 2; -fx-border-radius: 5; -fx-background-radius: 5; -fx-padding: 15;");
 
         // Remote version panel
         VBox remotePanel = createVersionPanel("Version Distante (MySQL)", remoteEntity, false);
-        remotePanel.setStyle("-fx-background-color: #fff3e0; -fx-border-color: #ff9800; -fx-border-width: 2; -fx-border-radius: 5; -fx-background-radius: 5; -fx-padding: 15;");
+        remotePanel.setStyle("-fx-background-color: #F6EDD5; -fx-border-color: #8A5A00; -fx-border-width: 2; -fx-border-radius: 5; -fx-background-radius: 5; -fx-padding: 15;");
 
         HBox.setHgrow(localPanel, Priority.ALWAYS);
         HBox.setHgrow(remotePanel, Priority.ALWAYS);
@@ -90,14 +90,14 @@ public class ConflictResolutionDialog extends Stage {
         buttonBox.setPadding(new Insets(10, 0, 0, 0));
 
         Button keepLocalBtn = new Button("✓ Garder Version Locale");
-        keepLocalBtn.setStyle("-fx-background-color: #2196f3; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        keepLocalBtn.setStyle("-fx-background-color: #1A5C1A; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
         keepLocalBtn.setOnAction(e -> {
             resolution = ConflictResolution.KEEP_LOCAL;
             close();
         });
 
         Button keepRemoteBtn = new Button("✓ Garder Version Distante");
-        keepRemoteBtn.setStyle("-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        keepRemoteBtn.setStyle("-fx-background-color: #8A5A00; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
         keepRemoteBtn.setOnAction(e -> {
             resolution = ConflictResolution.KEEP_REMOTE;
             close();
@@ -124,9 +124,10 @@ public class ConflictResolutionDialog extends Stage {
 
         ScrollPane scrollPane = new ScrollPane(root);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: #f5f5f5;");
+        scrollPane.setStyle("-fx-background-color: #F2F2EB;");
 
         Scene scene = new Scene(scrollPane);
+        com.nasroul.ui.ThemeManager.applyTo(scene);
         setScene(scene);
     }
 
@@ -139,7 +140,7 @@ public class ConflictResolutionDialog extends Stage {
 
         if (entity == null) {
             Label notExistLabel = new Label("❌ N'existe pas");
-            notExistLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #666;");
+            notExistLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #68766A;");
             panel.getChildren().addAll(titleLabel, notExistLabel);
             return panel;
         }
@@ -147,7 +148,7 @@ public class ConflictResolutionDialog extends Stage {
         // Check if deleted
         if (entity.isDeleted()) {
             Label deletedLabel = new Label("🗑️ Supprimé");
-            deletedLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #d32f2f; -fx-font-weight: bold;");
+            deletedLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #B3261E; -fx-font-weight: bold;");
             panel.getChildren().addAll(titleLabel, deletedLabel);
         }
 
@@ -211,7 +212,7 @@ public class ConflictResolutionDialog extends Stage {
 
     private void addMetaRow(GridPane grid, int row, String label, String value) {
         Label labelNode = new Label(label);
-        labelNode.setStyle("-fx-font-size: 11px; -fx-text-fill: #666;");
+        labelNode.setStyle("-fx-font-size: 11px; -fx-text-fill: #68766A;");
 
         Label valueNode = new Label(value);
         valueNode.setStyle("-fx-font-size: 11px;");

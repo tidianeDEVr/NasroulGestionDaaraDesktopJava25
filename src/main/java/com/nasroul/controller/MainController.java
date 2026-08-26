@@ -3,125 +3,153 @@ package com.nasroul.controller;
 import com.nasroul.service.DeviceRegistrationService;
 import com.nasroul.service.SyncService;
 import com.nasroul.sync.SyncManager;
+import com.nasroul.ui.Dialogs;
+import com.nasroul.ui.Phosphor;
+import com.nasroul.ui.PhosphorIcon;
+import com.nasroul.ui.Refreshable;
+import com.nasroul.ui.ThemeManager;
 import com.nasroul.util.ConfigManager;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
-import javafx.scene.control.*;
-import javafx.scene.layout.HBox;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.EnumMap;
 import java.util.Map;
 
 public class MainController {
 
-    @FXML
-    private Label dateLabel;
+    /** Les 5 sections de l'application. */
+    private enum Section {
+        DASHBOARD("/fxml/DashboardView.fxml", "Tableau de bord"),
+        COLLECTES("/fxml/CollecteView.fxml", "Collectes"),
+        MEMBRES("/fxml/MembersGroupsView.fxml", "Membres & Groupes"),
+        COTISATIONS("/fxml/ContributionView.fxml", "Cotisations"),
+        DEPENSES("/fxml/ExpenseView.fxml", "Dépenses");
 
-    @FXML
-    private StackPane contentPane;
+        final String fxml;
+        final String title;
 
-    @FXML
-    private Label statusLabel;
+        Section(String fxml, String title) {
+            this.fxml = fxml;
+            this.title = title;
+        }
+    }
 
-    @FXML
-    private Button btnDashboard;
+    private static final PseudoClass PC_SYNCING = PseudoClass.getPseudoClass("syncing");
+    private static final PseudoClass PC_FAILED = PseudoClass.getPseudoClass("failed");
+    private static final PseudoClass PC_OFFLINE = PseudoClass.getPseudoClass("offline");
 
-    @FXML
-    private Button btnContributions;
+    @FXML private Label pageTitle;
+    @FXML private Label dateLabel;
+    @FXML private StackPane contentPane;
+    @FXML private ToggleButton navDashboard;
+    @FXML private ToggleButton navCollectes;
+    @FXML private ToggleButton navMembers;
+    @FXML private ToggleButton navContributions;
+    @FXML private ToggleButton navExpenses;
+    @FXML private MenuButton syncMenu;
+    @FXML private PhosphorIcon syncIcon;
+    @FXML private MenuItem menuSyncNow;
+    @FXML private ProgressIndicator syncProgressIndicator;
 
-    @FXML
-    private Button btnMembers;
-
-    @FXML
-    private Button btnEvents;
-
-    @FXML
-    private Button btnProjects;
-
-    @FXML
-    private Button btnExpenses;
-
-    @FXML
-    private Button btnGroups;
-
-    @FXML
-    private Button btnSync;
-
-    @FXML
-    private HBox syncButtonContainer;
-
-    @FXML
-    private Button btnSyncHistory;
-
-    @FXML
-    private Label lblSystemSection;
-
-    @FXML
-    private Label syncStatusLabel;
-
-    @FXML
-    private ProgressIndicator syncProgressIndicator;
+    private final ToggleGroup navGroup = new ToggleGroup();
+    private final Map<Section, Parent> viewCache = new EnumMap<>(Section.class);
+    private final Map<Section, Object> controllerCache = new EnumMap<>(Section.class);
+    private Section currentSection;
 
     private Timeline clockTimeline;
     private final SyncService syncService = SyncService.getInstance();
     private final DeviceRegistrationService deviceService = DeviceRegistrationService.getInstance();
-    private final boolean offlineMode = ConfigManager.getInstance().isOfflineModeEnabled();
+    /** Sync inutilisable : mode hors ligne OU sync.enabled=false dans la config. */
+    private final boolean offlineMode = ConfigManager.getInstance().isOfflineModeEnabled()
+            || !ConfigManager.getInstance().isSyncEnabled();
 
     @FXML
     public void initialize() {
+        setupNavigation();
         startClock();
-        showDashboard();
+        show(Section.DASHBOARD);
 
         if (offlineMode) {
-            hideSyncUI();
+            // Pas de serveur : l'indicateur de sync disparaît complètement
+            syncMenu.setVisible(false);
+            syncMenu.setManaged(false);
         } else {
-            setupSyncService();
+            syncService.setStatusListener(status ->
+                Platform.runLater(() -> updateSyncStatusUI(status)));
             registerDevice();
-            updateSyncStatus();
+            setSyncPillState(null, Phosphor.CLOUD_CHECK,
+                "Dernier sync : " + syncService.getLastSyncTimeFormatted());
         }
     }
 
-    private void hideSyncUI() {
-        if (syncButtonContainer != null) {
-            syncButtonContainer.setVisible(false);
-            syncButtonContainer.setManaged(false);
-        }
-        if (btnSyncHistory != null) {
-            btnSyncHistory.setVisible(false);
-            btnSyncHistory.setManaged(false);
-        }
-        if (lblSystemSection != null) {
-            lblSystemSection.setVisible(false);
-            lblSystemSection.setManaged(false);
-        }
-        if (syncStatusLabel != null) {
-            syncStatusLabel.setVisible(false);
-            syncStatusLabel.setManaged(false);
-        }
-    }
+    private void setupNavigation() {
+        navDashboard.setToggleGroup(navGroup);
+        navCollectes.setToggleGroup(navGroup);
+        navMembers.setToggleGroup(navGroup);
+        navContributions.setToggleGroup(navGroup);
+        navExpenses.setToggleGroup(navGroup);
+        navDashboard.setSelected(true);
 
-    /**
-     * Setup sync service listener
-     */
-    private void setupSyncService() {
-        syncService.setStatusListener(status -> {
-            Platform.runLater(() -> updateSyncStatusUI(status));
+        // Un ToggleGroup autorise la désélection au re-clic : on l'interdit
+        navGroup.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
+            if (newToggle == null && oldToggle != null) {
+                oldToggle.setSelected(true);
+            }
         });
     }
 
-    /**
-     * Register current device
-     */
+    @FXML private void showDashboard() { show(Section.DASHBOARD); }
+    @FXML private void showCollectes() { show(Section.COLLECTES); }
+    @FXML private void showMembers() { show(Section.MEMBRES); }
+    @FXML private void showContributions() { show(Section.COTISATIONS); }
+    @FXML private void showExpenses() { show(Section.DEPENSES); }
+
+    private void show(Section section) {
+        if (section == currentSection && viewCache.containsKey(section)) {
+            return;
+        }
+        try {
+            Parent view = viewCache.get(section);
+            if (view == null) {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource(section.fxml));
+                view = loader.load();
+                viewCache.put(section, view);
+                controllerCache.put(section, loader.getController());
+            }
+            contentPane.getChildren().setAll(view);
+            pageTitle.setText(section.title);
+            currentSection = section;
+
+            Object controller = controllerCache.get(section);
+            if (controller instanceof Refreshable refreshable) {
+                refreshable.onShown();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            Dialogs.error(contentPane.getScene() != null ? contentPane.getScene().getWindow() : null,
+                "Erreur", "Impossible de charger la vue « " + section.title + " ».");
+        }
+    }
+
     private void registerDevice() {
         try {
             deviceService.registerDevice();
@@ -132,11 +160,8 @@ public class MainController {
     }
 
     private void startClock() {
-        // Mettre à jour immédiatement
         updateDateTime();
-
-        // Créer un Timeline qui s'exécute chaque seconde
-        clockTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> updateDateTime()));
+        clockTimeline = new Timeline(new KeyFrame(Duration.seconds(30), event -> updateDateTime()));
         clockTimeline.setCycleCount(Animation.INDEFINITE);
         clockTimeline.play();
     }
@@ -144,69 +169,13 @@ public class MainController {
     private void updateDateTime() {
         if (dateLabel != null) {
             LocalDateTime now = LocalDateTime.now();
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE dd MMMM yyyy - HH:mm:ss", java.util.Locale.FRENCH);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE dd MMMM yyyy · HH:mm", java.util.Locale.FRENCH);
             String formattedDate = now.format(formatter);
-            String capitalizedDate = formattedDate.substring(0, 1).toUpperCase() + formattedDate.substring(1);
-            dateLabel.setText(capitalizedDate);
+            dateLabel.setText(formattedDate.substring(0, 1).toUpperCase() + formattedDate.substring(1));
         }
     }
 
-    private void setActiveButton(Button activeButton) {
-        btnDashboard.getStyleClass().remove("menu-button-active");
-        btnContributions.getStyleClass().remove("menu-button-active");
-        btnMembers.getStyleClass().remove("menu-button-active");
-        btnEvents.getStyleClass().remove("menu-button-active");
-        btnProjects.getStyleClass().remove("menu-button-active");
-        btnExpenses.getStyleClass().remove("menu-button-active");
-        btnGroups.getStyleClass().remove("menu-button-active");
-        btnSyncHistory.getStyleClass().remove("menu-button-active");
-
-        if (!activeButton.getStyleClass().contains("menu-button-active")) {
-            activeButton.getStyleClass().add("menu-button-active");
-        }
-    }
-
-    @FXML
-    private void showDashboard() {
-        setActiveButton(btnDashboard);
-        loadView("/fxml/DashboardView.fxml", "Tableau de bord");
-    }
-
-    @FXML
-    private void showMembers() {
-        setActiveButton(btnMembers);
-        loadView("/fxml/MemberView.fxml", "Membres");
-    }
-
-    @FXML
-    private void showEvents() {
-        setActiveButton(btnEvents);
-        loadView("/fxml/EventView.fxml", "Événements");
-    }
-
-    @FXML
-    private void showProjects() {
-        setActiveButton(btnProjects);
-        loadView("/fxml/ProjectView.fxml", "Projets");
-    }
-
-    @FXML
-    private void showExpenses() {
-        setActiveButton(btnExpenses);
-        loadView("/fxml/ExpenseView.fxml", "Dépenses");
-    }
-
-    @FXML
-    private void showGroups() {
-        setActiveButton(btnGroups);
-        loadView("/fxml/GroupView.fxml", "Groupes");
-    }
-
-    @FXML
-    private void showContributions() {
-        setActiveButton(btnContributions);
-        loadView("/fxml/ContributionView.fxml", "Cotisations");
-    }
+    // ---------------------------------------------------------------- Sync
 
     @FXML
     private void handleSync() {
@@ -214,251 +183,127 @@ public class MainController {
             return;
         }
         if (syncService.isSyncing()) {
-            showAlert("Synchronisation en cours", "Une synchronisation est déjà en cours...", Alert.AlertType.WARNING);
+            Dialogs.warn(window(), "Synchronisation en cours",
+                "Une synchronisation est déjà en cours…");
             return;
         }
 
-        // Start sync UI feedback
-        startSyncUI();
+        menuSyncNow.setDisable(true);
+        syncProgressIndicator.setVisible(true);
+        syncProgressIndicator.setManaged(true);
 
-        // Perform sync asynchronously
         Task<SyncManager.SyncResult> syncTask = syncService.synchronizeAsync();
 
         syncTask.setOnSucceeded(event -> {
             SyncManager.SyncResult result = syncTask.getValue();
-
-            // Stop sync UI feedback
             stopSyncUI();
-
             if (result.isSuccess()) {
                 showSyncResultDialog(result);
-                updateSyncStatus();
-
-                // Update device last sync time
+                setSyncPillState(null, Phosphor.CLOUD_CHECK,
+                    "Synchronisé · " + syncService.getLastSyncTimeFormatted());
                 try {
                     deviceService.updateLastSyncTime();
                 } catch (Exception e) {
                     System.err.println("Failed to update device sync time: " + e.getMessage());
                 }
             } else {
-                showAlert("Échec de la Synchronisation",
-                         result.getErrorMessage() != null ? result.getErrorMessage() : "Erreur inconnue",
-                         Alert.AlertType.ERROR);
+                setSyncPillState(PC_FAILED, Phosphor.CLOUD_SLASH, "Échec de la synchronisation");
+                Dialogs.error(window(), "Échec de la synchronisation",
+                    result.getErrorMessage() != null ? result.getErrorMessage() : "Erreur inconnue");
             }
         });
 
         syncTask.setOnFailed(event -> {
-            // Stop sync UI feedback
             stopSyncUI();
-
+            setSyncPillState(PC_FAILED, Phosphor.CLOUD_SLASH, "Échec de la synchronisation");
             Throwable exception = syncTask.getException();
-            showAlert("Erreur de Synchronisation",
-                     exception != null ? exception.getMessage() : "Une erreur est survenue",
-                     Alert.AlertType.ERROR);
+            Dialogs.error(window(), "Erreur de synchronisation",
+                exception != null ? exception.getMessage() : "Une erreur est survenue");
         });
     }
 
-    /**
-     * Start sync UI feedback - disable button, show spinner
-     */
-    private void startSyncUI() {
-        Platform.runLater(() -> {
-            if (btnSync != null) {
-                btnSync.setDisable(true);
-                // Keep button text as "Synchroniser" - status is shown in footer
-            }
-            if (syncProgressIndicator != null) {
-                syncProgressIndicator.setVisible(true);
-                syncProgressIndicator.setManaged(true);
-            }
-            // Note: syncStatusLabel in footer shows "🔄 Synchronisation en cours..."
-        });
-    }
-
-    /**
-     * Stop sync UI feedback - enable button, hide spinner
-     */
     private void stopSyncUI() {
         Platform.runLater(() -> {
-            if (btnSync != null) {
-                btnSync.setDisable(false);
-                // Button text stays "Synchroniser"
-            }
-            if (syncProgressIndicator != null) {
-                syncProgressIndicator.setVisible(false);
-                syncProgressIndicator.setManaged(false);
-            }
+            menuSyncNow.setDisable(false);
+            syncProgressIndicator.setVisible(false);
+            syncProgressIndicator.setManaged(false);
         });
     }
 
-    /**
-     * Update sync status display
-     */
-    private void updateSyncStatus() {
-        if (syncStatusLabel != null) {
-            String lastSync = syncService.getLastSyncTimeFormatted();
-            syncStatusLabel.setText("Dernier sync: " + lastSync);
-        }
-    }
-
-    /**
-     * Update sync status UI based on sync status
-     */
     private void updateSyncStatusUI(SyncService.SyncStatus status) {
-        if (syncStatusLabel == null) return;
-
         switch (status) {
-            case SYNCING:
-                syncStatusLabel.setText("🔄 Synchronisation en cours...");
-                syncStatusLabel.setStyle("-fx-text-fill: #2196f3;");
-                break;
-            case SUCCESS:
-                syncStatusLabel.setText("✅ Synchronisation réussie - " + syncService.getLastSyncTimeFormatted());
-                syncStatusLabel.setStyle("-fx-text-fill: #4caf50;");
-                break;
-            case FAILED:
-                syncStatusLabel.setText("❌ Échec de la synchronisation");
-                syncStatusLabel.setStyle("-fx-text-fill: #f44336;");
-                break;
-            case OFFLINE:
-                syncStatusLabel.setText("📴 Mode hors ligne");
-                syncStatusLabel.setStyle("-fx-text-fill: #ff9800;");
-                break;
-            default:
-                syncStatusLabel.setText("Dernier sync: " + syncService.getLastSyncTimeFormatted());
-                syncStatusLabel.setStyle("-fx-text-fill: #666;");
+            case SYNCING -> setSyncPillState(PC_SYNCING, Phosphor.CLOUD_ARROW_UP, "Synchronisation…");
+            case SUCCESS -> setSyncPillState(null, Phosphor.CLOUD_CHECK,
+                "Synchronisé · " + syncService.getLastSyncTimeFormatted());
+            case FAILED -> setSyncPillState(PC_FAILED, Phosphor.CLOUD_SLASH, "Échec de la synchronisation");
+            case OFFLINE -> setSyncPillState(PC_OFFLINE, Phosphor.CLOUD_SLASH, "Hors ligne");
+            default -> setSyncPillState(null, Phosphor.CLOUD_CHECK,
+                "Dernier sync : " + syncService.getLastSyncTimeFormatted());
         }
     }
 
-    /**
-     * Show sync result dialog with detailed information
-     */
-    private void showSyncResultDialog(SyncManager.SyncResult result) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Synchronisation Réussie");
-        alert.setResizable(true);
-        alert.getDialogPane().setPrefWidth(700);
+    private void setSyncPillState(PseudoClass state, String icon, String text) {
+        syncMenu.pseudoClassStateChanged(PC_SYNCING, state == PC_SYNCING);
+        syncMenu.pseudoClassStateChanged(PC_FAILED, state == PC_FAILED);
+        syncMenu.pseudoClassStateChanged(PC_OFFLINE, state == PC_OFFLINE);
+        syncIcon.setText(icon);
+        syncMenu.setText(text);
+    }
 
-        // Determine if there are any issues to report
+    private void showSyncResultDialog(SyncManager.SyncResult result) {
         boolean hasConflicts = result.getConflicts() > 0;
         boolean hasErrors = !result.getErrors().isEmpty();
 
-        if (hasConflicts || hasErrors) {
-            alert.setHeaderText("La synchronisation s'est terminée avec quelques avertissements");
-        } else {
-            alert.setHeaderText("La synchronisation s'est terminée avec succès");
-        }
-
-        // Build detailed content
         StringBuilder content = new StringBuilder();
 
-        // Summary section
-        content.append("═══════════════════════════════════════════════════════════\n");
-        content.append("                  RÉSUMÉ DE LA SYNCHRONISATION\n");
-        content.append("═══════════════════════════════════════════════════════════\n\n");
-
-        // Downloaded data statistics
-        content.append("📥 DONNÉES REÇUES DU SERVEUR\n");
-        content.append("───────────────────────────────────────\n");
-
+        content.append("Données reçues du serveur\n");
         Map<String, Integer> pullByTable = result.getPullByTable();
         if (pullByTable.isEmpty() || result.getRecordsPulled() == 0) {
-            content.append("   ✓ Vos données sont à jour\n");
+            content.append("   Vos données sont à jour.\n");
         } else {
             pullByTable.entrySet().stream()
                 .filter(e -> e.getValue() > 0)
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .forEach(entry -> {
-                    String tableName = formatTableName(entry.getKey());
-                    content.append(String.format("   ├─ %s: %d donnée%s\n",
-                        tableName, entry.getValue(), entry.getValue() > 1 ? "s" : ""));
-                });
-            content.append(String.format("   └─ TOTAL: %d donnée%s reçue%s\n",
-                result.getRecordsPulled(),
-                result.getRecordsPulled() > 1 ? "s" : "",
-                result.getRecordsPulled() > 1 ? "s" : ""));
+                .forEach(entry -> content.append(String.format("   %s : %d%n",
+                    formatTableName(entry.getKey()), entry.getValue())));
+            content.append(String.format("   Total : %d%n", result.getRecordsPulled()));
         }
-        content.append("\n");
-
-        // Uploaded data statistics
-        content.append("📤 DONNÉES ENVOYÉES AU SERVEUR\n");
-        content.append("───────────────────────────────────────\n");
-
+        content.append("\nDonnées envoyées au serveur\n");
         Map<String, Integer> pushByTable = result.getPushByTable();
         if (pushByTable.isEmpty() || result.getRecordsPushed() == 0) {
-            content.append("   ✓ Aucune modification à envoyer\n");
+            content.append("   Aucune modification à envoyer.\n");
         } else {
             pushByTable.entrySet().stream()
                 .filter(e -> e.getValue() > 0)
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .forEach(entry -> {
-                    String tableName = formatTableName(entry.getKey());
-                    content.append(String.format("   ├─ %s: %d donnée%s\n",
-                        tableName, entry.getValue(), entry.getValue() > 1 ? "s" : ""));
-                });
-            content.append(String.format("   └─ TOTAL: %d donnée%s envoyée%s\n",
-                result.getRecordsPushed(),
-                result.getRecordsPushed() > 1 ? "s" : "",
-                result.getRecordsPushed() > 1 ? "s" : ""));
+                .forEach(entry -> content.append(String.format("   %s : %d%n",
+                    formatTableName(entry.getKey()), entry.getValue())));
+            content.append(String.format("   Total : %d%n", result.getRecordsPushed()));
         }
-        content.append("\n");
 
-        // Total processed
-        int totalProcessed = result.getRecordsPulled() + result.getRecordsPushed();
-        content.append("📊 STATISTIQUES GLOBALES\n");
-        content.append("───────────────────────────────────────\n");
-        content.append(String.format("   • Total traité: %d record%s\n",
-            totalProcessed, totalProcessed > 1 ? "s" : ""));
-
-        // Conflicts section with table details
         if (hasConflicts) {
-            Map<String, Integer> conflictsByTable = result.getConflictsByTable();
-            content.append(String.format("   • Conflits: %d (résolus automatiquement)\n", result.getConflicts()));
-
-            if (!conflictsByTable.isEmpty()) {
-                conflictsByTable.forEach((table, count) -> {
-                    String tableName = formatTableName(table);
-                    content.append(String.format("     - %s: %d conflit%s\n",
-                        tableName, count, count > 1 ? "s" : ""));
-                });
-            }
-        } else {
-            content.append("   • Conflits: 0 ✅\n");
+            content.append(String.format("%nConflits résolus automatiquement : %d%n", result.getConflicts()));
         }
-        content.append("\n");
-
-        // Session info
-        content.append("ℹ️ INFORMATIONS DE SESSION\n");
-        content.append("───────────────────────────────────────\n");
-        content.append(String.format("   • Session ID: %s\n", result.getSyncSessionId()));
-        content.append(String.format("   • Heure: %s\n",
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))));
-        content.append(String.format("   • Appareil: %s\n", syncService.getDeviceId()));
-
-        // Errors section (if any)
         if (hasErrors) {
-            content.append("\n❌ ERREURS RENCONTRÉES\n");
-            content.append("───────────────────────────────────────\n");
+            content.append("\nErreurs rencontrées\n");
             for (String error : result.getErrors()) {
-                content.append(String.format("   • %s\n", error));
+                content.append("   • ").append(error).append("\n");
             }
         }
 
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Synchronisation");
+        alert.setHeaderText(hasConflicts || hasErrors
+            ? "Synchronisation terminée avec des avertissements"
+            : "Synchronisation terminée avec succès");
         alert.setContentText(content.toString());
+        alert.setResizable(true);
+        alert.getDialogPane().setPrefWidth(480);
+        alert.initOwner(window());
+        ThemeManager.applyTo(alert.getDialogPane());
         alert.showAndWait();
-
-        // Update status bar with summary
-        if (statusLabel != null) {
-            statusLabel.setText(String.format("✅ Sync terminée: %d reçu%s, %d envoyé%s, %d conflit%s",
-                result.getRecordsPulled(), result.getRecordsPulled() > 1 ? "s" : "",
-                result.getRecordsPushed(), result.getRecordsPushed() > 1 ? "s" : "",
-                result.getConflicts(), result.getConflicts() > 1 ? "s" : ""));
-        }
     }
 
-    /**
-     * Format table name for display
-     */
     private String formatTableName(String tableName) {
         Map<String, String> tableLabels = Map.of(
             "groups", "Groupes",
@@ -467,20 +312,9 @@ public class MainController {
             "projects", "Projets",
             "expenses", "Dépenses",
             "contributions", "Cotisations",
-            "payment_groups", "Groupes de Paiement"
+            "payment_groups", "Objectifs de cotisation"
         );
         return tableLabels.getOrDefault(tableName, tableName);
-    }
-
-    /**
-     * Show alert dialog
-     */
-    private void showAlert(String title, String content, Alert.AlertType type) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 
     @FXML
@@ -488,33 +322,28 @@ public class MainController {
         if (offlineMode) {
             return;
         }
-        setActiveButton(btnSyncHistory);
-        loadView("/fxml/SyncHistoryView.fxml", "Historique de Synchronisation");
+        try {
+            Dialogs.Modal<Object> modal = Dialogs.openModal("/fxml/SyncHistoryView.fxml",
+                "Historique de synchronisation", window());
+            modal.stage().setResizable(true);
+            modal.stage().setMinWidth(900);
+            modal.stage().setMinHeight(600);
+            modal.stage().showAndWait();
+        } catch (IOException e) {
+            e.printStackTrace();
+            Dialogs.error(window(), "Erreur", "Impossible d'ouvrir l'historique de synchronisation.");
+        }
     }
 
-    @FXML
-    private void handleExit() {
-        // Arrêter le timer avant de quitter
+    /** Appelé à la fermeture de la fenêtre principale. */
+    public void shutdown() {
         if (clockTimeline != null) {
             clockTimeline.stop();
         }
-
-        // Shutdown sync service
         syncService.shutdown();
-
-        Platform.exit();
     }
 
-    private void loadView(String fxmlPath, String viewName) {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
-            Parent view = loader.load();
-            contentPane.getChildren().clear();
-            contentPane.getChildren().add(view);
-            statusLabel.setText("Vue active : " + viewName);
-        } catch (IOException e) {
-            e.printStackTrace();
-            statusLabel.setText("Error loading view: " + viewName);
-        }
+    private javafx.stage.Window window() {
+        return contentPane.getScene() != null ? contentPane.getScene().getWindow() : null;
     }
 }

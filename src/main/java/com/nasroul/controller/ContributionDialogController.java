@@ -2,11 +2,15 @@ package com.nasroul.controller;
 
 import com.nasroul.model.Contribution;
 import com.nasroul.model.Event;
+import com.nasroul.model.Group;
 import com.nasroul.model.Member;
+import com.nasroul.model.Project;
 import com.nasroul.service.ContributionService;
 import com.nasroul.service.EventService;
+import com.nasroul.service.GroupService;
 import com.nasroul.service.MemberService;
 import com.nasroul.service.ProjectService;
+import com.nasroul.ui.Forms;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -27,7 +31,16 @@ public class ContributionDialogController {
     private ComboBox<Member> cbMember;
 
     @FXML
+    private ComboBox<Group> cbGroup;
+
+    @FXML
+    private Label lblEntityType;
+
+    @FXML
     private ComboBox<String> cbEntityType;
+
+    @FXML
+    private Label lblEntity;
 
     @FXML
     private ComboBox<Object> cbEntity;
@@ -53,13 +66,16 @@ public class ContributionDialogController {
     private final MemberService memberService;
     private final EventService eventService;
     private final ProjectService projectService;
+    private final GroupService groupService;
     private List<Member> allMembers;
+    private List<Group> allGroups;
 
     public ContributionDialogController() {
         this.contributionService = new ContributionService();
         this.memberService = new MemberService();
         this.eventService = new EventService();
         this.projectService = new ProjectService();
+        this.groupService = new GroupService();
     }
 
     @FXML
@@ -67,6 +83,53 @@ public class ContributionDialogController {
         setupComboBoxes();
         setupEntityTypeListener();
         setupMemberSearch();
+        setupGroupSelection();
+    }
+
+    /**
+     * La cotisation est rattachée à un groupe : c'est ce rattachement qui permet
+     * de calculer le restant à payer du membre vis-à-vis de l'objectif du groupe.
+     * Le combo est peuplé avec les groupes du membre sélectionné, et
+     * auto-sélectionné quand le membre n'appartient qu'à un seul groupe.
+     */
+    private void setupGroupSelection() {
+        try {
+            allGroups = groupService.getAllGroups();
+        } catch (SQLException e) {
+            allGroups = List.of();
+            showError("Erreur", "Impossible de charger les groupes: " + e.getMessage());
+        }
+
+        cbGroup.setCellFactory(param -> new ListCell<Group>() {
+            @Override
+            protected void updateItem(Group item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
+            }
+        });
+        cbGroup.setButtonCell(new ListCell<Group>() {
+            @Override
+            protected void updateItem(Group item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
+            }
+        });
+
+        cbMember.valueProperty().addListener((obs, oldMember, newMember) -> refreshGroupChoices(newMember));
+    }
+
+    private void refreshGroupChoices(Member member) {
+        cbGroup.getItems().clear();
+        cbGroup.setValue(null);
+        if (member == null || member.getGroupIds() == null || allGroups == null) {
+            return;
+        }
+        allGroups.stream()
+            .filter(g -> member.getGroupIds().contains(g.getId()))
+            .forEach(g -> cbGroup.getItems().add(g));
+        if (cbGroup.getItems().size() == 1) {
+            cbGroup.setValue(cbGroup.getItems().get(0));
+        }
     }
 
     private void setupComboBoxes() {
@@ -128,70 +191,88 @@ public class ContributionDialogController {
     private void setupEntityTypeListener() {
         cbEntityType.setOnAction(event -> {
             String selectedType = cbEntityType.getValue();
-            cbEntity.getItems().clear();
-
-            if (selectedType == null) {
-                return;
-            }
-
-            String typeCode = getEntityTypeCode(selectedType);
-
-            try {
-                if ("EVENT".equals(typeCode)) {
-                    List<Event> events = eventService.getAllEvents();
-                    cbEntity.getItems().addAll(events);
-                    cbEntity.setCellFactory(param -> new ListCell<Object>() {
-                        @Override
-                        protected void updateItem(Object item, boolean empty) {
-                            super.updateItem(item, empty);
-                            setText(empty || item == null ? null : ((Event) item).getName());
-                        }
-                    });
-                    cbEntity.setButtonCell(new ListCell<Object>() {
-                        @Override
-                        protected void updateItem(Object item, boolean empty) {
-                            super.updateItem(item, empty);
-                            setText(empty || item == null ? null : ((Event) item).getName());
-                        }
-                    });
-                } else if ("PROJECT".equals(typeCode)) {
-                    var projects = projectService.getAllProjects();
-                    cbEntity.getItems().addAll(projects);
-                    cbEntity.setCellFactory(param -> new ListCell<Object>() {
-                        @Override
-                        protected void updateItem(Object item, boolean empty) {
-                            super.updateItem(item, empty);
-                            if (empty || item == null) {
-                                setText(null);
-                            } else {
-                                try {
-                                    setText((String) item.getClass().getMethod("getName").invoke(item));
-                                } catch (Exception e) {
-                                    setText(item.toString());
-                                }
-                            }
-                        }
-                    });
-                    cbEntity.setButtonCell(new ListCell<Object>() {
-                        @Override
-                        protected void updateItem(Object item, boolean empty) {
-                            super.updateItem(item, empty);
-                            if (empty || item == null) {
-                                setText(null);
-                            } else {
-                                try {
-                                    setText((String) item.getClass().getMethod("getName").invoke(item));
-                                } catch (Exception e) {
-                                    setText(item.toString());
-                                }
-                            }
-                        }
-                    });
-                }
-            } catch (SQLException e) {
-                showError("Erreur", "Impossible de charger les données: " + e.getMessage());
+            if (selectedType != null) {
+                loadEntities(getEntityTypeCode(selectedType));
+            } else {
+                cbEntity.getItems().clear();
             }
         });
+
+        // Affichage du nom, quel que soit le type (Event ou Project)
+        cbEntity.setCellFactory(param -> entityCell());
+        cbEntity.setButtonCell(entityCell());
+    }
+
+    private ListCell<Object> entityCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(Object item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : entityName(item));
+            }
+        };
+    }
+
+    private String entityName(Object item) {
+        if (item instanceof Event event) {
+            return event.getName();
+        }
+        if (item instanceof Project project) {
+            return project.getName();
+        }
+        return String.valueOf(item);
+    }
+
+    private Integer entityId(Object item) {
+        if (item instanceof Event event) {
+            return event.getId();
+        }
+        if (item instanceof Project project) {
+            return project.getId();
+        }
+        return null;
+    }
+
+    /** Remplit la liste des collectes du type donné (appel synchrone). */
+    private void loadEntities(String typeCode) {
+        cbEntity.getItems().clear();
+        try {
+            if ("EVENT".equals(typeCode)) {
+                cbEntity.getItems().addAll(eventService.getAllEvents());
+            } else if ("PROJECT".equals(typeCode)) {
+                cbEntity.getItems().addAll(projectService.getAllProjects());
+            }
+        } catch (SQLException e) {
+            showError("Erreur", "Impossible de charger les collectes: " + e.getMessage());
+        }
+    }
+
+    /** Sélectionne la collecte correspondante dans la liste déjà chargée. */
+    private void selectEntity(int entityId) {
+        for (Object item : cbEntity.getItems()) {
+            Integer itemId = entityId(item);
+            if (itemId != null && itemId == entityId) {
+                cbEntity.setValue(item);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Ouvert depuis la fiche d'une collecte : le type et la collecte sont
+     * connus, on les pré-remplit et on masque les deux champs.
+     * Tout est synchrone — ne pas dépendre de l'événement onAction du combo
+     * Type, qui laissait la collecte non sélectionnée à la validation.
+     */
+    public void lockEntity(String entityType, int entityId) {
+        cbEntityType.setValue(getEntityTypeLabel(entityType));
+        loadEntities(entityType);
+        selectEntity(entityId);
+
+        for (javafx.scene.Node node : new javafx.scene.Node[]{lblEntityType, cbEntityType, lblEntity, cbEntity}) {
+            node.setVisible(false);
+            node.setManaged(false);
+        }
     }
 
     public void setContribution(Contribution contribution) {
@@ -201,94 +282,27 @@ public class ContributionDialogController {
             try {
                 Member member = memberService.getMemberById(contribution.getMemberId());
                 // Trouver le membre correspondant dans la liste déjà chargée
+                // (déclenche le peuplement du combo Groupe via le listener)
                 cbMember.getItems().stream()
                     .filter(m -> m.getId().equals(member.getId()))
                     .findFirst()
                     .ifPresent(cbMember::setValue);
 
-                // Charger d'abord les événements/projets AVANT de définir le type
-                String entityType = contribution.getEntityType();
-                if ("EVENT".equals(entityType)) {
-                    List<Event> events = eventService.getAllEvents();
-                    cbEntity.getItems().clear();
-                    cbEntity.getItems().addAll(events);
-                    cbEntity.setCellFactory(param -> new ListCell<Object>() {
-                        @Override
-                        protected void updateItem(Object item, boolean empty) {
-                            super.updateItem(item, empty);
-                            setText(empty || item == null ? null : ((Event) item).getName());
-                        }
-                    });
-                    cbEntity.setButtonCell(new ListCell<Object>() {
-                        @Override
-                        protected void updateItem(Object item, boolean empty) {
-                            super.updateItem(item, empty);
-                            setText(empty || item == null ? null : ((Event) item).getName());
-                        }
-                    });
-
-                    // Sélectionner l'événement correspondant
-                    Event event = eventService.getEventById(contribution.getEntityId());
-                    for (Object item : cbEntity.getItems()) {
-                        if (item instanceof Event && ((Event) item).getId().equals(event.getId())) {
-                            cbEntity.setValue(item);
-                            break;
-                        }
-                    }
-                } else if ("PROJECT".equals(entityType)) {
-                    var projects = projectService.getAllProjects();
-                    cbEntity.getItems().clear();
-                    cbEntity.getItems().addAll(projects);
-                    cbEntity.setCellFactory(param -> new ListCell<Object>() {
-                        @Override
-                        protected void updateItem(Object item, boolean empty) {
-                            super.updateItem(item, empty);
-                            if (empty || item == null) {
-                                setText(null);
-                            } else {
-                                try {
-                                    setText((String) item.getClass().getMethod("getName").invoke(item));
-                                } catch (Exception e) {
-                                    setText(item.toString());
-                                }
-                            }
-                        }
-                    });
-                    cbEntity.setButtonCell(new ListCell<Object>() {
-                        @Override
-                        protected void updateItem(Object item, boolean empty) {
-                            super.updateItem(item, empty);
-                            if (empty || item == null) {
-                                setText(null);
-                            } else {
-                                try {
-                                    setText((String) item.getClass().getMethod("getName").invoke(item));
-                                } catch (Exception e) {
-                                    setText(item.toString());
-                                }
-                            }
-                        }
-                    });
-
-                    // Sélectionner le projet correspondant
-                    var project = projectService.getProjectById(contribution.getEntityId());
-                    for (Object item : cbEntity.getItems()) {
-                        try {
-                            Integer itemId = (Integer) item.getClass().getMethod("getId").invoke(item);
-                            Integer projectId = (Integer) project.getClass().getMethod("getId").invoke(project);
-                            if (itemId.equals(projectId)) {
-                                cbEntity.setValue(item);
-                                break;
-                            }
-                        } catch (Exception e) {
-                        }
-                    }
+                // Sélectionner le groupe déjà rattaché à la cotisation
+                if (contribution.getGroupId() != null) {
+                    cbGroup.getItems().stream()
+                        .filter(g -> g.getId().equals(contribution.getGroupId()))
+                        .findFirst()
+                        .ifPresent(cbGroup::setValue);
                 }
 
-                // Maintenant définir le type d'entité (cela ne déclenchera plus de rechargement)
+                // Type + collecte : chargement synchrone puis sélection
+                String entityType = contribution.getEntityType();
                 cbEntityType.setValue(getEntityTypeLabel(entityType));
+                loadEntities(entityType);
+                selectEntity(contribution.getEntityId());
 
-                txtAmount.setText(String.valueOf(contribution.getAmount()));
+                Forms.setText(txtAmount, contribution.getAmount());
                 dpDate.setValue(contribution.getDate());
                 cbStatus.setValue(getStatusLabel(contribution.getStatus()));
                 cbPaymentMethod.setValue(getPaymentMethodLabel(contribution.getPaymentMethod()));
@@ -308,7 +322,7 @@ public class ContributionDialogController {
             Member selectedMember = cbMember.getValue();
             String entityTypeFr = cbEntityType.getValue();
             Object selectedEntity = cbEntity.getValue();
-            double amount = Double.parseDouble(txtAmount.getText().trim());
+            double amount = Double.parseDouble(Forms.text(txtAmount));
             LocalDate date = dpDate.getValue();
             String statusFr = cbStatus.getValue();
             String paymentMethodFr = cbPaymentMethod.getValue();
@@ -318,12 +332,14 @@ public class ContributionDialogController {
             String status = getStatusCode(statusFr);
             String paymentMethod = getPaymentMethodCode(paymentMethodFr);
 
-            int entityId = 0;
-            if ("EVENT".equals(entityType)) {
-                entityId = ((Event) selectedEntity).getId();
-            } else if ("PROJECT".equals(entityType)) {
-                entityId = (int) selectedEntity.getClass().getMethod("getId").invoke(selectedEntity);
+            Integer resolvedEntityId = entityId(selectedEntity);
+            if (resolvedEntityId == null) {
+                showError("Erreur", "La collecte sélectionnée est invalide.");
+                return;
             }
+            int entityId = resolvedEntityId;
+
+            Integer groupId = cbGroup.getValue() != null ? cbGroup.getValue().getId() : null;
 
             if (contribution == null) {
                 // Nouvelle cotisation
@@ -335,6 +351,7 @@ public class ContributionDialogController {
                 newContribution.setDate(date);
                 newContribution.setStatus(status);
                 newContribution.setPaymentMethod(paymentMethod);
+                newContribution.setGroupId(groupId);
                 contributionService.createContribution(newContribution);
             } else {
                 // Modification
@@ -345,6 +362,7 @@ public class ContributionDialogController {
                 contribution.setDate(date);
                 contribution.setStatus(status);
                 contribution.setPaymentMethod(paymentMethod);
+                contribution.setGroupId(groupId);
                 contributionService.updateContribution(contribution);
             }
 
@@ -366,7 +384,8 @@ public class ContributionDialogController {
 
     private void resetFieldsForContinuousEntry() {
         // Réinitialiser uniquement les champs qui changent entre les saisies
-        // Garder : Type et Événement/Projet
+        // Garder : Type et Événement/Projet (le combo Groupe se vide via le
+        // listener quand le membre est remis à null)
         cbMember.setValue(null);
         txtMemberSearch.clear();
         txtAmount.clear();
@@ -396,23 +415,33 @@ public class ContributionDialogController {
             return false;
         }
 
+        // Le groupe est obligatoire dès que le membre appartient à au moins un
+        // groupe (auto-sélectionné s'il n'y en a qu'un). Sans lui, le restant à
+        // payer du membre ne peut pas être calculé correctement.
+        if (!cbGroup.getItems().isEmpty() && cbGroup.getValue() == null) {
+            showWarning("Validation", "Veuillez sélectionner le groupe auquel rattacher cette cotisation.");
+            return false;
+        }
+
         if (cbEntityType.getValue() == null) {
             showWarning("Validation", "Veuillez sélectionner un type (Événement ou Projet).");
             return false;
         }
 
         if (cbEntity.getValue() == null) {
-            showWarning("Validation", "Veuillez sélectionner un événement ou projet.");
+            showWarning("Validation", cbEntity.isVisible()
+                ? "Veuillez sélectionner un événement ou projet."
+                : "La collecte n'a pas pu être déterminée. Fermez la fiche et rouvrez-la.");
             return false;
         }
 
-        if (txtAmount.getText() == null || txtAmount.getText().trim().isEmpty()) {
+        if (txtAmount.getText() == null || Forms.text(txtAmount).isEmpty()) {
             showWarning("Validation", "Veuillez saisir un montant.");
             return false;
         }
 
         try {
-            double amount = Double.parseDouble(txtAmount.getText().trim());
+            double amount = Double.parseDouble(Forms.text(txtAmount));
             if (amount <= 0) {
                 showWarning("Validation", "Le montant doit être positif.");
                 return false;

@@ -1,9 +1,12 @@
 package com.nasroul.service;
 
 import com.nasroul.util.ConfigManager;
+import com.nasroul.util.PhoneNumberValidator;
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import kong.unirest.json.JSONObject;
+
+import java.util.Optional;
 
 public class SMSService {
     private final ConfigManager config;
@@ -118,53 +121,28 @@ public class SMSService {
     }
 
     /**
-     * Format phone number to international format (+221...)
-     * @param phoneNumber the phone number to format
-     * @return formatted phone number
+     * Result of one SMS send attempt: whether it succeeded, the raw provider
+     * response body (journalized in sms_log), and a user-readable error.
      */
-    public String formatPhoneNumber(String phoneNumber) {
-        if (phoneNumber == null || phoneNumber.trim().isEmpty()) {
-            return phoneNumber;
-        }
-
-        // Remove all spaces and special characters
-        String cleaned = phoneNumber.replaceAll("[\\s\\-\\(\\)\\.]", "");
-
-        // If already starts with +221, return as is
-        if (cleaned.startsWith("+221")) {
-            return cleaned;
-        }
-
-        // If starts with 221, add +
-        if (cleaned.startsWith("221")) {
-            return "+" + cleaned;
-        }
-
-        // If starts with 00221, replace with +221
-        if (cleaned.startsWith("00221")) {
-            return "+" + cleaned.substring(2);
-        }
-
-        // If starts with 7 (local Senegal number), add +221
-        if (cleaned.startsWith("7") && cleaned.length() == 9) {
-            return "+221" + cleaned;
-        }
-
-        // Default: assume it's a local number and add +221
-        return "+221" + cleaned;
+    public record SendResult(boolean success, String providerResponse, String errorMessage) {
     }
 
     /**
-     * Send an SMS to a single recipient
-     * @param phoneNumber the recipient's phone number
-     * @param message the message to send
-     * @return true if sent successfully, false otherwise
+     * Send an SMS and return the detailed result, including the provider
+     * response body. HTTP 200 alone is not trusted: the body is inspected for
+     * application-level error markers.
      */
-    public boolean sendSMS(String phoneNumber, String message) {
+    public SendResult sendSMSDetailed(String phoneNumber, String message) {
         lastErrorMessage = null;
         try {
-            // Format phone number
-            String formattedPhone = formatPhoneNumber(phoneNumber);
+            Optional<String> normalized = PhoneNumberValidator.normalize(phoneNumber);
+            if (normalized.isEmpty()) {
+                String error = "Numéro de téléphone invalide : " + phoneNumber +
+                               "\nFormat attendu : numéro mobile sénégalais (70/71/75/76/77/78 + 7 chiffres).";
+                lastErrorMessage = error;
+                return new SendResult(false, null, error);
+            }
+            String formattedPhone = normalized.get();
 
             JSONObject requestBody = new JSONObject();
             requestBody.put("accountid", ACCOUNT_ID);
@@ -178,49 +156,81 @@ public class SMSService {
                 .body(requestBody.toString())
                 .asString();
 
-            if (response.isSuccess()) {
+            String body = response.getBody();
+
+            if (response.isSuccess() && !bodyIndicatesError(body)) {
                 System.out.println("SMS sent successfully to " + formattedPhone);
-                return true;
-            } else {
-                // Provide user-friendly error messages
-                if (response.getStatus() == 401 || response.getStatus() == 403) {
-                    lastErrorMessage = "Erreur d'authentification SMS.\n\n" +
-                                      "Vos identifiants SMS sont incorrects.\n" +
-                                      "Veuillez vérifier la configuration.";
-                } else if (response.getStatus() == 400) {
-                    lastErrorMessage = "Erreur d'envoi SMS.\n\n" +
-                                      "Le numéro de téléphone ou le message est invalide.\n" +
-                                      "Numéro: " + formattedPhone;
-                } else if (response.getStatus() >= 500) {
-                    lastErrorMessage = "Serveur SMS indisponible.\n\n" +
-                                      "Le serveur SMS rencontre des difficultés.\n" +
-                                      "Veuillez réessayer plus tard.";
-                } else {
-                    lastErrorMessage = "Erreur d'envoi SMS.\n\n" +
-                                      "Code d'erreur: " + response.getStatus();
-                }
-                System.err.println("Error sending SMS to " + formattedPhone + ": " +
-                    response.getStatus() + " - " + response.getBody());
-                return false;
+                return new SendResult(true, body, null);
             }
+
+            String error;
+            if (response.isSuccess()) {
+                // HTTP 200 mais erreur applicative dans le corps de la réponse
+                error = "Le serveur SMS a refusé le message.\n\nRéponse: " + body;
+            } else if (response.getStatus() == 401 || response.getStatus() == 403) {
+                error = "Erreur d'authentification SMS.\n\n" +
+                        "Vos identifiants SMS sont incorrects.\n" +
+                        "Veuillez vérifier la configuration.";
+            } else if (response.getStatus() == 400) {
+                error = "Erreur d'envoi SMS.\n\n" +
+                        "Le numéro de téléphone ou le message est invalide.\n" +
+                        "Numéro: " + formattedPhone;
+            } else if (response.getStatus() >= 500) {
+                error = "Serveur SMS indisponible.\n\n" +
+                        "Le serveur SMS rencontre des difficultés.\n" +
+                        "Veuillez réessayer plus tard.";
+            } else {
+                error = "Erreur d'envoi SMS.\n\n" +
+                        "Code d'erreur: " + response.getStatus();
+            }
+            lastErrorMessage = error;
+            System.err.println("Error sending SMS to " + formattedPhone + ": " +
+                response.getStatus() + " - " + body);
+            return new SendResult(false, body, error);
         } catch (Exception e) {
+            String error;
             if (e.getMessage() != null && (e.getMessage().contains("timeout") ||
                 e.getMessage().contains("timed out"))) {
-                lastErrorMessage = "Délai d'attente dépassé.\n\n" +
-                                  "L'envoi du SMS a pris trop de temps.\n" +
-                                  "Veuillez réessayer.";
+                error = "Délai d'attente dépassé.\n\n" +
+                        "L'envoi du SMS a pris trop de temps.\n" +
+                        "Veuillez réessayer.";
             } else if (e.getMessage() != null && (e.getMessage().contains("UnknownHost") ||
                        e.getMessage().contains("connection"))) {
-                lastErrorMessage = "Impossible de joindre le serveur SMS.\n\n" +
-                                  "Veuillez vérifier votre connexion Internet.";
+                error = "Impossible de joindre le serveur SMS.\n\n" +
+                        "Veuillez vérifier votre connexion Internet.";
             } else {
-                lastErrorMessage = "Erreur d'envoi SMS.\n\n" +
-                                  "Détails: " + e.getMessage();
+                error = "Erreur d'envoi SMS.\n\n" +
+                        "Détails: " + e.getMessage();
             }
+            lastErrorMessage = error;
             System.err.println("Exception sending SMS to " + phoneNumber + ": " + e.getMessage());
             e.printStackTrace();
+            return new SendResult(false, null, error);
+        }
+    }
+
+    /**
+     * Detect application-level errors hidden behind an HTTP 200 (invalid
+     * number, insufficient credits...). The raw body is always journalized,
+     * so a false negative here still leaves a trace.
+     */
+    private boolean bodyIndicatesError(String body) {
+        if (body == null) {
             return false;
         }
+        // ATTENTION au biais : un faux échec provoque un renvoi (double SMS,
+        // double coût) alors qu'un faux succès est simplement journalisé avec
+        // le corps brut dans sms_log. On ne signale donc un échec que sur des
+        // marqueurs FORTS et non ambigus — jamais sur un simple mot du texte
+        // du message (un rappel en français peut contenir « erreur »...).
+        String lower = body.toLowerCase();
+        return lower.contains("\"status\":\"error\"")
+                || lower.contains("\"success\":false")
+                || lower.contains("insufficient credit")
+                || lower.contains("credit insuffisant")
+                || lower.contains("invalid number")
+                || lower.contains("invalid recipient")
+                || lower.contains("unauthorized");
     }
 
     /**
@@ -243,11 +253,4 @@ public class SMSService {
         return message;
     }
 
-    /**
-     * Get the list of available variables for SMS templates
-     * @return a formatted string listing available variables
-     */
-    public String getAvailableVariables() {
-        return "Variables : {nom}, {prenom}, {montant_restant}, {montant_total}, {montant_paye}, {montant_cible_restant}, {nom_evenement}, {nom_projet}, {nom_groupe}, {date_echeance}";
-    }
 }

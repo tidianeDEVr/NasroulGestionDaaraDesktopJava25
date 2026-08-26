@@ -226,29 +226,6 @@ public class PaymentGroupDAO {
         return paymentGroups;
     }
 
-    public Double getTotalByEntityAndGroup(String entityType, int entityId, int groupId) throws SQLException {
-        String sql = """
-            SELECT amount
-            FROM payment_groups
-            WHERE entity_type = ? AND entity_id = ? AND group_id = ? AND deleted_at IS NULL
-            """;
-
-        try (Connection conn = dbManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, entityType);
-            pstmt.setInt(2, entityId);
-            pstmt.setInt(3, groupId);
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getDouble("amount");
-                }
-            }
-        }
-        return 0.0;
-    }
-
     public Double getTotalByEntity(String entityType, int entityId) throws SQLException {
         String sql = """
             SELECT SUM(amount) AS total

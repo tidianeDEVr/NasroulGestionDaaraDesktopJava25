@@ -3,6 +3,7 @@ package com.nasroul.controller;
 import com.nasroul.model.Event;
 import com.nasroul.model.Member;
 import com.nasroul.service.MemberService;
+import com.nasroul.ui.Forms;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -21,7 +22,6 @@ public class EventDialogController {
     @FXML private DatePicker dpEndDate;
     @FXML private TextField txtLocation;
     @FXML private ComboBox<Member> cbOrganizer;
-    @FXML private TextField txtContributionTarget;
     @FXML private ComboBox<String> cbStatus;
     @FXML private CheckBox cbActive;
 
@@ -76,8 +76,8 @@ public class EventDialogController {
 
         if (event.getId() != null) {
             // Edit mode - populate fields
-            txtName.setText(event.getName());
-            txtDescription.setText(event.getDescription());
+            Forms.setText(txtName, event.getName());
+            Forms.setText(txtDescription, event.getDescription());
 
             if (event.getStartDate() != null) {
                 dpStartDate.setValue(event.getStartDate().toLocalDate());
@@ -87,13 +87,9 @@ public class EventDialogController {
                 dpEndDate.setValue(event.getEndDate().toLocalDate());
             }
 
-            txtLocation.setText(event.getLocation());
+            Forms.setText(txtLocation, event.getLocation());
             cbStatus.setValue(translateStatusToFrench(event.getStatus()));
             cbActive.setSelected(event.isActive());
-
-            if (event.getContributionTarget() != null) {
-                txtContributionTarget.setText(event.getContributionTarget().toString());
-            }
 
             // Select organizer
             if (event.getOrganizerId() != null) {
@@ -108,7 +104,7 @@ public class EventDialogController {
     @FXML
     private void handleSave() {
         // Validate required fields
-        if (txtName.getText().trim().isEmpty()) {
+        if (Forms.text(txtName).isEmpty()) {
             showError("Le nom est obligatoire");
             return;
         }
@@ -116,22 +112,6 @@ public class EventDialogController {
         if (dpStartDate.getValue() == null) {
             showError("La date de début est obligatoire");
             return;
-        }
-
-        // Validate contribution target if provided
-        Double contributionTarget = 0.0;
-        String contributionTargetText = txtContributionTarget.getText();
-        if (contributionTargetText != null && !contributionTargetText.trim().isEmpty()) {
-            try {
-                contributionTarget = Double.parseDouble(contributionTargetText.trim());
-                if (contributionTarget < 0) {
-                    showError("Le budget de cotisation ne peut pas être négatif");
-                    return;
-                }
-            } catch (NumberFormatException e) {
-                showError("Format de budget invalide");
-                return;
-            }
         }
 
         // Validate dates
@@ -145,19 +125,18 @@ public class EventDialogController {
             event = new Event();
         }
 
-        event.setName(txtName.getText().trim());
+        event.setName(Forms.text(txtName));
 
-        String description = txtDescription.getText();
-        event.setDescription(description != null && !description.trim().isEmpty() ? description.trim() : null);
+        event.setDescription(Forms.textOrNull(txtDescription));
 
         event.setStartDate(LocalDateTime.of(dpStartDate.getValue(), LocalTime.of(0, 0)));
         event.setEndDate(dpEndDate.getValue() != null ? LocalDateTime.of(dpEndDate.getValue(), LocalTime.of(23, 59)) : null);
 
-        String location = txtLocation.getText();
-        event.setLocation(location != null && !location.trim().isEmpty() ? location.trim() : null);
+        event.setLocation(Forms.textOrNull(txtLocation));
 
+        // Le budget cible n'est plus saisi ici : il est dérivé des objectifs de
+        // cotisation par groupe (montant par membre × effectif)
         event.setStatus(translateStatusToEnglish(cbStatus.getValue()));
-        event.setContributionTarget(contributionTarget);
         event.setActive(cbActive.isSelected());
 
         if (cbOrganizer.getValue() != null) {

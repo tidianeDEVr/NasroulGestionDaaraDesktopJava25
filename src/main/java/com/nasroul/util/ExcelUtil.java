@@ -44,7 +44,7 @@ public class ExcelUtil {
             Row headerRow = sheet.createRow(0);
             String[] headers = {"Name*", "Description", "Start Date (YYYY-MM-DDTHH:MM:SS)*",
                               "End Date (YYYY-MM-DDTHH:MM:SS)", "Location", "Status", "Organizer ID",
-                              "Max Capacity", "Active (true/false)", "Contribution Target"};
+                              "Max Capacity", "Active (true/false)"};
 
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
@@ -68,8 +68,9 @@ public class ExcelUtil {
 
             Row headerRow = sheet.createRow(0);
             String[] headers = {"Name*", "Description", "Start Date (YYYY-MM-DD)",
-                              "End Date (YYYY-MM-DD)", "Status", "Budget", "Target Budget",
-                              "Manager ID", "Contribution Target"};
+                              "End Date (YYYY-MM-DD)", "Status", "Budget",
+                              "(ignoré — objectifs définis dans l'application)",
+                              "Manager ID"};
 
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
@@ -208,10 +209,8 @@ public class ExcelUtil {
                 String active = getCellValueAsString(row.getCell(8));
                 event.setActive(active == null || !active.equalsIgnoreCase("false"));
 
-                String contributionTarget = getCellValueAsString(row.getCell(9));
-                if (contributionTarget != null && !contributionTarget.isEmpty()) {
-                    event.setContributionTarget(Double.parseDouble(contributionTarget));
-                }
+                // La colonne "budget cible" (cellule 9) est ignorée : la cible est
+                // désormais dérivée des objectifs de cotisation par groupe
 
                 events.add(event);
             }
@@ -253,10 +252,8 @@ public class ExcelUtil {
                     project.setBudget(Double.parseDouble(budget));
                 }
 
-                String contributionTarget = getCellValueAsString(row.getCell(6));
-                if (contributionTarget != null && !contributionTarget.isEmpty()) {
-                    project.setContributionTarget(Double.parseDouble(contributionTarget));
-                }
+                // La colonne "budget cible" (cellule 6) est ignorée : la cible est
+                // désormais dérivée des objectifs de cotisation par groupe
 
                 String managerId = getCellValueAsString(row.getCell(7));
                 if (managerId != null && !managerId.isEmpty()) {

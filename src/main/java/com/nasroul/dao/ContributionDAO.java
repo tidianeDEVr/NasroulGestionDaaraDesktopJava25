@@ -16,9 +16,9 @@ public class ContributionDAO {
 
     public void create(Contribution contribution) throws SQLException {
         String sql = """
-            INSERT INTO contributions (member_id, entity_type, entity_id, amount, date, status, payment_method, notes,
+            INSERT INTO contributions (member_id, entity_type, entity_id, amount, date, status, payment_method, notes, group_id,
                                       created_at, updated_at, last_modified_by, sync_status, sync_version)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -32,6 +32,7 @@ public class ContributionDAO {
             pstmt.setString(6, contribution.getStatus());
             pstmt.setString(7, contribution.getPaymentMethod());
             pstmt.setString(8, contribution.getNotes());
+            pstmt.setObject(9, contribution.getGroupId());
 
             pstmt.executeUpdate();
 
@@ -163,7 +164,7 @@ public class ContributionDAO {
         String sql = """
             UPDATE contributions
             SET member_id = ?, entity_type = ?, entity_id = ?, amount = ?,
-                date = ?, status = ?, payment_method = ?, notes = ?,
+                date = ?, status = ?, payment_method = ?, notes = ?, group_id = ?,
                 updated_at = datetime('now'), last_modified_by = 'system',
                 sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
@@ -180,7 +181,8 @@ public class ContributionDAO {
             pstmt.setString(6, contribution.getStatus());
             pstmt.setString(7, contribution.getPaymentMethod());
             pstmt.setString(8, contribution.getNotes());
-            pstmt.setInt(9, contribution.getId());
+            pstmt.setObject(9, contribution.getGroupId());
+            pstmt.setInt(10, contribution.getId());
 
             pstmt.executeUpdate();
         }
@@ -200,6 +202,68 @@ public class ContributionDAO {
             pstmt.setInt(1, id);
             pstmt.executeUpdate();
         }
+    }
+
+    /**
+     * Enregistre un lot de cotisations dans UNE transaction (collecte en
+     * masse) : tout passe ou rien ne passe. Les colonnes de sync sont posées
+     * comme dans {@link #create} pour que le lot se propage au prochain PUSH.
+     */
+    public void createBatch(List<Contribution> contributions) throws SQLException {
+        if (contributions.isEmpty()) {
+            return;
+        }
+        String sql = """
+            INSERT INTO contributions (member_id, entity_type, entity_id, amount, date, status, payment_method, notes, group_id,
+                                      created_at, updated_at, last_modified_by, sync_status, sync_version)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
+            """;
+
+        try (Connection conn = dbManager.getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                for (Contribution c : contributions) {
+                    pstmt.setInt(1, c.getMemberId());
+                    pstmt.setString(2, c.getEntityType());
+                    pstmt.setInt(3, c.getEntityId());
+                    pstmt.setDouble(4, c.getAmount());
+                    pstmt.setString(5, c.getDate().toString());
+                    pstmt.setString(6, c.getStatus());
+                    pstmt.setString(7, c.getPaymentMethod());
+                    pstmt.setString(8, c.getNotes());
+                    pstmt.setObject(9, c.getGroupId());
+                    pstmt.addBatch();
+                }
+                pstmt.executeBatch();
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        }
+    }
+
+    /** Totaux payés de toutes les entités en une requête (clé "TYPE:id"). */
+    public java.util.Map<String, Double> getPaidTotalsByEntity() throws SQLException {
+        String sql = """
+            SELECT entity_type, entity_id, SUM(amount) AS total
+            FROM contributions
+            WHERE status = 'PAID' AND deleted_at IS NULL
+            GROUP BY entity_type, entity_id
+            """;
+
+        java.util.Map<String, Double> totals = new java.util.HashMap<>();
+        try (Connection conn = dbManager.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                totals.put(rs.getString("entity_type") + ":" + rs.getInt("entity_id"),
+                    rs.getDouble("total"));
+            }
+        }
+        return totals;
     }
 
     public Double getTotalByEntity(String entityType, int entityId) throws SQLException {
@@ -237,6 +301,9 @@ public class ContributionDAO {
         contribution.setStatus(rs.getString("status"));
         contribution.setPaymentMethod(rs.getString("payment_method"));
         contribution.setNotes(rs.getString("notes"));
+
+        int groupId = rs.getInt("group_id");
+        contribution.setGroupId(rs.wasNull() ? null : groupId);
 
         return contribution;
     }

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import com.nasroul.ui.PhosphorIcon?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.RecoveryController"
+      spacing="14">
+    <padding><Insets top="16"/></padding>
+
+    <HBox alignment="CENTER_LEFT" spacing="12">
+        <ComboBox fx:id="cbGroup" promptText="Choisir un groupe" prefWidth="220"/>
+        <Label fx:id="lblObjective" styleClass="badge"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnBulk" text="Collecte en masse" onAction="#handleBulkCollection" styleClass="secondary-button">
+            <graphic><PhosphorIcon icon="LIST_CHECKS" size="15"/></graphic>
+        </Button>
+        <Button fx:id="btnSms" text="SMS aux retardataires" onAction="#handleSmsLate" styleClass="primary-button">
+            <graphic><PhosphorIcon icon="PAPER_PLANE_TILT" size="15"/></graphic>
+        </Button>
+    </HBox>
+
+    <HBox spacing="14">
+        <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
+            <Label styleClass="stat-label" text="Attendu du groupe"/>
+            <Label fx:id="lblGroupExpected" styleClass="stat-value" text="—"/>
+        </VBox>
+        <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
+            <Label styleClass="stat-label" text="Payé"/>
+            <Label fx:id="lblGroupPaid" styleClass="stat-value, stat-value-success" text="—"/>
+        </VBox>
+        <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
+            <Label styleClass="stat-label" text="Restant"/>
+            <Label fx:id="lblGroupRemaining" styleClass="stat-value, stat-value-warning" text="—"/>
+        </VBox>
+        <VBox styleClass="stat-card" HBox.hgrow="ALWAYS" alignment="CENTER_LEFT" spacing="8">
+            <HBox>
+                <Label styleClass="stat-label" text="Recouvrement"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label fx:id="lblGroupRate" styleClass="font-semibold" text="—"/>
+            </HBox>
+            <ProgressBar fx:id="groupProgress" maxWidth="Infinity" progress="0"/>
+        </VBox>
+    </HBox>
+
+    <TableView fx:id="recoveryTable" VBox.vgrow="ALWAYS">
+        <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN"/></columnResizePolicy>
+        <placeholder><Label fx:id="lblPlaceholder" styleClass="empty-state"
+            text="Choisissez un groupe pour voir qui a payé et qui est en retard."/></placeholder>
+        <columns>
+            <TableColumn fx:id="colMember" text="Membre" minWidth="220"/>
+            <TableColumn fx:id="colTarget" text="Attendu" prefWidth="120"/>
+            <TableColumn fx:id="colPaid" text="Payé" prefWidth="120"/>
+            <TableColumn fx:id="colRemaining" text="Restant" prefWidth="120"/>
+            <TableColumn fx:id="colRecoveryStatus" text="Statut" prefWidth="150"/>
+        </columns>
+    </TableView>
+
+</VBox>

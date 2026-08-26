@@ -22,7 +22,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 
-public class ExpenseController {
+public class ExpenseController implements com.nasroul.ui.Refreshable {
+
+    /** Filtre optionnel : la vue est réutilisée dans la fiche Collecte. */
+    private String filterEntityType;
+    private Integer filterEntityId;
 
     @FXML
     private TableView<Expense> expenseTable;
@@ -57,17 +61,39 @@ public class ExpenseController {
         loadExpenses();
     }
 
+    @FXML
+    private javafx.scene.layout.VBox rootBox;
+
+    /** Restreint la vue aux dépenses d'un événement/projet (fiche Collecte). */
+    public void setEntityFilter(String entityType, Integer entityId) {
+        this.filterEntityType = entityType;
+        this.filterEntityId = entityId;
+        // Mode embarqué dans la fiche : padding réduit
+        if (rootBox != null) {
+            rootBox.getStyleClass().remove("container");
+            rootBox.getStyleClass().add("embedded");
+        }
+        loadExpenses();
+    }
+
+    @Override
+    public void onShown() {
+        loadExpenses();
+    }
+
     private void loadExpenses() {
         try {
             expenseList.clear();
-            List<Expense> expenses = expenseService.getAllExpenses();
+            List<Expense> expenses = (filterEntityType != null && filterEntityId != null)
+                ? expenseService.getExpensesByEntity(filterEntityType, filterEntityId)
+                : expenseService.getAllExpenses();
             expenseList.addAll(expenses);
 
             double total = expenses.stream().mapToDouble(Expense::getAmount).sum();
             NumberFormat formatter = NumberFormat.getInstance(Locale.FRANCE);
             totalLabel.setText("Total: " + formatter.format(total) + " CFA");
         } catch (SQLException e) {
-            showError("Error", "Could not load expenses: " + e.getMessage());
+            showError("Erreur", "Impossible de charger les dépenses : " + e.getMessage());
         }
     }
 
@@ -90,6 +116,7 @@ public class ExpenseController {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/ExpenseDialog.fxml"));
             Scene scene = new Scene(loader.load());
+            com.nasroul.ui.ThemeManager.applyTo(scene);
 
             ExpenseDialogController controller = loader.getController();
             controller.setExpense(expense != null ? expense : new Expense());
@@ -145,10 +172,6 @@ public class ExpenseController {
         });
     }
 
-    @FXML
-    private void handleRefresh() {
-        loadExpenses();
-    }
 
     @FXML
     private void handleImportExcel() {

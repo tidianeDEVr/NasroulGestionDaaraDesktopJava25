@@ -15,7 +15,12 @@ import javafx.stage.Stage;
 import java.io.IOException;
 import java.sql.SQLException;
 
-public class GroupController {
+public class GroupController implements com.nasroul.ui.Refreshable {
+
+    @Override
+    public void onShown() {
+        loadGroups();
+    }
 
     @FXML private TableView<Group> groupTable;
     @FXML private TableColumn<Group, String> colId;
@@ -82,6 +87,7 @@ public class GroupController {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/GroupDialog.fxml"));
             Scene scene = new Scene(loader.load());
+            com.nasroul.ui.ThemeManager.applyTo(scene);
 
             GroupDialogController controller = loader.getController();
             controller.setGroup(group != null ? group : new Group());

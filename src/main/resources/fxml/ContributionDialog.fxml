@@ -5,7 +5,7 @@
 <?import javafx.scene.layout.*?>
 
 <VBox xmlns:fx="http://javafx.com/fxml" fx:controller="com.nasroul.controller.ContributionDialogController"
-      spacing="16" prefWidth="500" prefHeight="500">
+      spacing="16" prefWidth="520" prefHeight="660">
     <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
 
     <HBox alignment="CENTER_LEFT" spacing="16">
@@ -28,36 +28,40 @@
         <Label text="Membre :" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
         <ComboBox fx:id="cbMember" promptText="Sélectionner un membre" GridPane.columnIndex="1" GridPane.rowIndex="1" maxWidth="Infinity"/>
 
+        <!-- Groupe (rattache la cotisation à l'objectif du groupe) -->
+        <Label text="Groupe :" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+        <ComboBox fx:id="cbGroup" promptText="Groupe du membre" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="Infinity"/>
+
         <!-- Type d'entité -->
-        <Label text="Type :" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
-        <ComboBox fx:id="cbEntityType" promptText="Événement ou Projet" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="Infinity"/>
+        <Label fx:id="lblEntityType" text="Type :" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+        <ComboBox fx:id="cbEntityType" promptText="Événement ou Projet" GridPane.columnIndex="1" GridPane.rowIndex="3" maxWidth="Infinity"/>
 
         <!-- Entité (Événement ou Projet) -->
-        <Label text="Événement/Projet :" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
-        <ComboBox fx:id="cbEntity" promptText="Sélectionner" GridPane.columnIndex="1" GridPane.rowIndex="3" maxWidth="Infinity"/>
+        <Label fx:id="lblEntity" text="Collecte :" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+        <ComboBox fx:id="cbEntity" promptText="Sélectionner" GridPane.columnIndex="1" GridPane.rowIndex="4" maxWidth="Infinity"/>
 
         <!-- Montant -->
-        <Label text="Montant (CFA) :" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
-        <TextField fx:id="txtAmount" promptText="Ex: 5000" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+        <Label text="Montant (CFA) :" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+        <TextField fx:id="txtAmount" promptText="Ex: 5000" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
 
         <!-- Date -->
-        <Label text="Date :" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
-        <DatePicker fx:id="dpDate" GridPane.columnIndex="1" GridPane.rowIndex="5" maxWidth="Infinity"/>
+        <Label text="Date :" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+        <DatePicker fx:id="dpDate" GridPane.columnIndex="1" GridPane.rowIndex="6" maxWidth="Infinity"/>
 
         <!-- Statut -->
-        <Label text="Statut :" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
-        <ComboBox fx:id="cbStatus" promptText="Sélectionner le statut" GridPane.columnIndex="1" GridPane.rowIndex="6" maxWidth="Infinity"/>
+        <Label text="Statut :" GridPane.columnIndex="0" GridPane.rowIndex="7"/>
+        <ComboBox fx:id="cbStatus" promptText="Sélectionner le statut" GridPane.columnIndex="1" GridPane.rowIndex="7" maxWidth="Infinity"/>
 
         <!-- Méthode de paiement -->
-        <Label text="Méthode de paiement :" GridPane.columnIndex="0" GridPane.rowIndex="7"/>
-        <ComboBox fx:id="cbPaymentMethod" promptText="Sélectionner la méthode" GridPane.columnIndex="1" GridPane.rowIndex="7" maxWidth="Infinity"/>
+        <Label text="Méthode de paiement :" GridPane.columnIndex="0" GridPane.rowIndex="8"/>
+        <ComboBox fx:id="cbPaymentMethod" promptText="Sélectionner la méthode" GridPane.columnIndex="1" GridPane.rowIndex="8" maxWidth="Infinity"/>
     </GridPane>
 
     <Region VBox.vgrow="ALWAYS"/>
 
     <!-- Boutons d'action -->
     <HBox spacing="12" alignment="CENTER_RIGHT">
-        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button" prefWidth="100"/>
-        <Button text="Enregistrer" onAction="#handleSave" styleClass="primary-button" prefWidth="100"/>
+        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button" prefWidth="100" cancelButton="true"/>
+        <Button text="Enregistrer" onAction="#handleSave" styleClass="primary-button" prefWidth="100" defaultButton="true"/>
     </HBox>
 </VBox>

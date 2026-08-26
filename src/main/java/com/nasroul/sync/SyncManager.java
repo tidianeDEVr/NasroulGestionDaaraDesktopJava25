@@ -46,7 +46,11 @@ public class SyncManager {
 
         try {
             // Check if MySQL is available
-            if (!dbManager.isMySQLAvailable()) {
+            if (dbManager.isMySQLAvailable()) {
+                // MySQL may have been offline at app startup: make sure its schema
+                // is up to date before any PULL/PUSH touches new columns
+                dbManager.ensureMySQLSchema();
+            } else {
                 result.setSuccess(false);
                 result.setErrorMessage("Impossible de se connecter au serveur.\n\n" +
                     "L'application continue de fonctionner en mode hors ligne.\n" +
@@ -131,6 +135,8 @@ public class SyncManager {
                         if (localId != null) {
                             // Mapping exists - update local record
                             SyncableEntity localEntity = getLocalEntity(tableName, localId);
+                            boolean localPending = localEntity != null
+                                    && "PENDING".equals(localEntity.getSyncStatus());
 
                             // CRITICAL: Propagate soft delete
                             if (remoteDeletedAt != null && !remoteDeletedAt.isEmpty()) {
@@ -138,6 +144,16 @@ public class SyncManager {
                                 softDeleteLocal(tableName, localId);
                                 pulledCount++;
                                 System.out.println("Propagated soft delete: " + tableName + " local ID " + localId);
+                            } else if (localPending
+                                    && !localEntity.calculateHash().equals(remoteEntity.calculateHash())) {
+                                // CRITICAL: local row has unsynced changes. Do NOT overwrite it here
+                                // (PULL has no conflict detection) - leave it to the PUSH phase,
+                                // which runs the three-way merge. Also keep the sync metadata
+                                // untouched so the last-synced hash stays a valid merge base.
+                                syncLogDAO.log(currentSyncSession, tableName, localId,
+                                        "SKIP", "PULL", "SUCCESS",
+                                        "Local pending changes preserved for PUSH conflict resolution");
+                                continue;
                             } else if (localEntity == null || !localEntity.calculateHash().equals(remoteEntity.calculateHash())) {
                                 // Update local with remote changes
                                 updateLocalEntity(tableName, remoteEntity);
@@ -156,6 +172,19 @@ public class SyncManager {
                         } else {
                             // No mapping - could be new record from another device OR existing record without mapping
                             if (remoteDeletedAt == null || remoteDeletedAt.isEmpty()) {
+
+                                // CAS PARTICULIER payment_groups : l'index d'unicité local
+                                // (un objectif par groupe/entité) peut entrer en collision
+                                // avec un objectif créé sur un autre poste. Résolution
+                                // "le plus récent gagne", convergente entre postes.
+                                if ("payment_groups".equals(tableName)
+                                        && !resolvePaymentGroupCollision(remoteEntity)) {
+                                    syncLogDAO.log(currentSyncSession, tableName, remoteId,
+                                            "SKIP", "PULL", "SUCCESS",
+                                            "Objectif en double : la version locale plus récente est conservée");
+                                    continue;
+                                }
+
                                 // Check if we already have this entity by content hash
                                 String hash = remoteEntity.calculateHash();
                                 Integer existingLocalId = findLocalEntityByHash(tableName, hash);
@@ -356,6 +385,74 @@ public class SyncManager {
 
     private SyncableEntity extractEntity(String tableName, ResultSet rs) throws SQLException {
         return GenericSyncableEntity.fromResultSet(tableName, rs);
+    }
+
+    /**
+     * Un objectif distant entre en collision avec un objectif local actif du
+     * même couple (groupe, entité) ? Stratégie "le plus récent gagne" :
+     * - le distant est plus récent → l'objectif local est soft-deleted (et
+     *   marqué PENDING pour que la suppression se propage au PUSH), puis
+     *   l'insertion du distant peut se faire ; retourne true ;
+     * - le local est plus récent (ou dates indisponibles) → on saute
+     *   l'insertion du distant ; l'autre poste fera le raisonnement inverse
+     *   à sa prochaine synchronisation et les deux postes convergent ;
+     *   retourne false.
+     * Sans collision : retourne true (insertion normale).
+     */
+    private boolean resolvePaymentGroupCollision(SyncableEntity remoteEntity) throws SQLException {
+        GenericSyncableEntity generic = (GenericSyncableEntity) remoteEntity;
+        Map<String, Object> converted = convertForeignKeysForPull("payment_groups", generic.getAllFields());
+        Object groupId = converted.get("group_id");
+        Object entityType = converted.get("entity_type");
+        Object entityId = converted.get("entity_id");
+        if (groupId == null || entityType == null || entityId == null) {
+            return true; // FK non résolue : laisser le flux normal gérer
+        }
+
+        String sql = """
+            SELECT id, updated_at FROM payment_groups
+            WHERE group_id = ? AND entity_type = ? AND entity_id = ? AND deleted_at IS NULL
+            """;
+        Integer localId = null;
+        String localUpdatedAt = null;
+        try (Connection conn = dbManager.getSQLiteConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setObject(1, groupId);
+            pstmt.setObject(2, entityType);
+            pstmt.setObject(3, entityId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    localId = rs.getInt("id");
+                    localUpdatedAt = rs.getString("updated_at");
+                }
+            }
+        }
+        if (localId == null) {
+            return true; // pas de collision
+        }
+
+        Object remoteUpdatedAt = generic.getField("updated_at");
+        String remoteUpdated = remoteUpdatedAt != null ? remoteUpdatedAt.toString() : null;
+        boolean remoteWins = remoteUpdated != null
+                && (localUpdatedAt == null || remoteUpdated.compareTo(localUpdatedAt) > 0);
+        if (!remoteWins) {
+            return false;
+        }
+
+        // Le distant gagne : soft delete du local, propagé au prochain PUSH
+        String deleteSql = """
+            UPDATE payment_groups SET deleted_at = datetime('now'), updated_at = datetime('now'),
+                sync_status = 'PENDING', sync_version = COALESCE(sync_version, 1) + 1
+            WHERE id = ?
+            """;
+        try (Connection conn = dbManager.getSQLiteConnection();
+             PreparedStatement pstmt = conn.prepareStatement(deleteSql)) {
+            pstmt.setInt(1, localId);
+            pstmt.executeUpdate();
+        }
+        System.out.println("payment_groups: objectif local " + localId
+                + " remplacé par la version distante plus récente");
+        return true;
     }
 
     /**
@@ -664,6 +761,7 @@ public class SyncManager {
 
             case "contributions":
                 mappings.put("member_id", "members");
+                mappings.put("group_id", "groups");
                 // entity_id is polymorphic (events or projects) - handled specially
                 break;
 

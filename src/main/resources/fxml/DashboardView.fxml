@@ -1,105 +1,108 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.chart.*?>
+<?import com.nasroul.ui.PhosphorIcon?>
 
 <ScrollPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.nasroul.controller.DashboardController"
             fitToWidth="true">
 
-    <VBox spacing="24" style="-fx-padding: 24;">
+    <VBox styleClass="container" spacing="16">
 
-        <Label text="Tableau de bord" styleClass="section-title"/>
-
-        <!-- Première ligne de cartes - Finances -->
+        <!-- Ligne 1 : trésorerie (hero) + indicateurs -->
         <HBox spacing="16">
-            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
-                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-                <Label text="Total dépenses" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
-                <Label fx:id="totalExpensesLabel" text="0 CFA" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #cf222e;"/>
+            <VBox styleClass="hero-card" HBox.hgrow="ALWAYS" spacing="6" minWidth="280">
+                <HBox alignment="CENTER_LEFT" spacing="8">
+                    <PhosphorIcon icon="WALLET" size="16" style="-fx-text-fill: #A5D96A;"/>
+                    <Label styleClass="hero-muted" text="Trésorerie"/>
+                </HBox>
+                <HBox alignment="BASELINE_LEFT" spacing="8">
+                    <Label fx:id="cashOnHandLabel" styleClass="hero-value" text="0"/>
+                </HBox>
+                <Label styleClass="hero-muted" text="Cotisations payées − dépenses"/>
             </VBox>
 
-            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
-                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-                <Label text="Montant en caisse" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
-                <Label fx:id="cashOnHandLabel" text="0 CFA" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #1a7f37;"/>
+            <VBox styleClass="stat-card" HBox.hgrow="ALWAYS" minWidth="200">
+                <Label styleClass="stat-label" text="Cotisations payées"/>
+                <Label fx:id="lblTotalPaid" styleClass="stat-value, stat-value-success" text="0 CFA"/>
+                <Label styleClass="stat-hint" text="Encaissées à ce jour"/>
+            </VBox>
+
+            <VBox styleClass="stat-card" HBox.hgrow="ALWAYS" minWidth="200">
+                <Label styleClass="stat-label" text="Cotisations en attente"/>
+                <Label fx:id="lblTotalPending" styleClass="stat-value, stat-value-warning" text="0 CFA"/>
+                <Label styleClass="stat-hint" text="À confirmer"/>
+            </VBox>
+
+            <VBox styleClass="stat-card" HBox.hgrow="ALWAYS" minWidth="200">
+                <Label styleClass="stat-label" text="Dépenses"/>
+                <Label fx:id="totalExpensesLabel" styleClass="stat-value, stat-value-danger" text="0 CFA"/>
+                <Label styleClass="stat-hint" text="Toutes collectes"/>
             </VBox>
         </HBox>
 
-        <!-- Deuxième ligne de cartes - Cotisations -->
+        <!-- Ligne 2 : progression + recouvrement -->
         <HBox spacing="16">
-            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
-                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-                <Label text="Cotisations payées" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
-                <Label fx:id="lblTotalPaid" text="0 CFA" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #1a7f37;"/>
+            <VBox styleClass="content-card" HBox.hgrow="ALWAYS" spacing="12">
+                <Label text="Cotisations par collecte" styleClass="section-subtitle"/>
+                <BarChart fx:id="contributionBarChart" legendVisible="true" prefHeight="280" animated="false">
+                    <xAxis><CategoryAxis side="BOTTOM"/></xAxis>
+                    <yAxis><NumberAxis label="Montant (CFA)" side="LEFT"/></yAxis>
+                </BarChart>
             </VBox>
 
-            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
-                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-                <Label text="Cotisations en attente" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
-                <Label fx:id="lblTotalPending" text="0 CFA" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #bf8700;"/>
-            </VBox>
-
-            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
-                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-                <Label text="Montant attendu" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
-                <Label fx:id="lblTotalExpected" text="0 CFA" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #0969da;"/>
-            </VBox>
-
-            <VBox HBox.hgrow="ALWAYS" styleClass="stat-card" spacing="8">
-                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-                <Label text="Taux de recouvrement" style="-fx-text-fill: #57606a; -fx-font-size: 12px;"/>
-                <Label fx:id="lblCollectionRate" text="0%" style="-fx-font-size: 32px; -fx-font-weight: 700; -fx-text-fill: #8250df;"/>
+            <VBox styleClass="content-card" spacing="12" prefWidth="320" minWidth="280">
+                <Label text="Taux de recouvrement" styleClass="section-subtitle"/>
+                <HBox alignment="BASELINE_LEFT" spacing="10">
+                    <Label fx:id="lblCollectionRate" styleClass="stat-value" text="0 %"/>
+                </HBox>
+                <ProgressBar fx:id="recoveryProgress" maxWidth="Infinity" progress="0"/>
+                <HBox spacing="6">
+                    <Label styleClass="stat-hint" text="Montant attendu :"/>
+                    <Label fx:id="lblTotalExpected" styleClass="stat-hint" text="0 CFA"/>
+                </HBox>
+                <Region VBox.vgrow="ALWAYS"/>
+                <Label styleClass="stat-hint" wrapText="true"
+                       text="Attendu = somme des objectifs par groupe × effectif de chaque groupe."/>
             </VBox>
         </HBox>
 
-        <VBox styleClass="content-card" spacing="16">
-            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-            <Label text="Progression des cotisations par événement" styleClass="section-subtitle"/>
-            <BarChart fx:id="contributionBarChart" legendVisible="true" prefHeight="300">
-                <xAxis>
-                    <CategoryAxis label="Événements" side="BOTTOM"/>
-                </xAxis>
-                <yAxis>
-                    <NumberAxis label="Montant (CFA)" side="LEFT"/>
-                </yAxis>
-            </BarChart>
-        </VBox>
-
+        <!-- Ligne 3 : répartitions -->
         <HBox spacing="16">
-            <VBox HBox.hgrow="ALWAYS" styleClass="content-card" spacing="16">
-                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <VBox HBox.hgrow="ALWAYS" styleClass="content-card" spacing="14" minWidth="0">
                 <Label text="Événements par statut" styleClass="section-subtitle"/>
-                <PieChart fx:id="eventsPieChart" legendVisible="true" labelsVisible="false" prefHeight="280"/>
+                <VBox fx:id="eventsBreakdown" spacing="12"/>
             </VBox>
-
-            <VBox HBox.hgrow="ALWAYS" styleClass="content-card" spacing="16">
-                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <VBox HBox.hgrow="ALWAYS" styleClass="content-card" spacing="14" minWidth="0">
                 <Label text="Projets par statut" styleClass="section-subtitle"/>
-                <PieChart fx:id="projectsPieChart" legendVisible="true" labelsVisible="false" prefHeight="280"/>
+                <VBox fx:id="projectsBreakdown" spacing="12"/>
             </VBox>
-
-            <VBox HBox.hgrow="ALWAYS" styleClass="content-card" spacing="16">
-                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <VBox HBox.hgrow="ALWAYS" styleClass="content-card" spacing="14" minWidth="0">
                 <Label text="Méthodes de paiement" styleClass="section-subtitle"/>
-                <PieChart fx:id="paymentMethodsPieChart" legendVisible="true" labelsVisible="false" prefHeight="280"/>
+                <VBox fx:id="paymentMethodsBreakdown" spacing="12"/>
             </VBox>
         </HBox>
 
-        <VBox styleClass="content-card" spacing="16">
-            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-            <HBox alignment="CENTER_LEFT" spacing="16">
-                <Label text="Actions rapides" styleClass="section-subtitle"/>
-                <Region HBox.hgrow="ALWAYS"/>
-                <Button text="Nouveau membre" onAction="#handleNewMember" styleClass="primary-button"/>
-                <Button text="Nouvel événement" onAction="#handleNewEvent" styleClass="primary-button"/>
-                <Button text="Nouveau projet" onAction="#handleNewProject" styleClass="primary-button"/>
-                <Button text="Nouvelle cotisation" onAction="#handleNewContribution" styleClass="primary-button"/>
-            </HBox>
-        </VBox>
+        <!-- Actions rapides -->
+        <HBox styleClass="content-card" alignment="CENTER_LEFT" spacing="12">
+            <Label text="Actions rapides" styleClass="section-subtitle"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button text="Nouveau membre" onAction="#handleNewMember" styleClass="secondary-button">
+                <graphic><PhosphorIcon icon="USER_PLUS" size="15"/></graphic>
+            </Button>
+            <Button text="Nouvel événement" onAction="#handleNewEvent" styleClass="secondary-button">
+                <graphic><PhosphorIcon icon="CALENDAR_BLANK" size="15"/></graphic>
+            </Button>
+            <Button text="Nouveau projet" onAction="#handleNewProject" styleClass="secondary-button">
+                <graphic><PhosphorIcon icon="BUILDINGS" size="15"/></graphic>
+            </Button>
+            <Button text="Nouvelle cotisation" onAction="#handleNewContribution" styleClass="primary-button">
+                <graphic><PhosphorIcon icon="PLUS" size="15"/></graphic>
+            </Button>
+        </HBox>
 
     </VBox>
 </ScrollPane>

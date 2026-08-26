@@ -107,13 +107,18 @@ public class SplashScreenController {
         Parent root = loader.load();
 
         Scene scene = new Scene(root, 1200, 800);
-        scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
+        com.nasroul.ui.ThemeManager.applyTo(scene);
+
+        MainController mainController = loader.getController();
 
         // Create new stage for main application
         Stage mainStage = new Stage();
+        mainStage.setOnCloseRequest(e -> mainController.shutdown());
         mainStage.setScene(scene);
         mainStage.setTitle("Nasroul Mouminina");
         mainStage.setResizable(true);
+        mainStage.setMinWidth(1100);
+        mainStage.setMinHeight(720);
         mainStage.centerOnScreen();
 
         // Close splash screen and show main application

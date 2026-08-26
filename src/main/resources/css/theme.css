@@ -1,0 +1,759 @@
+/* ============================================================================
+   NASROUL MOUMININA — theme.css
+   Design system unique de l'application (style validé sur maquette).
+   Appliqué à TOUTES les scènes via ThemeManager (fenêtres, dialogues, alertes).
+
+   Conventions (les looked-up colors ne valent que pour les peintures ;
+   les rayons/paddings sont des littéraux) :
+     rayon cartes 16 · panneau principal 24 (gauche) · champs/boutons 10
+     pills 999 · dialogues 18
+   ========================================================================= */
+
+/* == TOKENS =============================================================== */
+.root {
+    /* Marque (issu du logo) */
+    -color-forest: #0E3B12;
+    -color-forest-2: #1A5C1A;
+    -color-lime: #7CB342;
+    -color-lime-soft: #E4F2D5;
+    -color-lime-bar: #C9E3AC;
+
+    /* Neutres (biais vert très léger) */
+    -color-bg: #F2F2EB;          /* coque (derrière la sidebar) */
+    -color-surface: #FFFFFF;
+    -color-text: #1C2A1C;
+    -color-muted: #68766A;
+    -color-muted-2: #8B977F;
+    -color-border: #E5E7DE;
+    -color-border-input: #DDE0D4;
+    -color-neutral-bg: #EDEFE6;
+    -color-row-hover: #F7FAF2;
+
+    /* Sémantiques */
+    -color-success: #2E7D32;
+    -color-success-bg: #E1F0DD;
+    -color-warning: #8A5A00;
+    -color-warning-bg: #F6EDD5;
+    -color-danger: #B3261E;
+    -color-danger-bg: #F9E7E5;
+
+    -fx-font-family: "Plus Jakarta Sans";
+    -fx-font-size: 13.5px;
+    -fx-background-color: -color-bg;
+    -fx-text-fill: -color-text;
+
+    -fx-focus-color: -color-lime;
+    -fx-faint-focus-color: #7CB34233;
+    -fx-accent: -color-lime;
+}
+
+.label {
+    -fx-text-fill: -color-text;
+}
+
+/* Poids de police : Medium/SemiBold sont des familles distinctes en JavaFX */
+.font-medium   { -fx-font-family: "Plus Jakarta Sans Medium"; }
+.font-semibold { -fx-font-family: "Plus Jakarta Sans SemiBold"; }
+.font-bold     { -fx-font-family: "Plus Jakarta Sans"; -fx-font-weight: bold; }
+.text-muted    { -fx-text-fill: -color-muted; }
+
+/* Icônes Phosphor */
+.phosphor-icon {
+    -fx-font-family: "Phosphor";
+    -fx-font-size: 16px;
+}
+
+/* == COQUE / NAVIGATION =================================================== */
+
+/* Panneau principal blanc arrondi à gauche (effet "inset" premium) */
+.main-panel {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 24 0 0 24;
+    -fx-border-color: -color-border;
+    -fx-border-width: 1 0 1 1;
+    -fx-border-radius: 24 0 0 24;
+    -fx-effect: dropshadow(gaussian, rgba(20,40,20,0.05), 16, 0, 0, 2);
+}
+
+.sidebar {
+    -fx-background-color: transparent;
+    -fx-padding: 20 16 20 16;
+    -fx-spacing: 4;
+}
+
+/* Carte blanche du logo dans la sidebar */
+.sidebar-logo-card {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 16;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 16;
+    -fx-padding: 12 14 12 14;
+    -fx-alignment: center;
+}
+
+.sidebar-footer {
+    -fx-text-fill: -color-muted;
+    -fx-font-size: 11.5px;
+    -fx-padding: 0 12 0 12;
+}
+
+/* Item de navigation (ToggleButton) */
+.nav-item {
+    -fx-background-color: transparent;
+    -fx-background-radius: 10;
+    -fx-text-fill: -color-muted;
+    -fx-font-family: "Plus Jakarta Sans SemiBold";
+    -fx-font-size: 13.5px;
+    -fx-alignment: center-left;
+    -fx-graphic-text-gap: 10;
+    -fx-padding: 10 12 10 12;
+    -fx-cursor: hand;
+    -fx-max-width: infinity;
+}
+.nav-item .phosphor-icon { -fx-text-fill: -color-muted; -fx-font-size: 17px; }
+.nav-item:hover { -fx-background-color: #E9EBE1; }
+.nav-item:selected {
+    -fx-background-color: -color-lime-soft;
+    -fx-text-fill: -color-forest;
+}
+.nav-item:selected .phosphor-icon { -fx-text-fill: -color-forest; }
+
+/* Anciennes classes de menu conservées pour compat pendant la migration */
+.menu-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 10;
+    -fx-text-fill: -color-muted;
+    -fx-font-family: "Plus Jakarta Sans SemiBold";
+    -fx-alignment: center-left;
+    -fx-padding: 10 12 10 12;
+    -fx-cursor: hand;
+}
+.menu-button:hover { -fx-background-color: #E9EBE1; }
+.menu-button-active {
+    -fx-background-color: -color-lime-soft;
+    -fx-text-fill: -color-forest;
+}
+.menu-button-sync { -fx-text-fill: -color-forest-2; }
+.menu-button-exit { -fx-text-fill: -color-danger; }
+
+/* En-tête (barre supérieure du panneau principal).
+   NB : en JavaFX la feuille de style écrase les valeurs posées en FXML —
+   le padding du header DOIT donc être défini ici. */
+.header {
+    -fx-background-color: transparent;
+    -fx-padding: 28 32 14 32;
+}
+.date-label { -fx-text-fill: -color-muted; -fx-font-size: 12.5px; }
+
+.page-title {
+    -fx-font-family: "Plus Jakarta Sans";
+    -fx-font-weight: bold;
+    -fx-font-size: 24px;
+    -fx-text-fill: -color-text;
+}
+
+/* Pastille de statut de synchronisation (MenuButton du header) */
+.sync-pill {
+    -fx-background-color: -color-lime-soft;
+    -fx-background-radius: 999;
+    -fx-text-fill: -color-forest-2;
+    -fx-font-family: "Plus Jakarta Sans SemiBold";
+    -fx-font-size: 12px;
+    -fx-padding: 8 14 8 14;
+    -fx-cursor: hand;
+}
+.sync-pill .phosphor-icon { -fx-text-fill: -color-forest-2; }
+.sync-pill > .arrow-button > .arrow { -fx-background-color: -color-forest-2; }
+.sync-pill:syncing { -fx-background-color: -color-warning-bg; -fx-text-fill: -color-warning; }
+.sync-pill:syncing .phosphor-icon { -fx-text-fill: -color-warning; }
+.sync-pill:failed { -fx-background-color: -color-danger-bg; -fx-text-fill: -color-danger; }
+.sync-pill:failed .phosphor-icon { -fx-text-fill: -color-danger; }
+.sync-pill:offline { -fx-background-color: -color-neutral-bg; -fx-text-fill: -color-muted; }
+.sync-pill:offline .phosphor-icon { -fx-text-fill: -color-muted; }
+
+/* Avatar rond (initiales) */
+.avatar {
+    -fx-background-color: -color-forest;
+    -fx-background-radius: 999;
+    -fx-text-fill: white;
+    -fx-font-family: "Plus Jakarta Sans";
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-alignment: center;
+    -fx-min-width: 38; -fx-min-height: 38;
+    -fx-max-width: 38; -fx-max-height: 38;
+}
+
+.status-bar { -fx-background-color: transparent; -fx-padding: 0; }
+.content-pane { -fx-background-color: transparent; }
+
+/* == STRUCTURES DE VUE ==================================================== */
+
+.view-root { -fx-padding: 28 32 28 32; -fx-spacing: 16; -fx-background-color: transparent; }
+.container { -fx-padding: 28 32 28 32; -fx-spacing: 16; -fx-background-color: transparent; }
+.view-header { -fx-spacing: 16; -fx-alignment: center-left; }
+.action-bar { -fx-spacing: 8; -fx-alignment: center-right; -fx-padding: 4 0 0 0; }
+
+.section-title {
+    -fx-font-family: "Plus Jakarta Sans";
+    -fx-font-weight: bold;
+    -fx-font-size: 24px;
+    -fx-text-fill: -color-text;
+}
+.view-title {
+    -fx-font-family: "Plus Jakarta Sans";
+    -fx-font-weight: bold;
+    -fx-font-size: 24px;
+    -fx-text-fill: -color-text;
+}
+.section-subtitle {
+    -fx-font-family: "Plus Jakarta Sans SemiBold";
+    -fx-font-size: 15.5px;
+    -fx-text-fill: -color-text;
+}
+.dialog-title {
+    -fx-font-family: "Plus Jakarta Sans";
+    -fx-font-weight: bold;
+    -fx-font-size: 18px;
+    -fx-text-fill: -color-text;
+}
+.title {
+    -fx-font-family: "Plus Jakarta Sans";
+    -fx-font-weight: bold;
+    -fx-font-size: 18px;
+    -fx-text-fill: -color-text;
+}
+
+/* == CARTES =============================================================== */
+
+.card, .content-card {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 16;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(20,40,20,0.04), 6, 0, 0, 1);
+    -fx-padding: 20;
+}
+
+.stat-card {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 16;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(20,40,20,0.04), 6, 0, 0, 1);
+    -fx-padding: 18 20 18 20;
+    -fx-spacing: 6;
+}
+.stat-label { -fx-text-fill: -color-muted; -fx-font-size: 12.5px; }
+.stat-value {
+    -fx-font-family: "Plus Jakarta Sans";
+    -fx-font-weight: bold;
+    -fx-font-size: 24px;
+    -fx-text-fill: -color-text;
+}
+.stat-value-success { -fx-text-fill: -color-success; }
+.stat-value-warning { -fx-text-fill: -color-warning; }
+.stat-value-danger  { -fx-text-fill: -color-danger; }
+.stat-hint { -fx-text-fill: -color-muted; -fx-font-size: 12px; }
+
+/* Carte "hero" vert forêt */
+.hero-card {
+    -fx-background-color: linear-gradient(to bottom right, #12471A, -color-forest);
+    -fx-background-radius: 16;
+    -fx-padding: 22 26 22 26;
+}
+.hero-card .label { -fx-text-fill: white; }
+.hero-title {
+    -fx-font-family: "Plus Jakarta Sans";
+    -fx-font-weight: bold;
+    -fx-font-size: 24px;
+    -fx-text-fill: white;
+}
+.hero-value {
+    -fx-font-family: "Plus Jakarta Sans";
+    -fx-font-weight: bold;
+    -fx-font-size: 28px;
+    -fx-text-fill: white;
+}
+.hero-muted { -fx-text-fill: #BFD8B8; -fx-font-size: 12.5px; }
+.hero-accent { -fx-text-fill: #A5D96A; }
+
+/* == BADGES (pills) ======================================================= */
+
+.badge {
+    -fx-background-radius: 999;
+    -fx-padding: 3 10 3 10;
+    -fx-font-family: "Plus Jakarta Sans SemiBold";
+    -fx-font-size: 12px;
+    -fx-background-color: -color-neutral-bg;
+    -fx-text-fill: -color-muted;
+}
+.badge-success { -fx-background-color: -color-success-bg; -fx-text-fill: -color-success; }
+.badge-warning { -fx-background-color: -color-warning-bg; -fx-text-fill: -color-warning; }
+.badge-danger  { -fx-background-color: -color-danger-bg;  -fx-text-fill: -color-danger; }
+.badge-lime    { -fx-background-color: -color-lime-soft;  -fx-text-fill: -color-forest-2; }
+.badge-forest  { -fx-background-color: -color-forest;     -fx-text-fill: white; }
+
+/* Dans la hero card, « .hero-card .label » force le blanc : les badges
+   doivent garder leur couleur de texte sur leur fond pastel */
+.hero-card .badge         { -fx-text-fill: -color-muted; }
+.hero-card .badge-success { -fx-text-fill: -color-success; }
+.hero-card .badge-warning { -fx-text-fill: -color-warning; }
+.hero-card .badge-danger  { -fx-text-fill: -color-danger; }
+.hero-card .badge-lime    { -fx-text-fill: -color-forest-2; }
+
+/* == BOUTONS ============================================================== */
+
+.button {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -color-border-input;
+    -fx-border-radius: 10;
+    -fx-text-fill: -color-text;
+    -fx-font-family: "Plus Jakarta Sans SemiBold";
+    -fx-font-size: 13.5px;
+    -fx-padding: 10 16 10 16;
+    -fx-cursor: hand;
+    -fx-graphic-text-gap: 8;
+}
+.button:hover { -fx-background-color: #F5F7F0; }
+.button:pressed { -fx-background-color: -color-neutral-bg; }
+.button .phosphor-icon { -fx-text-fill: -color-text; }
+
+.primary-button {
+    -fx-background-color: -color-forest;
+    -fx-border-color: transparent;
+    -fx-text-fill: white;
+}
+.primary-button:hover { -fx-background-color: #145222; }
+.primary-button:pressed { -fx-background-color: #0A2E0E; }
+.primary-button .phosphor-icon { -fx-text-fill: white; }
+
+/* Définition complète (pas seulement héritée de .button) : un MenuButton
+   porte la classe "menu-button" par défaut, pas "button" — sans ces règles,
+   un MenuButton styleClass="secondary-button" retomberait sur le style
+   transparent de la sidebar (cas du bouton « Actions » de la fiche) */
+.secondary-button {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -color-border-input;
+    -fx-border-radius: 10;
+    -fx-text-fill: -color-text;
+    -fx-font-family: "Plus Jakarta Sans SemiBold";
+    -fx-font-size: 13.5px;
+    -fx-padding: 10 16 10 16;
+    -fx-cursor: hand;
+    -fx-graphic-text-gap: 8;
+    -fx-alignment: center;
+}
+.secondary-button:hover { -fx-background-color: #EDEFE6; }
+.secondary-button:pressed, .secondary-button:showing { -fx-background-color: #E2E5DA; }
+/* Le texte des MenuButton vit dans un .label interne : il doit rester sombre,
+   y compris dans la hero card où « .hero-card .label » force le blanc */
+.secondary-button .label { -fx-text-fill: -color-text; }
+.secondary-button > .arrow-button > .arrow { -fx-background-color: -color-text; }
+.primary-button .label { -fx-text-fill: white; }
+.danger-button .label { -fx-text-fill: white; }
+.success-button .label { -fx-text-fill: white; }
+
+.danger-button {
+    -fx-background-color: -color-danger;
+    -fx-border-color: transparent;
+    -fx-text-fill: white;
+}
+.danger-button:hover { -fx-background-color: #99201A; }
+.danger-button .phosphor-icon { -fx-text-fill: white; }
+
+.success-button {
+    -fx-background-color: -color-success;
+    -fx-border-color: transparent;
+    -fx-text-fill: white;
+}
+.success-button:hover { -fx-background-color: #276B2B; }
+
+.warning-button {
+    -fx-background-color: -color-warning-bg;
+    -fx-border-color: transparent;
+    -fx-text-fill: -color-warning;
+}
+
+/* Petit bouton d'action d'une ligne de tableau */
+.icon-button {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 8;
+    -fx-border-color: -color-border-input;
+    -fx-border-radius: 8;
+    -fx-padding: 6 8 6 8;
+    -fx-cursor: hand;
+}
+.icon-button:hover { -fx-background-color: -color-row-hover; }
+.icon-button .phosphor-icon { -fx-text-fill: -color-muted; -fx-font-size: 14px; }
+
+/* == CHAMPS DE SAISIE ===================================================== */
+
+.text-field, .text-area, .combo-box, .date-picker, .choice-box, .spinner {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -color-border-input;
+    -fx-border-radius: 10;
+    -fx-font-size: 13.5px;
+    -fx-text-fill: -color-text;
+    -fx-prompt-text-fill: -color-muted-2;
+}
+.text-field { -fx-padding: 9 12 9 12; }
+.text-area { -fx-padding: 4; }
+.text-area .content { -fx-background-color: -color-surface; -fx-background-radius: 8; }
+.text-field:focused, .text-area:focused, .combo-box:focused, .date-picker:focused {
+    -fx-border-color: -color-lime;
+    -fx-effect: dropshadow(gaussian, #7CB34244, 4, 0, 0, 0);
+}
+
+/* Champ de recherche en pill */
+.search-field {
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-padding: 9 16 9 16;
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: -color-text;
+    -fx-padding: 6 10 6 10;
+    -fx-background-color: transparent;
+}
+.combo-box .arrow, .date-picker .arrow { -fx-background-color: -color-muted; }
+.combo-box-popup .list-view {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 12;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(20,40,20,0.14), 20, 0, 0, 6);
+    -fx-padding: 6;
+}
+.combo-box-popup .list-view .list-cell {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8;
+    -fx-padding: 8 10 8 10;
+    -fx-text-fill: -color-text;
+}
+.combo-box-popup .list-view .list-cell:hover { -fx-background-color: -color-row-hover; }
+.combo-box-popup .list-view .list-cell:filled:selected {
+    -fx-background-color: -color-lime-soft;
+    -fx-text-fill: -color-forest;
+}
+
+/* Le TextField interne du DatePicker/ComboBox éditable ne doit pas
+   redessiner sa propre bordure par-dessus celle du contrôle */
+.date-picker > .text-field,
+.combo-box > .text-field {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-radius: 10 0 0 10;
+}
+.date-picker > .text-field:focused,
+.combo-box > .text-field:focused {
+    -fx-border-color: transparent;
+    -fx-effect: null;
+}
+.date-picker > .arrow-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0 10 10 0;
+}
+
+.date-picker-popup {
+    -fx-background-color: -color-surface;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(20,40,20,0.14), 20, 0, 0, 6);
+}
+.date-picker-popup .month-year-pane { -fx-background-color: -color-surface; }
+.date-picker-popup .day-cell { -fx-background-color: -color-surface; -fx-text-fill: -color-text; }
+.date-picker-popup .day-cell:hover { -fx-background-color: -color-row-hover; }
+.date-picker-popup .day-cell:focused, .date-picker-popup .selected {
+    -fx-background-color: -color-forest;
+    -fx-text-fill: white;
+}
+.date-picker-popup .day-name-cell { -fx-text-fill: -color-muted; }
+
+.check-box .box {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 6;
+    -fx-border-color: -color-border-input;
+    -fx-border-radius: 6;
+    -fx-padding: 3;
+}
+.check-box:selected .box { -fx-background-color: -color-forest; -fx-border-color: -color-forest; }
+.check-box:selected .mark { -fx-background-color: white; }
+
+/* == ONGLETS (pattern unique : soulignés) ================================= */
+
+.tab-pane {
+    -fx-tab-min-height: 38;
+    -fx-tab-max-height: 38;
+}
+.tab-pane > .tab-header-area {
+    -fx-padding: 0 0 0 4;
+}
+.tab-pane > .tab-header-area > .tab-header-background {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent -color-border transparent;
+    -fx-border-width: 0 0 1 0;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 10 18 10 18;
+    -fx-border-color: transparent transparent transparent transparent;
+    -fx-border-width: 0 0 2.5 0;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab .tab-label {
+    -fx-text-fill: -color-muted;
+    -fx-font-family: "Plus Jakarta Sans SemiBold";
+    -fx-font-size: 14px;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab:selected {
+    -fx-border-color: transparent transparent -color-forest transparent;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab:selected .tab-label {
+    -fx-text-fill: -color-forest;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab:selected .focus-indicator {
+    -fx-border-color: transparent;
+}
+.tab-pane > .tab-content-area { -fx-background-color: transparent; -fx-padding: 4 0 0 0; }
+
+/* Vue réutilisée à l'intérieur d'une fiche (onglet) : padding réduit */
+.embedded { -fx-padding: 16 0 0 0; -fx-spacing: 14; }
+
+/* Onglets-filtres (même langage visuel que les TabPane : soulignés) */
+.filter-tabs {
+    -fx-border-color: transparent transparent -color-border transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-spacing: 26;
+    -fx-padding: 0 4 0 4;
+}
+.filter-tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent transparent transparent transparent;
+    -fx-border-width: 0 0 2.5 0;
+    -fx-text-fill: -color-muted;
+    -fx-font-family: "Plus Jakarta Sans SemiBold";
+    -fx-font-size: 14px;
+    -fx-padding: 8 4 8 4;
+    -fx-cursor: hand;
+}
+.filter-tab:selected {
+    -fx-border-color: transparent transparent -color-forest transparent;
+    -fx-text-fill: -color-forest;
+}
+
+/* == TABLES =============================================================== */
+
+.table-view, .data-table {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+.table-view .column-header-background {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent -color-border transparent;
+    -fx-border-width: 0 0 1 0;
+}
+.table-view .column-header, .table-view .filler {
+    -fx-background-color: transparent;
+    -fx-size: 36;
+    -fx-border-color: transparent;
+}
+.table-view .column-header .label {
+    -fx-text-fill: -color-muted-2;
+    -fx-font-family: "Plus Jakarta Sans SemiBold";
+    -fx-font-size: 11.5px;
+    -fx-alignment: center-left;
+}
+.table-view .table-row-cell {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent #EFF1E8 transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-cell-size: 44;
+    -fx-table-cell-border-color: transparent;
+}
+.table-view .table-row-cell:hover { -fx-background-color: -color-row-hover; }
+.table-view .table-row-cell:selected {
+    -fx-background-color: -color-lime-soft;
+}
+.table-view .table-row-cell:selected .table-cell { -fx-text-fill: -color-forest; }
+.table-view .table-cell {
+    -fx-text-fill: -color-text;
+    -fx-font-size: 13.5px;
+    -fx-alignment: center-left;
+    -fx-border-color: transparent;
+    -fx-padding: 0 12 0 12;
+}
+.table-view:focused { -fx-background-insets: 0; }
+.table-view .placeholder .label { -fx-text-fill: -color-muted; -fx-font-size: 13.5px; }
+
+.list-view {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+.list-view .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-text;
+    -fx-padding: 8 10 8 10;
+}
+.list-view .list-cell:filled:selected { -fx-background-color: -color-lime-soft; -fx-text-fill: -color-forest; }
+.list-view .list-cell:filled:hover { -fx-background-color: -color-row-hover; }
+
+/* == PROGRESSION ========================================================== */
+
+.progress-bar {
+    -fx-pref-height: 10;
+}
+.progress-bar .track {
+    -fx-background-color: -color-neutral-bg;
+    -fx-background-radius: 999;
+}
+.progress-bar .bar {
+    -fx-background-color: -color-lime;
+    -fx-background-radius: 999;
+    -fx-background-insets: 0;
+    -fx-padding: 5;
+}
+.progress-bar-hero .track { -fx-background-color: #FFFFFF26; }
+.progress-bar-warning .bar { -fx-background-color: #E3B35C; }
+.progress-bar-success .bar { -fx-background-color: -color-success; }
+
+.progress-indicator { -fx-progress-color: -color-lime; }
+
+/* == DIALOGUES / ALERTES ================================================== */
+
+.dialog-pane {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 18;
+    -fx-padding: 8;
+}
+.dialog-pane .header-panel {
+    -fx-background-color: transparent;
+}
+.dialog-pane .header-panel .label {
+    -fx-font-family: "Plus Jakarta Sans";
+    -fx-font-weight: bold;
+    -fx-font-size: 15px;
+    -fx-text-fill: -color-text;
+}
+.dialog-pane .content.label {
+    -fx-font-size: 13.5px;
+    -fx-text-fill: -color-text;
+    -fx-padding: 10 8 10 8;
+}
+.dialog-pane .button-bar .button {
+    -fx-padding: 9 18 9 18;
+}
+.dialog-pane .button-bar .button:default {
+    -fx-background-color: -color-forest;
+    -fx-border-color: transparent;
+    -fx-text-fill: white;
+}
+.dialog-pane .button-bar .button:default:hover { -fx-background-color: #145222; }
+
+/* == MENUS / TOOLTIP ====================================================== */
+
+.context-menu, .menu-button .context-menu {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 12;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(20,40,20,0.14), 20, 0, 0, 6);
+    -fx-padding: 6;
+}
+.menu-item {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8;
+    -fx-padding: 8 12 8 12;
+}
+.menu-item .label { -fx-text-fill: -color-text; -fx-font-size: 13px; }
+.menu-item:focused { -fx-background-color: -color-row-hover; }
+.menu-item:focused .label { -fx-text-fill: -color-forest; }
+
+.tooltip {
+    -fx-background-color: -color-forest;
+    -fx-background-radius: 8;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-padding: 6 10 6 10;
+}
+
+/* == SCROLLBARS (fines et discrètes) ===================================== */
+
+.scroll-bar {
+    -fx-background-color: transparent;
+}
+.scroll-bar:vertical { -fx-pref-width: 10; }
+.scroll-bar:horizontal { -fx-pref-height: 10; }
+.scroll-bar .thumb {
+    -fx-background-color: #C9CFC0;
+    -fx-background-radius: 999;
+}
+.scroll-bar .thumb:hover { -fx-background-color: #AEB6A4; }
+.scroll-bar .track { -fx-background-color: transparent; }
+.scroll-bar .increment-button, .scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+.scroll-bar .increment-arrow, .scroll-bar .decrement-arrow {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+.scroll-pane { -fx-background-color: transparent; }
+.scroll-pane .viewport { -fx-background-color: transparent; }
+
+/* == GRAPHIQUES =========================================================== */
+
+.chart {
+    -fx-padding: 8;
+}
+.chart-plot-background { -fx-background-color: transparent; }
+.chart-vertical-grid-lines, .chart-horizontal-grid-lines {
+    -fx-stroke: #EFF1E8;
+}
+.chart-alternative-row-fill { -fx-fill: transparent; }
+.axis {
+    -fx-tick-label-fill: -color-muted;
+    -fx-tick-label-font-size: 11.5px;
+}
+.axis-label { -fx-text-fill: -color-muted; }
+.chart-legend {
+    -fx-background-color: transparent;
+    -fx-padding: 8 0 0 0;
+}
+.chart-legend-item { -fx-text-fill: -color-muted; -fx-font-size: 12px; }
+
+.default-color0.chart-bar { -fx-bar-fill: -color-forest; -fx-background-radius: 6 6 0 0; }
+.default-color1.chart-bar { -fx-bar-fill: -color-lime-bar; -fx-background-radius: 6 6 0 0; }
+
+.default-color0.chart-pie { -fx-pie-color: -color-forest; }
+.default-color1.chart-pie { -fx-pie-color: -color-lime; }
+.default-color2.chart-pie { -fx-pie-color: -color-lime-bar; }
+.default-color3.chart-pie { -fx-pie-color: #E3B35C; }
+.default-color4.chart-pie { -fx-pie-color: -color-muted-2; }
+.chart-pie { -fx-border-color: white; -fx-border-width: 1; }
+.chart-pie-label { -fx-fill: -color-muted; -fx-font-size: 11.5px; }
+
+/* == ÉTATS VIDES / DIVERS ================================================= */
+
+.empty-state { -fx-text-fill: -color-muted; -fx-font-size: 13.5px; }
+
+.separator .line {
+    -fx-border-color: -color-border transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+.hyperlink {
+    -fx-text-fill: -color-forest-2;
+    -fx-border-color: transparent;
+    -fx-underline: false;
+    -fx-font-family: "Plus Jakarta Sans SemiBold";
+}
+.hyperlink:hover { -fx-text-fill: -color-forest; -fx-underline: true; }

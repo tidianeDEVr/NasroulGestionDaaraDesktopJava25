@@ -20,7 +20,12 @@ import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-public class MemberController {
+public class MemberController implements com.nasroul.ui.Refreshable {
+
+    @Override
+    public void onShown() {
+        loadMembers();
+    }
 
     @FXML
     private TextField searchField;
@@ -64,6 +69,17 @@ public class MemberController {
     public void initialize() {
         setupTableColumns();
         memberTable.setItems(memberList);
+
+        // Double-clic = détails du membre
+        memberTable.setRowFactory(tv -> {
+            var row = new javafx.scene.control.TableRow<Member>();
+            row.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2 && !row.isEmpty()) {
+                    handleDetails();
+                }
+            });
+            return row;
+        });
         loadMembers();
 
         searchField.textProperty().addListener((obs, old, newVal) -> filterMembers(newVal));
@@ -83,31 +99,29 @@ public class MemberController {
         colActive.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().isActive() ? "Oui" : "Non"));
     }
 
+    /** Cache mémoire : le filtrage ne refait pas de requête SQL à chaque frappe. */
+    private List<Member> allMembersCache = List.of();
+
     private void loadMembers() {
         try {
-            memberList.clear();
-            memberList.addAll(memberService.getAllMembers());
+            allMembersCache = memberService.getAllMembers();
+            filterMembers(searchField != null ? searchField.getText() : null);
         } catch (SQLException e) {
             showError("Erreur", "Impossible de charger les membres: " + e.getMessage());
         }
     }
 
     private void filterMembers(String searchText) {
-        try {
-            List<Member> allMembers = memberService.getAllMembers();
-            if (searchText == null || searchText.trim().isEmpty()) {
-                memberList.setAll(allMembers);
-            } else {
-                String search = searchText.toLowerCase();
-                List<Member> filtered = allMembers.stream()
-                    .filter(m -> m.getFirstName().toLowerCase().contains(search) ||
-                                m.getLastName().toLowerCase().contains(search) ||
-                                (m.getEmail() != null && m.getEmail().toLowerCase().contains(search)))
-                    .toList();
-                memberList.setAll(filtered);
-            }
-        } catch (SQLException e) {
-            showError("Erreur", "Impossible de filtrer les membres: " + e.getMessage());
+        if (searchText == null || searchText.trim().isEmpty()) {
+            memberList.setAll(allMembersCache);
+        } else {
+            String search = searchText.toLowerCase();
+            List<Member> filtered = allMembersCache.stream()
+                .filter(m -> m.getFirstName().toLowerCase().contains(search) ||
+                            m.getLastName().toLowerCase().contains(search) ||
+                            (m.getEmail() != null && m.getEmail().toLowerCase().contains(search)))
+                .toList();
+            memberList.setAll(filtered);
         }
     }
 
@@ -140,6 +154,7 @@ public class MemberController {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/MemberDetailsDialog.fxml"));
             Scene scene = new Scene(loader.load());
+            com.nasroul.ui.ThemeManager.applyTo(scene);
 
             MemberDetailsDialogController controller = loader.getController();
             controller.setMember(member);
@@ -162,6 +177,7 @@ public class MemberController {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/MemberDialog.fxml"));
             Scene scene = new Scene(loader.load());
+            com.nasroul.ui.ThemeManager.applyTo(scene);
 
             MemberDialogController controller = loader.getController();
             controller.setMember(member != null ? member : new Member());

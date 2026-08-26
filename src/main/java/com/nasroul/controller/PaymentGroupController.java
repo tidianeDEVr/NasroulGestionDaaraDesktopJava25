@@ -17,7 +17,23 @@ import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.util.Locale;
 
-public class PaymentGroupController {
+public class PaymentGroupController implements com.nasroul.ui.Refreshable {
+
+    /** Filtre optionnel : la vue est réutilisée dans la fiche Collecte. */
+    private String filterEntityType;
+    private Integer filterEntityId;
+
+    /** Restreint la vue aux objectifs d'un événement/projet (fiche Collecte). */
+    public void setEntityFilter(String entityType, Integer entityId) {
+        this.filterEntityType = entityType;
+        this.filterEntityId = entityId;
+        loadPaymentGroups();
+    }
+
+    @Override
+    public void onShown() {
+        loadPaymentGroups();
+    }
 
     @FXML
     private TableView<PaymentGroup> paymentGroupTable;
@@ -69,9 +85,13 @@ public class PaymentGroupController {
     private void loadPaymentGroups() {
         try {
             paymentGroupList.clear();
-            paymentGroupList.addAll(paymentGroupService.getAllPaymentGroups());
+            if (filterEntityType != null && filterEntityId != null) {
+                paymentGroupList.addAll(paymentGroupService.getPaymentGroupsByEntity(filterEntityType, filterEntityId));
+            } else {
+                paymentGroupList.addAll(paymentGroupService.getAllPaymentGroups());
+            }
         } catch (SQLException e) {
-            showError("Erreur", "Impossible de charger les cotisations: " + e.getMessage());
+            showError("Erreur", "Impossible de charger les objectifs de cotisation: " + e.getMessage());
         }
     }
 
@@ -84,7 +104,7 @@ public class PaymentGroupController {
     private void handleEdit() {
         PaymentGroup selected = paymentGroupTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            showWarning("Aucune sélection", "Veuillez sélectionner une cotisation à modifier");
+            showWarning("Aucune sélection", "Veuillez sélectionner un objectif à modifier");
             return;
         }
         showPaymentGroupDialog(selected);
@@ -92,34 +112,32 @@ public class PaymentGroupController {
 
     private void showPaymentGroupDialog(PaymentGroup paymentGroup) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/PaymentGroupDialog.fxml"));
-            Scene scene = new Scene(loader.load());
+            com.nasroul.ui.Dialogs.Modal<PaymentGroupDialogController> modal =
+                com.nasroul.ui.Dialogs.openModal("/fxml/PaymentGroupDialog.fxml",
+                    paymentGroup != null ? "Modifier l'objectif" : "Nouvel objectif",
+                    paymentGroupTable.getScene().getWindow());
 
-            PaymentGroupDialogController controller = loader.getController();
-            controller.setPaymentGroup(paymentGroup != null ? paymentGroup : new PaymentGroup());
+            modal.controller().setPaymentGroup(paymentGroup != null ? paymentGroup : new PaymentGroup());
+            // Ouvert depuis la fiche d'une collecte : type + collecte connus, masqués
+            if (paymentGroup == null && filterEntityType != null && filterEntityId != null) {
+                modal.controller().lockEntity(filterEntityType, filterEntityId);
+            }
+            modal.stage().setResizable(false);
+            modal.stage().showAndWait();
 
-            Stage dialogStage = new Stage();
-            dialogStage.setTitle(paymentGroup != null ? "Modifier la cotisation" : "Nouvelle cotisation");
-            dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(paymentGroupTable.getScene().getWindow());
-            dialogStage.setScene(scene);
-            dialogStage.setResizable(false);
-
-            dialogStage.showAndWait();
-
-            if (controller.isSaved()) {
+            if (modal.controller().isSaved()) {
                 try {
-                    PaymentGroup savedPaymentGroup = controller.getPaymentGroup();
+                    PaymentGroup savedPaymentGroup = modal.controller().getPaymentGroup();
                     if (savedPaymentGroup.getId() == null) {
                         paymentGroupService.createPaymentGroup(savedPaymentGroup);
-                        showInfo("Succès", "Cotisation créée avec succès");
+                        showInfo("Succès", "Objectif créé avec succès");
                     } else {
                         paymentGroupService.updatePaymentGroup(savedPaymentGroup);
-                        showInfo("Succès", "Cotisation modifiée avec succès");
+                        showInfo("Succès", "Objectif modifié avec succès");
                     }
                     loadPaymentGroups();
                 } catch (SQLException e) {
-                    showError("Erreur", "Impossible de sauvegarder la cotisation: " + e.getMessage());
+                    showError("Erreur", "Impossible d'enregistrer l'objectif: " + e.getMessage());
                 } catch (IllegalArgumentException e) {
                     showError("Validation", e.getMessage());
                 }
@@ -134,32 +152,28 @@ public class PaymentGroupController {
     private void handleDelete() {
         PaymentGroup selected = paymentGroupTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            showWarning("Aucune sélection", "Veuillez sélectionner une cotisation à supprimer");
+            showWarning("Aucune sélection", "Veuillez sélectionner un objectif à supprimer");
             return;
         }
 
         Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
         confirmation.setTitle("Confirmer la suppression");
         confirmation.setHeaderText(null);
-        confirmation.setContentText("Supprimer la cotisation du groupe \"" + selected.getGroupName() + "\" pour \"" + selected.getEntityName() + "\" ?");
+        confirmation.setContentText("Supprimer l'objectif du groupe \"" + selected.getGroupName() + "\" pour \"" + selected.getEntityName() + "\" ?");
 
         confirmation.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
                 try {
                     paymentGroupService.deletePaymentGroup(selected.getId());
-                    showInfo("Succès", "Cotisation supprimée avec succès");
+                    showInfo("Succès", "Objectif supprimé avec succès");
                     loadPaymentGroups();
                 } catch (SQLException e) {
-                    showError("Erreur", "Impossible de supprimer la cotisation: " + e.getMessage());
+                    showError("Erreur", "Impossible de supprimer l'objectif: " + e.getMessage());
                 }
             }
         });
     }
 
-    @FXML
-    private void handleRefresh() {
-        loadPaymentGroups();
-    }
 
     private void showError(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);

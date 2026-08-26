@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import com.nasroul.ui.PhosphorIcon?>
+
+<StackPane xmlns="http://javafx.com/javafx"
+           xmlns:fx="http://javafx.com/fxml"
+           fx:controller="com.nasroul.controller.CollecteController">
+
+    <!-- Liste des collectes -->
+    <VBox fx:id="listPane" styleClass="container">
+
+        <HBox styleClass="filter-tabs" alignment="CENTER_LEFT">
+            <ToggleButton fx:id="tabAll" styleClass="filter-tab" text="Toutes" selected="true"/>
+            <ToggleButton fx:id="tabEvents" styleClass="filter-tab" text="Événements"/>
+            <ToggleButton fx:id="tabProjects" styleClass="filter-tab" text="Projets"/>
+        </HBox>
+
+        <HBox alignment="CENTER_LEFT" spacing="12">
+            <TextField fx:id="searchField" styleClass="search-field" promptText="Rechercher une collecte…" prefWidth="280"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <MenuButton text="Excel" styleClass="secondary-button">
+                <graphic><PhosphorIcon icon="DOWNLOAD_SIMPLE" size="15"/></graphic>
+                <items>
+                    <MenuItem text="Importer des événements…" onAction="#handleImportEvents"/>
+                    <MenuItem text="Importer des projets…" onAction="#handleImportProjects"/>
+                    <MenuItem text="Télécharger le modèle événements" onAction="#handleEventTemplate"/>
+                    <MenuItem text="Télécharger le modèle projets" onAction="#handleProjectTemplate"/>
+                </items>
+            </MenuButton>
+            <Button text="Nouvelle collecte" onAction="#handleAdd" styleClass="primary-button">
+                <graphic><PhosphorIcon icon="PLUS" size="15"/></graphic>
+            </Button>
+        </HBox>
+
+        <TableView fx:id="collecteTable" VBox.vgrow="ALWAYS">
+            <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN"/></columnResizePolicy>
+            <placeholder><Label styleClass="empty-state" text="Aucune collecte. Cliquez sur « Nouvelle collecte » pour créer un événement ou un projet."/></placeholder>
+            <columns>
+                <TableColumn fx:id="colName" text="Collecte" minWidth="220"/>
+                <TableColumn fx:id="colType" text="Type" prefWidth="110" minWidth="100"/>
+                <TableColumn fx:id="colStatus" text="Statut" prefWidth="110" minWidth="100"/>
+                <TableColumn fx:id="colDates" text="Dates" prefWidth="170" minWidth="140"/>
+                <TableColumn fx:id="colProgress" text="Collecté / attendu" minWidth="240"/>
+            </columns>
+        </TableView>
+
+        <HBox styleClass="action-bar" alignment="CENTER_RIGHT" spacing="8">
+            <Label styleClass="stat-hint" text="Double-cliquez sur une collecte pour l'ouvrir"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnDelete" text="Supprimer" onAction="#handleDelete" styleClass="danger-button"/>
+            <Button fx:id="btnEdit" text="Modifier" onAction="#handleEdit" styleClass="secondary-button"/>
+        </HBox>
+    </VBox>
+
+    <!-- Fiche d'une collecte (masquée tant qu'aucune n'est ouverte) -->
+    <VBox fx:id="detailPane" visible="false" managed="false">
+        <fx:include fx:id="entityDetail" source="EntityDetailView.fxml"/>
+    </VBox>
+
+</StackPane>

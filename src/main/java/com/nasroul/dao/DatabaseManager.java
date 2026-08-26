@@ -102,32 +102,151 @@ public class DatabaseManager {
             // MIGRATION: Add contribution_target to projects (for existing DBs that only have target_budget)
             addColumnIfNotExists(stmt, "projects", "contribution_target", "REAL DEFAULT 0");
 
+            // MIGRATION: Attach contributions to a group (rule: one payment target per group per entity)
+            migrateContributionGroupColumn(stmt);
+
+            // MIGRATION: Deduplicate payment_groups then enforce uniqueness (one target per group/entity)
+            deduplicatePaymentGroups(stmt);
+
+            // Local-only SMS send journal (never synced - per-device execution state)
+            createSmsLogTableSQLite(stmt);
+
             System.out.println("SQLite database initialized successfully (offline-first)");
             connectionError = null;
 
-            // Skip MySQL initialization entirely in offline mode
-            if (config.isOfflineModeEnabled()) {
-                System.out.println("Offline mode enabled - skipping MySQL initialization");
-            } else if (isMySQLAvailable()) {
-                try (Connection mysqlConn = getMySQLConnection();
-                     Statement mysqlStmt = mysqlConn.createStatement()) {
-                    createTablesMySQL(mysqlStmt);
-                    createSyncTablesMySQL(mysqlStmt);
-                    migrateSyncColumnsMySQL(mysqlStmt);
-                    migrateRemoteIdColumnMySQL(mysqlStmt);
-                    System.out.println("MySQL database also initialized (for sync)");
-                } catch (SQLException e) {
-                    System.out.println("MySQL not available (offline mode): " + e.getMessage());
-                }
-            } else {
-                System.out.println("MySQL not configured - running in offline mode only");
-            }
+            ensureMySQLSchema();
 
         } catch (SQLException e) {
             connectionError = buildDetailedErrorMessage(e);
             System.err.println("SQLite database initialization failed: " + connectionError);
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Make sure the MySQL schema is up to date.
+     * Called at startup AND before every sync (SyncManager), because MySQL may have
+     * been offline at startup: pushing new columns against an unmigrated schema
+     * would fail row by row.
+     */
+    public void ensureMySQLSchema() {
+        if (config.isOfflineModeEnabled() || !config.isSyncEnabled()) {
+            System.out.println("Sync désactivée (offline mode ou sync.enabled=false) - MySQL ignoré");
+            return;
+        }
+        if (!isMySQLAvailable()) {
+            System.out.println("MySQL not configured - running in offline mode only");
+            return;
+        }
+        try (Connection mysqlConn = getMySQLConnection();
+             Statement mysqlStmt = mysqlConn.createStatement()) {
+            createTablesMySQL(mysqlStmt);
+            createSyncTablesMySQL(mysqlStmt);
+            migrateSyncColumnsMySQL(mysqlStmt);
+            migrateRemoteIdColumnMySQL(mysqlStmt);
+            // Business migrations (mirror of the SQLite ones - schema only, data
+            // changes propagate through the normal sync PUSH)
+            addColumnIfNotExistsMySQL(mysqlStmt, "contributions", "group_id", "INT");
+            System.out.println("MySQL database also initialized (for sync)");
+        } catch (SQLException e) {
+            System.out.println("MySQL not available (offline mode): " + e.getMessage());
+        }
+    }
+
+    /**
+     * Add contributions.group_id and backfill it where the owner group is unambiguous.
+     * Backfilled rows are marked PENDING so the value propagates to MySQL via PUSH.
+     * Rows that stay NULL (member in several groups, none/many matching targets) are
+     * counted for the member but excluded from per-group aggregates.
+     */
+    static void migrateContributionGroupColumn(Statement stmt) throws SQLException {
+        addColumnIfNotExists(stmt, "contributions", "group_id", "INTEGER");
+
+        // Pass 1: member belongs to exactly one group
+        int pass1 = stmt.executeUpdate("""
+            UPDATE contributions SET
+                group_id = (SELECT mg.group_id FROM member_groups mg
+                            WHERE mg.member_id = contributions.member_id),
+                sync_status = 'PENDING',
+                sync_version = COALESCE(sync_version, 1) + 1
+            WHERE group_id IS NULL AND deleted_at IS NULL
+              AND (SELECT COUNT(*) FROM member_groups mg
+                   WHERE mg.member_id = contributions.member_id) = 1
+        """);
+
+        // Pass 2: member in several groups, but only one of them has a payment
+        // target for this contribution's entity
+        int pass2 = stmt.executeUpdate("""
+            UPDATE contributions SET
+                group_id = (SELECT mg.group_id FROM member_groups mg
+                            JOIN payment_groups pg ON pg.group_id = mg.group_id
+                              AND pg.entity_type = contributions.entity_type
+                              AND pg.entity_id = contributions.entity_id
+                              AND pg.deleted_at IS NULL
+                            WHERE mg.member_id = contributions.member_id),
+                sync_status = 'PENDING',
+                sync_version = COALESCE(sync_version, 1) + 1
+            WHERE group_id IS NULL AND deleted_at IS NULL
+              AND (SELECT COUNT(*) FROM member_groups mg
+                   JOIN payment_groups pg ON pg.group_id = mg.group_id
+                     AND pg.entity_type = contributions.entity_type
+                     AND pg.entity_id = contributions.entity_id
+                     AND pg.deleted_at IS NULL
+                   WHERE mg.member_id = contributions.member_id) = 1
+        """);
+
+        if (pass1 + pass2 > 0) {
+            System.out.println("Backfilled group_id on " + (pass1 + pass2) + " contribution(s)");
+        }
+    }
+
+    /**
+     * Soft-delete duplicate payment targets (keep the most recent per
+     * group/entity), then enforce uniqueness with a partial index.
+     * Soft delete (not hard delete) so the removal propagates through sync.
+     */
+    static void deduplicatePaymentGroups(Statement stmt) throws SQLException {
+        int removed = stmt.executeUpdate("""
+            UPDATE payment_groups SET
+                deleted_at = datetime('now'),
+                updated_at = datetime('now'),
+                sync_status = 'PENDING',
+                sync_version = COALESCE(sync_version, 1) + 1
+            WHERE deleted_at IS NULL AND id NOT IN (
+                SELECT MAX(id) FROM payment_groups WHERE deleted_at IS NULL
+                GROUP BY group_id, entity_type, entity_id)
+        """);
+        if (removed > 0) {
+            System.out.println("Soft-deleted " + removed + " duplicate payment_groups row(s)");
+        }
+
+        stmt.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_payment_groups_target
+                ON payment_groups(group_id, entity_type, entity_id)
+                WHERE deleted_at IS NULL
+        """);
+    }
+
+    static void createSmsLogTableSQLite(Statement stmt) throws SQLException {
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS sms_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                campaign_id TEXT NOT NULL,
+                entity_type TEXT,
+                entity_id INTEGER,
+                group_id INTEGER,
+                member_id INTEGER,
+                phone TEXT NOT NULL,
+                message TEXT,
+                segments INTEGER,
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                provider_response TEXT,
+                error_message TEXT,
+                sent_at TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(campaign_id, phone)
+            )
+        """);
     }
 
     /**
@@ -245,6 +364,7 @@ public class DatabaseManager {
                 `status` VARCHAR(255) DEFAULT 'PENDING',
                 `payment_method` VARCHAR(255),
                 `notes` TEXT,
+                `group_id` INT,
                 FOREIGN KEY (`member_id`) REFERENCES `members`(`id`)
             )
         """);
@@ -357,6 +477,7 @@ public class DatabaseManager {
                 status TEXT DEFAULT 'PENDING',
                 payment_method TEXT,
                 notes TEXT,
+                group_id INTEGER,
                 FOREIGN KEY (member_id) REFERENCES members(id)
             )
         """);
@@ -518,7 +639,7 @@ public class DatabaseManager {
         System.out.println("Added remote_id column to sync_metadata (MySQL)");
     }
 
-    private void addColumnIfNotExists(Statement stmt, String table, String column, String type) {
+    static void addColumnIfNotExists(Statement stmt, String table, String column, String type) {
         try {
             stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
             System.out.println("Added column " + column + " to table " + table);

@@ -48,7 +48,7 @@
         <Label text="Avatar" GridPane.columnIndex="0" GridPane.rowIndex="9"/>
         <HBox spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="9" alignment="CENTER_LEFT">
             <ImageView fx:id="avatarView" fitWidth="80" fitHeight="80" preserveRatio="true"
-                       style="-fx-border-color: #d0d7de; -fx-border-width: 1;"/>
+                       style="-fx-border-color: #DDE0D4; -fx-border-width: 1;"/>
             <Button text="Choisir..." onAction="#handleChooseAvatar" styleClass="secondary-button"/>
             <Button text="Supprimer" onAction="#handleRemoveAvatar" styleClass="secondary-button"/>
         </HBox>
@@ -58,8 +58,8 @@
     </GridPane>
 
     <HBox spacing="8" alignment="CENTER_RIGHT">
-        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button"/>
-        <Button text="Enregistrer" onAction="#handleSave" styleClass="primary-button"/>
+        <Button text="Annuler" onAction="#handleCancel" styleClass="secondary-button" cancelButton="true"/>
+        <Button text="Enregistrer" onAction="#handleSave" styleClass="primary-button" defaultButton="true"/>
     </HBox>
 
 </VBox>

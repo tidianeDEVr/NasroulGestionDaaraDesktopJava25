@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import com.nasroul.ui.PhosphorIcon?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.nasroul.controller.EntityDetailController"
+      styleClass="container" VBox.vgrow="ALWAYS">
+
+    <!-- Fil d'Ariane -->
+    <HBox alignment="CENTER_LEFT" spacing="10">
+        <Button styleClass="icon-button" onAction="#handleBack">
+            <graphic><PhosphorIcon icon="ARROW_LEFT" size="15"/></graphic>
+        </Button>
+        <Label styleClass="text-muted" text="Collectes"/>
+        <Label styleClass="text-muted" text="/"/>
+        <Label fx:id="crumbName" styleClass="font-semibold"/>
+    </HBox>
+
+    <!-- Hero -->
+    <VBox styleClass="hero-card" spacing="10">
+        <HBox alignment="CENTER_LEFT" spacing="24">
+            <VBox spacing="6" HBox.hgrow="ALWAYS">
+                <HBox alignment="CENTER_LEFT" spacing="12">
+                    <Label fx:id="lblName" styleClass="hero-title"/>
+                    <Label fx:id="lblStatus" styleClass="badge"/>
+                </HBox>
+                <Label fx:id="lblSubtitle" styleClass="hero-muted"/>
+            </VBox>
+            <VBox spacing="8" prefWidth="380" minWidth="300">
+                <HBox alignment="BASELINE_LEFT" spacing="8">
+                    <Label fx:id="lblCollected" styleClass="hero-value" text="0"/>
+                    <Label styleClass="hero-accent" text="CFA collectés"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="lblExpected" styleClass="hero-muted"/>
+                </HBox>
+                <ProgressBar fx:id="heroProgress" styleClass="progress-bar-hero" maxWidth="Infinity" progress="0"/>
+            </VBox>
+            <MenuButton fx:id="btnActions" text="Actions" styleClass="secondary-button">
+                <items>
+                    <MenuItem text="Modifier" onAction="#handleEdit"/>
+                    <MenuItem text="Supprimer" onAction="#handleDelete"/>
+                </items>
+            </MenuButton>
+        </HBox>
+    </VBox>
+
+    <!-- Onglets -->
+    <TabPane fx:id="tabPane" VBox.vgrow="ALWAYS" tabClosingPolicy="UNAVAILABLE">
+        <Tab fx:id="tabRecovery" text="Recouvrement"><StackPane/></Tab>
+        <Tab fx:id="tabContributions" text="Cotisations"><StackPane/></Tab>
+        <Tab fx:id="tabTargets" text="Objectifs"><StackPane/></Tab>
+        <Tab fx:id="tabExpenses" text="Dépenses"><StackPane/></Tab>
+        <Tab fx:id="tabSms" text="SMS"><StackPane/></Tab>
+    </TabPane>
+
+</VBox>
