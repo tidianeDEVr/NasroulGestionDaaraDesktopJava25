@@ -107,11 +107,43 @@ public class ConfigManager {
     }
 
     public String getMySQLHost() {
-        return getProperty("db.mysql.host", "localhost");
+        return normalizeMySQLHost(getProperty("db.mysql.host", "localhost"));
+    }
+
+    /**
+     * Hôte MySQL « propre » : l'utilisateur colle souvent l'URL de son
+     * hébergeur (https://hote.com/, hote.com:3306…). Un hôte JDBC est un nom
+     * DNS ou une IP, sans schéma, sans chemin, sans port.
+     */
+    static String normalizeMySQLHost(String raw) {
+        if (raw == null) {
+            return "localhost";
+        }
+        String host = raw.trim();
+        int scheme = host.indexOf("://"); // https://, jdbc:mysql://…
+        if (scheme >= 0) {
+            host = host.substring(scheme + 3);
+        }
+        int slash = host.indexOf('/');
+        if (slash >= 0) {
+            host = host.substring(0, slash);
+        }
+        int at = host.lastIndexOf('@');
+        if (at >= 0) {
+            host = host.substring(at + 1); // user:pwd@hote
+        }
+        if (!host.startsWith("[")) { // IPv6 littérale conservée telle quelle
+            int colon = host.indexOf(':');
+            if (colon >= 0) {
+                host = host.substring(0, colon);
+            }
+        }
+        return host.isEmpty() ? "localhost" : host;
     }
 
     public String getMySQLPort() {
-        return getProperty("db.mysql.port", "3306");
+        String port = getProperty("db.mysql.port", "3306").trim();
+        return port.matches("\\d{1,5}") ? port : "3306";
     }
 
     public String getMySQLDatabase() {
@@ -160,12 +192,17 @@ public class ConfigManager {
     }
 
     public String getMySQLConnectionUrl() {
-        return String.format("jdbc:mysql://%s:%s/%s?useSSL=%s&serverTimezone=%s&allowPublicKeyRetrieval=true",
+        // connectTimeout borne le test de disponibilité (sinon un mauvais port
+        // bloque l'interface plusieurs secondes) ; socketTimeout suit sync.timeout.seconds
+        long socketTimeoutMs = Math.max(30, getSyncTimeout()) * 1000L;
+        return String.format("jdbc:mysql://%s:%s/%s?useSSL=%s&serverTimezone=%s&allowPublicKeyRetrieval=true"
+                + "&connectTimeout=8000&socketTimeout=%d",
             getMySQLHost(),
             getMySQLPort(),
             getMySQLDatabase(),
             getMySQLUseSSL(),
-            getMySQLServerTimezone()
+            getMySQLServerTimezone(),
+            socketTimeoutMs
         );
     }
 
@@ -241,6 +278,28 @@ public class ConfigManager {
      */
     public boolean isSyncEnabled() {
         return Boolean.parseBoolean(getProperty("sync.enabled", "true"));
+    }
+
+    /**
+     * URL complète de la passerelle api.php (vide = accès MySQL direct).
+     */
+    public String getSyncApiUrl() {
+        return getProperty("sync.api.url", "").trim();
+    }
+
+    /**
+     * Clé partagée avec api.config.php sur le serveur.
+     */
+    public String getSyncApiKey() {
+        return getProperty("sync.api.key", "").trim();
+    }
+
+    /**
+     * La synchronisation passe-t-elle par la passerelle HTTP plutôt que par
+     * une connexion MySQL directe ? (sync.api.url renseignée)
+     */
+    public boolean isApiSyncMode() {
+        return !getSyncApiUrl().isEmpty();
     }
 
     /**

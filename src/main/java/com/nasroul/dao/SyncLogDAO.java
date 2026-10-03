@@ -1,5 +1,7 @@
 package com.nasroul.dao;
 
+import com.nasroul.sync.SyncValues;
+
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -11,39 +13,82 @@ import java.util.UUID;
  * Audit log for all sync operations
  */
 public class SyncLogDAO {
-    private final DatabaseManager dbManager;
+
+    private final SyncMetadataDAO.ConnectionSource local;
 
     public SyncLogDAO() {
-        this.dbManager = DatabaseManager.getInstance();
+        this(() -> DatabaseManager.getInstance().getSQLiteConnection());
     }
 
+    public SyncLogDAO(SyncMetadataDAO.ConnectionSource local) {
+        this.local = local;
+    }
+
+    /** Une entrée de journal (utilisée pour l'envoi groupé vers le serveur). */
+    public record Entry(String syncSessionId, String tableName, int recordId, String operation,
+                        String syncDirection, String status, String errorMessage, String syncedAt) {
+    }
+
+    private static final String INSERT_SQL = """
+        INSERT INTO sync_log
+        (sync_session_id, table_name, record_id, operation,
+         sync_direction, status, error_message, synced_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """;
+
     /**
-     * Log a sync operation
+     * Log a sync operation (connexion locale autonome)
      */
     public void log(String syncSessionId, String tableName, int recordId,
                     String operation, String syncDirection, String status,
                     String errorMessage) throws SQLException {
+        try (Connection conn = local.open()) {
+            log(conn, syncSessionId, tableName, recordId, operation, syncDirection, status, errorMessage);
+        }
+    }
 
-        String sql = """
-            INSERT INTO sync_log
-            (sync_session_id, table_name, record_id, operation,
-             sync_direction, status, error_message, synced_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-            """;
-
-        try (Connection conn = dbManager.getSQLiteConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, syncSessionId);
-            pstmt.setString(2, tableName);
-            pstmt.setInt(3, recordId);
-            pstmt.setString(4, operation);
-            pstmt.setString(5, syncDirection);
-            pstmt.setString(6, status);
-            pstmt.setString(7, errorMessage);
-
+    /**
+     * Log a sync operation sur la connexion fournie (locale ou distante : le
+     * SQL est portable, l'horodatage est lié en paramètre).
+     */
+    public void log(Connection conn, String syncSessionId, String tableName, int recordId,
+                    String operation, String syncDirection, String status,
+                    String errorMessage) throws SQLException {
+        try (PreparedStatement pstmt = conn.prepareStatement(INSERT_SQL)) {
+            bind(pstmt, new Entry(syncSessionId, tableName, recordId, operation, syncDirection,
+                    status, truncate(errorMessage), SyncValues.nowUtc()));
             pstmt.executeUpdate();
         }
+    }
+
+    /** Insertion groupée (un aller-retour) : journal partagé côté serveur. */
+    public void logBatch(Connection conn, List<Entry> entries) throws SQLException {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        try (PreparedStatement pstmt = conn.prepareStatement(INSERT_SQL)) {
+            for (Entry entry : entries) {
+                bind(pstmt, entry);
+                pstmt.addBatch();
+            }
+            pstmt.executeBatch();
+        }
+    }
+
+    private static void bind(PreparedStatement pstmt, Entry e) throws SQLException {
+        pstmt.setString(1, e.syncSessionId());
+        pstmt.setString(2, e.tableName());
+        pstmt.setInt(3, e.recordId());
+        pstmt.setString(4, e.operation());
+        pstmt.setString(5, e.syncDirection());
+        pstmt.setString(6, e.status());
+        pstmt.setString(7, truncate(e.errorMessage()));
+        pstmt.setString(8, e.syncedAt() != null ? e.syncedAt() : SyncValues.nowUtc());
+    }
+
+    private static String truncate(String message) {
+        if (message == null) return null;
+        return message.length() > 2000 ? message.substring(0, 2000) : message;
     }
 
     /**
@@ -52,30 +97,12 @@ public class SyncLogDAO {
     public void logMySQL(String syncSessionId, String tableName, int recordId,
                          String operation, String syncDirection, String status,
                          String errorMessage) throws SQLException {
-        // Check if MySQL is available
+        DatabaseManager dbManager = DatabaseManager.getInstance();
         if (!dbManager.isMySQLAvailable()) {
-            return; // Skip if MySQL not available
+            return;
         }
-
-        String sql = """
-            INSERT INTO sync_log
-            (sync_session_id, table_name, record_id, operation,
-             sync_direction, status, error_message, synced_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-            """;
-
-        try (Connection conn = dbManager.getMySQLConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, syncSessionId);
-            pstmt.setString(2, tableName);
-            pstmt.setInt(3, recordId);
-            pstmt.setString(4, operation);
-            pstmt.setString(5, syncDirection);
-            pstmt.setString(6, status);
-            pstmt.setString(7, errorMessage);
-
-            pstmt.executeUpdate();
+        try (Connection conn = dbManager.getMySQLConnection()) {
+            log(conn, syncSessionId, tableName, recordId, operation, syncDirection, status, errorMessage);
         }
     }
 
@@ -91,20 +118,17 @@ public class SyncLogDAO {
      */
     public List<SyncLog> getSessionLogs(String syncSessionId) throws SQLException {
         List<SyncLog> logs = new ArrayList<>();
-        String sql = "SELECT * FROM sync_log WHERE sync_session_id = ? ORDER BY synced_at";
+        String sql = "SELECT * FROM sync_log WHERE sync_session_id = ? ORDER BY synced_at, id";
 
-        try (Connection conn = dbManager.getSQLiteConnection();
+        try (Connection conn = local.open();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
             pstmt.setString(1, syncSessionId);
-
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     logs.add(extractSyncLog(rs));
                 }
             }
         }
-
         return logs;
     }
 
@@ -113,20 +137,17 @@ public class SyncLogDAO {
      */
     public List<SyncLog> getRecentLogs(int limit) throws SQLException {
         List<SyncLog> logs = new ArrayList<>();
-        String sql = "SELECT * FROM sync_log ORDER BY synced_at DESC LIMIT ?";
+        String sql = "SELECT * FROM sync_log ORDER BY synced_at DESC, id DESC LIMIT ?";
 
-        try (Connection conn = dbManager.getSQLiteConnection();
+        try (Connection conn = local.open();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
             pstmt.setInt(1, limit);
-
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     logs.add(extractSyncLog(rs));
                 }
             }
         }
-
         return logs;
     }
 
@@ -135,32 +156,62 @@ public class SyncLogDAO {
      */
     public List<SyncLog> getFailedSyncs() throws SQLException {
         List<SyncLog> logs = new ArrayList<>();
-        String sql = "SELECT * FROM sync_log WHERE status = 'FAILED' ORDER BY synced_at DESC";
+        String sql = "SELECT * FROM sync_log WHERE status = 'FAILED' ORDER BY synced_at DESC, id DESC";
 
-        try (Connection conn = dbManager.getSQLiteConnection();
+        try (Connection conn = local.open();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
-
             while (rs.next()) {
                 logs.add(extractSyncLog(rs));
             }
         }
-
         return logs;
     }
 
     /**
      * Clean old sync logs (keep only last N days)
+     *
+     * @return nombre de lignes supprimées
      */
-    public void cleanOldLogs(int daysToKeep) throws SQLException {
-        // Use SQLite date function instead of setObject with LocalDateTime
+    public int cleanOldLogs(int daysToKeep) throws SQLException {
         String sql = "DELETE FROM sync_log WHERE synced_at < datetime('now', '-' || ? || ' days')";
-
-        try (Connection conn = dbManager.getSQLiteConnection();
+        try (Connection conn = local.open();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, Math.max(0, daysToKeep));
+            return pstmt.executeUpdate();
+        }
+    }
 
-            pstmt.setInt(1, daysToKeep);
-            pstmt.executeUpdate();
+    /** Nombre de journaux plus anciens que N jours. */
+    public int countOlderThan(int days) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM sync_log WHERE synced_at < datetime('now', '-' || ? || ' days')";
+        try (Connection conn = local.open();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, Math.max(0, days));
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
+    /** Nombre total de journaux locaux. */
+    public int countAll() throws SQLException {
+        try (Connection conn = local.open();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM sync_log")) {
+            return rs.next() ? rs.getInt(1) : 0;
+        }
+    }
+
+    /**
+     * Supprime tout l'historique local.
+     *
+     * @return nombre de lignes supprimées
+     */
+    public int deleteAll() throws SQLException {
+        try (Connection conn = local.open();
+             Statement stmt = conn.createStatement()) {
+            return stmt.executeUpdate("DELETE FROM sync_log");
         }
     }
 
@@ -174,17 +225,7 @@ public class SyncLogDAO {
         log.setSyncDirection(rs.getString("sync_direction"));
         log.setStatus(rs.getString("status"));
         log.setErrorMessage(rs.getString("error_message"));
-
-        // SQLite stores datetime as TEXT - parse manually
-        String syncedAtStr = rs.getString("synced_at");
-        if (syncedAtStr != null && !syncedAtStr.isEmpty()) {
-            try {
-                log.setSyncedAt(LocalDateTime.parse(syncedAtStr.replace(" ", "T")));
-            } catch (Exception e) {
-                // Ignore parsing errors
-            }
-        }
-
+        log.setSyncedAt(SyncValues.parseDateTime(rs.getString("synced_at")));
         return log;
     }
 
@@ -202,7 +243,6 @@ public class SyncLogDAO {
         private String errorMessage;
         private LocalDateTime syncedAt;
 
-        // Getters and setters
         public int getId() { return id; }
         public void setId(int id) { this.id = id; }
 

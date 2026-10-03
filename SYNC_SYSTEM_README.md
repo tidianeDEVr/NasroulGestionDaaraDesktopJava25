@@ -146,6 +146,81 @@ sync.conflict.strategy=MANUAL
 ```
 Un dialogue s'affiche pour choisir: Local, Remote, ou Skip.
 
+## 🌐 Deux transports vers le serveur
+
+- **Passerelle HTTP `server/api.php` (recommandé)** : les postes n'ont que
+  `sync.api.url` et `sync.api.key` ; les identifiants MySQL restent sur
+  l'hébergement et aucune autorisation d'adresse IP n'est nécessaire.
+  Installation : voir `server/README.md`.
+- **MySQL direct** (`db.mysql.*`) : utilisé seulement si `sync.api.url` est
+  vide. Chaque poste doit alors être autorisé dans cPanel « MySQL distant ».
+
+Le moteur (`SyncManager`) est identique dans les deux cas : il parle à un
+`RemoteStore` (`HttpRemoteStore` ou `JdbcRemoteStore`). Le test
+`ApiSyncTest` exécute la vraie passerelle PHP sur une base SQLite jetable.
+
+## 🔧 Mécanique de synchronisation (révision octobre 2026)
+
+Le moteur (`sync/SyncManager`) a été réécrit pour corriger des doublons et des
+conflits mal arbitrés. Règles en vigueur :
+
+- **Mapping d'identifiants** : les ids auto-incrémentés diffèrent d'un poste à
+  l'autre. Chaque ligne locale est reliée à sa ligne serveur par
+  `sync_metadata.remote_id` (upsert, jamais perdu). Toutes les clés étrangères
+  sont converties dans les deux sens (`members.group_id`, `events.organizer_id`,
+  `projects.manager_id`, `contributions.member_id/group_id/entity_id`,
+  `expenses.member_id/entity_id`, `payment_groups.group_id/entity_id`). Une FK
+  dont la cible n'a pas encore d'id distant déclenche l'envoi immédiat de la
+  cible (récursivement) ; une cible inexistante fait échouer **cette ligne
+  seulement**, qui reste PENDING, est comptée dans le résultat et repart à la
+  sync suivante.
+- **Auto-réparation** : avant le PUSH, une ligne marquée SYNCED sans id distant
+  (ancien moteur, mapping perdu) repasse en PENDING et est envoyée.
+- **Hash de contenu** : calculé sur les colonnes métier **communes aux deux
+  schémas** (sans `id` ni métadonnées de sync ; une colonne héritée d'un seul
+  côté comme `projects.target_budget` est ignorée), dans l'espace d'ids local,
+  avec un rendu canonique des valeurs (5000 = 5000.0, BLOB par contenu, dates
+  normalisées).
+- **Fusion à trois voies** : version locale, version serveur et hash de la
+  dernière sync (`sync_metadata.local_hash`). Un seul côté a changé → il gagne
+  sans conflit. Les deux ont changé → conflit arbitré par la stratégie
+  `sync.conflict.strategy` (défaut LAST_WRITE_WINS sur `updated_at`, départage
+  déterministe en cas d'égalité : version puis hash). Suppression vs
+  modification : la plus récente gagne.
+- **Pas de doublon** : une ligne serveur sans mapping est d'abord rapprochée des
+  lignes locales sans mapping par contenu identique, puis par clé naturelle
+  (groupe/projet : nom ; membre : email, sinon prénom+nom+téléphone ;
+  événement : nom+date ; objectif : groupe+entité). Une ligne reliée aux
+  contenus différents passe par la fusion à trois voies.
+- **Suppressions logiques** : une ligne supprimée (`deleted_at`) circule comme
+  les autres, dans les deux sens, même si elle n'avait jamais été synchronisée :
+  d'autres lignes peuvent la référencer (cotisations d'un membre parti,
+  organisateur d'un événement). Elle reste invisible dans l'application.
+- **État local** : `sync_status` et `last_sync_at` ne sont jamais recopiés
+  d'une base à l'autre (une ligne tirée arrive SYNCED).
+- **member_groups** : les appartenances voyagent avec la ligne membre (incluses
+  dans son hash, converties en ids) ; les effectifs par groupe convergent.
+- **Transactions** : une connexion locale et une distante par session ; chaque
+  ligne (données + mapping + métadonnées + journal) est validée séparément.
+- **Stratégie MANUAL** : la ligne reste en `CONFLICT` (rien n'est écrasé) et est
+  réévaluée à chaque sync ; `SyncManager.resolveConflictManually(table, id,
+  TAKE_LOCAL|TAKE_REMOTE)` tranche.
+
+### Tests
+
+`mvn test` exécute `com.nasroul.sync.*Test` : deux postes et un serveur
+simulés par des bases SQLite jetables (aucun MySQL requis), couvrant PUSH,
+PULL, aller-retour multi-postes, conflits (LWW, suppression/modification,
+MANUAL), liaison sans doublon, collisions d'objectifs, valeurs legacy.
+
+### Avant déploiement
+
+- Le format de hash a changé : à la **première** sync après mise à jour, chaque
+  ligne déjà présente des deux côtés est réévaluée (LWW si elle diffère).
+- Les doublons créés sur le serveur par l'ancien moteur ne sont pas fusionnés
+  automatiquement entre eux : nettoyer la base MySQL (ou repartir d'une base
+  serveur vide alimentée par un seul poste) avant de resynchroniser les autres.
+
 ## 📊 Flux de Synchronisation
 
 ```

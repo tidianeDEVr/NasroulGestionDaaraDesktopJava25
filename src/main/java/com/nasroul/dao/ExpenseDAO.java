@@ -2,6 +2,8 @@ package com.nasroul.dao;
 
 import com.nasroul.model.Expense;
 
+import com.nasroul.util.DeviceIdGenerator;
+
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -17,7 +19,7 @@ public class ExpenseDAO {
     public void create(Expense expense) throws SQLException {
         String sql = """
             INSERT INTO expenses (description, amount, date, category, entity_type, entity_id, member_id, created_at, updated_at, last_modified_by, sync_status, sync_version)
-            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
+            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?, 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -37,6 +39,7 @@ public class ExpenseDAO {
                 pstmt.setNull(7, Types.INTEGER);
             }
 
+            pstmt.setString(8, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
 
             // Get generated ID using last_insert_rowid() for SQLite compatibility
@@ -136,7 +139,7 @@ public class ExpenseDAO {
             UPDATE expenses
             SET description = ?, amount = ?, date = ?, category = ?,
                 entity_type = ?, entity_id = ?, member_id = ?,
-                updated_at = datetime('now'), last_modified_by = 'system', sync_status = 'PENDING', sync_version = sync_version + 1
+                updated_at = datetime('now'), last_modified_by = ?, sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
 
@@ -157,8 +160,9 @@ public class ExpenseDAO {
                 pstmt.setNull(7, Types.INTEGER);
             }
 
-            pstmt.setInt(8, expense.getId());
+            pstmt.setInt(9, expense.getId());
 
+            pstmt.setString(8, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
         }
     }
@@ -168,7 +172,7 @@ public class ExpenseDAO {
             UPDATE expenses
             SET deleted_at = datetime('now'),
                 updated_at = datetime('now'),
-                last_modified_by = 'system',
+                last_modified_by = ?,
                 sync_status = 'PENDING',
                 sync_version = sync_version + 1
             WHERE id = ?
@@ -177,7 +181,8 @@ public class ExpenseDAO {
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setInt(1, id);
+            pstmt.setInt(2, id);
+            pstmt.setString(1, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
         }
     }

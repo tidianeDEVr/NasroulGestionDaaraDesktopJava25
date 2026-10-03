@@ -38,6 +38,12 @@ sms.credits.url=https://lamsms.lafricamobile.com/credits
 # Synchronization Configuration
 # ------------------------------
 
+# Passerelle HTTP (recommandé) : voir server/README.md.
+# Si sync.api.url est renseignée, les paramètres db.mysql.* ne sont plus utilisés
+# et aucune autorisation d'IP n'est nécessaire côté hébergeur.
+sync.api.url=
+sync.api.key=
+
 # Auto-sync: Enable automatic synchronization at regular intervals
 # Default: false (manual sync only via UI button)
 sync.auto.enabled=false

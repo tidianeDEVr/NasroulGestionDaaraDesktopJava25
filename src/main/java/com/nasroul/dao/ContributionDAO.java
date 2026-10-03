@@ -2,6 +2,8 @@ package com.nasroul.dao;
 
 import com.nasroul.model.Contribution;
 
+import com.nasroul.util.DeviceIdGenerator;
+
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -18,7 +20,7 @@ public class ContributionDAO {
         String sql = """
             INSERT INTO contributions (member_id, entity_type, entity_id, amount, date, status, payment_method, notes, group_id,
                                       created_at, updated_at, last_modified_by, sync_status, sync_version)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?, 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -34,6 +36,7 @@ public class ContributionDAO {
             pstmt.setString(8, contribution.getNotes());
             pstmt.setObject(9, contribution.getGroupId());
 
+            pstmt.setString(10, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
 
             // Get generated ID using last_insert_rowid() for SQLite compatibility
@@ -165,7 +168,7 @@ public class ContributionDAO {
             UPDATE contributions
             SET member_id = ?, entity_type = ?, entity_id = ?, amount = ?,
                 date = ?, status = ?, payment_method = ?, notes = ?, group_id = ?,
-                updated_at = datetime('now'), last_modified_by = 'system',
+                updated_at = datetime('now'), last_modified_by = ?,
                 sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
@@ -182,8 +185,9 @@ public class ContributionDAO {
             pstmt.setString(7, contribution.getPaymentMethod());
             pstmt.setString(8, contribution.getNotes());
             pstmt.setObject(9, contribution.getGroupId());
-            pstmt.setInt(10, contribution.getId());
+            pstmt.setInt(11, contribution.getId());
 
+            pstmt.setString(10, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
         }
     }
@@ -192,14 +196,15 @@ public class ContributionDAO {
         // Soft delete - mark as deleted instead of physical deletion
         String sql = """
             UPDATE contributions
-            SET deleted_at = datetime('now'), sync_status = 'PENDING', sync_version = sync_version + 1
+            SET deleted_at = datetime('now'), updated_at = datetime('now'), last_modified_by = ?, sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setInt(1, id);
+            pstmt.setInt(2, id);
+            pstmt.setString(1, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
         }
     }
@@ -216,7 +221,7 @@ public class ContributionDAO {
         String sql = """
             INSERT INTO contributions (member_id, entity_type, entity_id, amount, date, status, payment_method, notes, group_id,
                                       created_at, updated_at, last_modified_by, sync_status, sync_version)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?, 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection()) {
@@ -232,6 +237,7 @@ public class ContributionDAO {
                     pstmt.setString(7, c.getPaymentMethod());
                     pstmt.setString(8, c.getNotes());
                     pstmt.setObject(9, c.getGroupId());
+                    pstmt.setString(10, DeviceIdGenerator.getDeviceId()); // last_modified_by
                     pstmt.addBatch();
                 }
                 pstmt.executeBatch();

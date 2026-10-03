@@ -5,12 +5,16 @@ import com.nasroul.model.SyncableEntity;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Generic implementation of SyncableEntity for sync operations
- * Represents any table row as a Map of column name -> value
+ * Représentation générique d'une ligne de table synchronisable :
+ * colonne → valeur, plus les métadonnées de sync héritées.
+ *
+ * Les colonnes temporelles sont normalisées au format canonique dès la
+ * lecture (voir {@link SyncValues}) afin que la comparaison et l'écriture
+ * soient indépendantes du moteur d'origine.
  */
 public class GenericSyncableEntity extends SyncableEntity {
 
@@ -19,7 +23,7 @@ public class GenericSyncableEntity extends SyncableEntity {
 
     public GenericSyncableEntity(String tableName) {
         this.tableName = tableName;
-        this.fields = new HashMap<>();
+        this.fields = new LinkedHashMap<>();
     }
 
     /**
@@ -32,32 +36,80 @@ public class GenericSyncableEntity extends SyncableEntity {
         int columnCount = metaData.getColumnCount();
 
         for (int i = 1; i <= columnCount; i++) {
-            String columnName = metaData.getColumnName(i);
+            String columnName = metaData.getColumnLabel(i);
+            if (columnName == null || columnName.isEmpty()) {
+                columnName = metaData.getColumnName(i);
+            }
+            columnName = columnName.toLowerCase();
             int columnType = metaData.getColumnType(i);
 
             Object value;
-            // Handle BLOB type specially to avoid driver-specific issues
             if (columnType == java.sql.Types.BLOB || columnType == java.sql.Types.BINARY ||
                 columnType == java.sql.Types.VARBINARY || columnType == java.sql.Types.LONGVARBINARY) {
                 byte[] bytes = rs.getBytes(i);
                 value = rs.wasNull() ? null : bytes;
+            } else if (SyncValues.TEMPORAL_COLUMNS.contains(columnName)) {
+                // getString évite la conversion de fuseau du driver MySQL ; la
+                // normalisation gère aussi les anciennes valeurs en epoch millis.
+                value = SyncValues.normalizeTemporal(rs.getString(i));
             } else {
                 value = rs.getObject(i);
+                if (value instanceof byte[] bytes) {
+                    value = bytes; // BLOB déclaré sans type (SQLite)
+                }
             }
 
             entity.fields.put(columnName, value);
         }
 
-        // Set sync metadata from parent class
-        entity.setCreatedAt(parseLocalDateTime(rs, "created_at"));
-        entity.setUpdatedAt(parseLocalDateTime(rs, "updated_at"));
-        entity.setDeletedAt(parseLocalDateTime(rs, "deleted_at"));
-        entity.setLastModifiedBy(getString(rs, "last_modified_by"));
-        entity.setSyncStatus(getString(rs, "sync_status"));
-        entity.setSyncVersion(getInteger(rs, "sync_version"));
-        entity.setLastSyncAt(parseLocalDateTime(rs, "last_sync_at"));
-
+        entity.refreshSyncMetadata();
         return entity;
+    }
+
+    /** Construit une entité depuis une map colonne → valeur (ex. ligne JSON de la passerelle). */
+    public static GenericSyncableEntity fromFields(String tableName, Map<String, Object> values) {
+        GenericSyncableEntity entity = new GenericSyncableEntity(tableName);
+        for (Map.Entry<String, Object> e : values.entrySet()) {
+            String column = e.getKey().toLowerCase();
+            Object value = e.getValue();
+            if (SyncValues.TEMPORAL_COLUMNS.contains(column)) {
+                value = SyncValues.normalizeTemporal(value);
+            }
+            entity.fields.put(column, value);
+        }
+        entity.refreshSyncMetadata();
+        return entity;
+    }
+
+    /** Copie de cette entité avec un autre jeu de champs (ex. FK converties). */
+    public GenericSyncableEntity withFields(Map<String, Object> newFields) {
+        GenericSyncableEntity copy = new GenericSyncableEntity(tableName);
+        copy.fields.putAll(newFields);
+        copy.refreshSyncMetadata();
+        return copy;
+    }
+
+    /** Recalcule les métadonnées de sync (parent) à partir des champs. */
+    public void refreshSyncMetadata() {
+        setCreatedAt(SyncValues.parseDateTime(fields.get("created_at")));
+        setUpdatedAt(SyncValues.parseDateTime(fields.get("updated_at")));
+        setDeletedAt(SyncValues.parseDateTime(fields.get("deleted_at")));
+        Object modifiedBy = fields.get("last_modified_by");
+        setLastModifiedBy(modifiedBy != null ? modifiedBy.toString() : null);
+        Object status = fields.get("sync_status");
+        setSyncStatus(status != null ? status.toString() : null);
+        Object version = fields.get("sync_version");
+        setSyncVersion(version instanceof Number n ? n.intValue()
+                : version != null ? parseIntOrNull(version.toString()) : null);
+        setLastSyncAt(SyncValues.parseDateTime(fields.get("last_sync_at")));
+    }
+
+    private static Integer parseIntOrNull(String text) {
+        try {
+            return Integer.valueOf(text.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     public String getTableName() {
@@ -70,64 +122,42 @@ public class GenericSyncableEntity extends SyncableEntity {
 
     public void setField(String name, Object value) {
         fields.put(name, value);
+        if (SyncValues.SYNC_META_COLUMNS.contains(name)) {
+            refreshSyncMetadata();
+        }
     }
 
     public Map<String, Object> getAllFields() {
-        return new HashMap<>(fields);
+        return new LinkedHashMap<>(fields);
     }
 
     public Integer getId() {
         Object id = fields.get("id");
-        return id != null ? (Integer) id : null;
+        return id instanceof Number n ? n.intValue() : null;
+    }
+
+    /** Valeur textuelle d'un champ (null-safe). */
+    public String getString(String name) {
+        Object value = fields.get(name);
+        return value != null ? value.toString() : null;
     }
 
     @Override
     public Map<String, Object> getFieldValuesForHash() {
-        // Return all non-sync fields for hashing
-        Map<String, Object> hashFields = new HashMap<>();
-
+        // Contenu métier uniquement : ni l'id (différent sur chaque poste),
+        // ni les métadonnées de sync.
+        Map<String, Object> hashFields = new LinkedHashMap<>();
         for (Map.Entry<String, Object> entry : fields.entrySet()) {
             String key = entry.getKey();
-            // Exclude sync metadata fields from hash
-            if (!key.equals("created_at") && !key.equals("updated_at") &&
-                !key.equals("deleted_at") && !key.equals("last_modified_by") &&
-                !key.equals("sync_status") && !key.equals("sync_version") &&
-                !key.equals("last_sync_at")) {
+            if (!key.equals("id") && !SyncValues.SYNC_META_COLUMNS.contains(key)) {
                 hashFields.put(key, entry.getValue());
             }
         }
-
         return hashFields;
     }
 
-    // Helper methods to safely extract values from ResultSet
-    private static String getString(ResultSet rs, String columnName) {
-        try {
-            return rs.getString(columnName);
-        } catch (SQLException e) {
-            return null;
-        }
-    }
-
-    private static Integer getInteger(ResultSet rs, String columnName) {
-        try {
-            int value = rs.getInt(columnName);
-            return rs.wasNull() ? null : value;
-        } catch (SQLException e) {
-            return null;
-        }
-    }
-
-    private static java.time.LocalDateTime parseLocalDateTime(ResultSet rs, String columnName) {
-        try {
-            String dateStr = rs.getString(columnName);
-            if (dateStr != null && !dateStr.isEmpty()) {
-                // Parse SQLite datetime format: 'YYYY-MM-DD HH:MM:SS'
-                return java.time.LocalDateTime.parse(dateStr.replace(" ", "T"));
-            }
-        } catch (Exception e) {
-            // Ignore parsing errors
-        }
-        return null;
+    @Override
+    public String toString() {
+        return tableName + fields;
     }
 }

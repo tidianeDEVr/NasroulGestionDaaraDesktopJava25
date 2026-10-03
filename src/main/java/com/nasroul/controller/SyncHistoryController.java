@@ -2,12 +2,15 @@ package com.nasroul.controller;
 
 import com.nasroul.dao.SyncLogDAO;
 import com.nasroul.dao.SyncLogDAO.SyncLog;
+import com.nasroul.ui.Dialogs;
+import com.nasroul.util.ConfigManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.stage.Window;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -220,49 +223,69 @@ public class SyncHistoryController {
 
     @FXML
     private void handleCleanOldLogs() {
-        // Show confirmation dialog
-        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmAlert.setTitle("Confirmer le nettoyage");
-        confirmAlert.setHeaderText("Nettoyer les anciens logs de synchronisation");
-        confirmAlert.setContentText("Voulez-vous supprimer les logs de plus de 30 jours ?\n\n" +
-                "Cette opération est irréversible.");
-
-        confirmAlert.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                try {
-                    syncLogDAO.cleanOldLogs(30);
-                    loadHistory();
-                    showInfo("Nettoyage réussi", "Les logs de plus de 30 jours ont été supprimés.");
-                } catch (SQLException e) {
-                    showError("Erreur de nettoyage", "Impossible de nettoyer les logs: " + e.getMessage());
-                }
+        int retentionDays = ConfigManager.getInstance().getSyncLogRetentionDays();
+        try {
+            int total = syncLogDAO.countAll();
+            if (total == 0) {
+                Dialogs.info(window(), "Historique vide", "Il n'y a aucun journal de synchronisation à nettoyer.");
+                return;
             }
-        });
+            int old = syncLogDAO.countOlderThan(retentionDays);
+            int deleted;
+            if (old > 0) {
+                boolean ok = Dialogs.confirm(window(), "Confirmer le nettoyage",
+                    "Nettoyer les anciens journaux de synchronisation",
+                    String.format("Supprimer les %d journaux de plus de %d jours (sur %d) ?%n%n"
+                        + "Cette opération est irréversible.", old, retentionDays, total));
+                if (!ok) {
+                    return;
+                }
+                deleted = syncLogDAO.cleanOldLogs(retentionDays);
+            } else {
+                boolean ok = Dialogs.confirm(window(), "Aucun journal ancien",
+                    "Aucun journal n'a plus de " + retentionDays + " jours",
+                    String.format("Le délai de conservation configuré (sync.log.retention.days) est de %d jours "
+                        + "et tous les journaux sont plus récents.%n%n"
+                        + "Voulez-vous supprimer tout l'historique local (%d journaux) ?%n"
+                        + "Le journal partagé sur le serveur n'est pas concerné.", retentionDays, total));
+                if (!ok) {
+                    return;
+                }
+                deleted = syncLogDAO.deleteAll();
+            }
+            loadHistory();
+            Dialogs.info(window(), "Nettoyage effectué",
+                deleted + " journal" + (deleted > 1 ? "aux" : "") + " supprimé" + (deleted > 1 ? "s" : "") + ".");
+        } catch (SQLException e) {
+            showError("Erreur de nettoyage", "Impossible de nettoyer les journaux : " + e.getMessage());
+        }
+    }
+
+    /** Fenêtre propriétaire des dialogues : la fenêtre modale de l'historique. */
+    private Window window() {
+        return btnCleanOldLogs != null && btnCleanOldLogs.getScene() != null
+            ? btnCleanOldLogs.getScene().getWindow() : null;
     }
 
     /**
      * Show error dialog
      */
     private void showError(String title, String message) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-            alert.showAndWait();
-        });
+        if (Platform.isFxApplicationThread()) {
+            Dialogs.error(window(), title, message);
+        } else {
+            Platform.runLater(() -> Dialogs.error(window(), title, message));
+        }
     }
 
     /**
      * Show info dialog
      */
     private void showInfo(String title, String message) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-            alert.showAndWait();
-        });
+        if (Platform.isFxApplicationThread()) {
+            Dialogs.info(window(), title, message);
+        } else {
+            Platform.runLater(() -> Dialogs.info(window(), title, message));
+        }
     }
 }

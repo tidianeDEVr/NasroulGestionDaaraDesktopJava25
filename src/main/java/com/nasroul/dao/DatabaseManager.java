@@ -73,6 +73,9 @@ public class DatabaseManager {
      * Check if MySQL is available for sync
      */
     public boolean isMySQLAvailable() {
+        if (config.isApiSyncMode()) {
+            return false; // le distant est joint via api.php, jamais en JDBC direct
+        }
         try (Connection conn = getMySQLConnection()) {
             return conn != null && !conn.isClosed();
         } catch (SQLException e) {
@@ -135,6 +138,24 @@ public class DatabaseManager {
     }
 
     /**
+     * Crée/migre le schéma SQLite complet (tables métier, tables de sync,
+     * colonnes de sync) sur une connexion donnée. Utilisé par les tests et les
+     * outils : aucune dépendance au singleton ni à la configuration.
+     */
+    public static void initializeSQLiteSchema(Connection conn) throws SQLException {
+        try (Statement stmt = conn.createStatement()) {
+            createTablesSQLite(stmt);
+            createSyncTablesSQLite(stmt);
+            migrateSyncColumns(stmt);
+            migrateRemoteIdColumn(stmt);
+            addColumnIfNotExists(stmt, "projects", "contribution_target", "REAL DEFAULT 0");
+            migrateContributionGroupColumn(stmt);
+            deduplicatePaymentGroups(stmt);
+            createSmsLogTableSQLite(stmt);
+        }
+    }
+
+    /**
      * Make sure the MySQL schema is up to date.
      * Called at startup AND before every sync (SyncManager), because MySQL may have
      * been offline at startup: pushing new columns against an unmigrated schema
@@ -143,6 +164,10 @@ public class DatabaseManager {
     public void ensureMySQLSchema() {
         if (config.isOfflineModeEnabled() || !config.isSyncEnabled()) {
             System.out.println("Sync désactivée (offline mode ou sync.enabled=false) - MySQL ignoré");
+            return;
+        }
+        if (config.isApiSyncMode()) {
+            System.out.println("Sync via passerelle api.php - schéma MySQL géré côté serveur");
             return;
         }
         if (!isMySQLAvailable()) {
@@ -515,7 +540,7 @@ public class DatabaseManager {
         """);
     }
 
-    private void createTablesSQLite(Statement stmt) throws SQLException {
+    static void createTablesSQLite(Statement stmt) throws SQLException {
         stmt.execute("""
             CREATE TABLE IF NOT EXISTS groups (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -669,7 +694,7 @@ public class DatabaseManager {
         """);
     }
 
-    private void createSyncTablesSQLite(Statement stmt) throws SQLException {
+    static void createSyncTablesSQLite(Statement stmt) throws SQLException {
         stmt.execute("""
             CREATE TABLE IF NOT EXISTS sync_metadata (
                 table_name TEXT NOT NULL,
@@ -713,7 +738,7 @@ public class DatabaseManager {
     /**
      * Migrate existing tables to add sync columns (SQLite)
      */
-    private void migrateSyncColumns(Statement stmt) throws SQLException {
+    static void migrateSyncColumns(Statement stmt) throws SQLException {
         String[] tables = {"groups", "members", "events", "projects", "expenses", "contributions", "payment_groups"};
 
         for (String table : tables) {
@@ -750,7 +775,7 @@ public class DatabaseManager {
     /**
      * Migrate sync_metadata to add remote_id column (SQLite)
      */
-    private void migrateRemoteIdColumn(Statement stmt) throws SQLException {
+    static void migrateRemoteIdColumn(Statement stmt) throws SQLException {
         addColumnIfNotExists(stmt, "sync_metadata", "remote_id", "INTEGER");
         System.out.println("Added remote_id column to sync_metadata (SQLite)");
     }

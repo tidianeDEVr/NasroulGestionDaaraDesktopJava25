@@ -2,6 +2,8 @@ package com.nasroul.dao;
 
 import com.nasroul.model.Event;
 
+import com.nasroul.util.DeviceIdGenerator;
+
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -17,7 +19,7 @@ public class EventDAO {
     public void create(Event event) throws SQLException {
         String sql = """
             INSERT INTO events (name, description, start_date, end_date, location, status, organizer_id, max_capacity, contribution_target, active, created_at, updated_at, last_modified_by, sync_status, sync_version)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?, 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -49,6 +51,7 @@ public class EventDAO {
             // SQLite stores boolean as integer (0 or 1)
             pstmt.setInt(10, event.isActive() ? 1 : 0);
 
+            pstmt.setString(11, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
 
             // Get generated ID using last_insert_rowid() for SQLite compatibility
@@ -111,7 +114,7 @@ public class EventDAO {
             UPDATE events
             SET name = ?, description = ?, start_date = ?, end_date = ?,
                 location = ?, status = ?, organizer_id = ?, max_capacity = ?, contribution_target = ?, active = ?,
-                updated_at = datetime('now'), last_modified_by = 'system', sync_status = 'PENDING', sync_version = sync_version + 1
+                updated_at = datetime('now'), last_modified_by = ?, sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
 
@@ -144,8 +147,9 @@ public class EventDAO {
             // SQLite stores boolean as integer (0 or 1)
             pstmt.setInt(10, event.isActive() ? 1 : 0);
 
-            pstmt.setInt(11, event.getId());
+            pstmt.setInt(12, event.getId());
 
+            pstmt.setString(11, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
         }
     }
@@ -155,7 +159,7 @@ public class EventDAO {
             UPDATE events
             SET deleted_at = datetime('now'),
                 updated_at = datetime('now'),
-                last_modified_by = 'system',
+                last_modified_by = ?,
                 sync_status = 'PENDING',
                 sync_version = sync_version + 1
             WHERE id = ?
@@ -164,7 +168,8 @@ public class EventDAO {
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setInt(1, id);
+            pstmt.setInt(2, id);
+            pstmt.setString(1, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
         }
     }

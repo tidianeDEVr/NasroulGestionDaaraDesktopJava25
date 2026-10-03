@@ -2,6 +2,8 @@ package com.nasroul.dao;
 
 import com.nasroul.model.Project;
 
+import com.nasroul.util.DeviceIdGenerator;
+
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -17,7 +19,7 @@ public class ProjectDAO {
     public void create(Project project) throws SQLException {
         String sql = """
             INSERT INTO projects (name, description, start_date, end_date, status, budget, contribution_target, manager_id, created_at, updated_at, last_modified_by, sync_status, sync_version)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?, 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -38,6 +40,7 @@ public class ProjectDAO {
                 pstmt.setNull(8, Types.INTEGER);
             }
 
+            pstmt.setString(9, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
 
             // Get generated ID using last_insert_rowid() for SQLite compatibility
@@ -100,7 +103,7 @@ public class ProjectDAO {
             UPDATE projects
             SET name = ?, description = ?, start_date = ?, end_date = ?,
                 status = ?, budget = ?, contribution_target = ?, manager_id = ?,
-                updated_at = datetime('now'), last_modified_by = 'system', sync_status = 'PENDING', sync_version = sync_version + 1
+                updated_at = datetime('now'), last_modified_by = ?, sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
 
@@ -122,8 +125,9 @@ public class ProjectDAO {
                 pstmt.setNull(8, Types.INTEGER);
             }
 
-            pstmt.setInt(9, project.getId());
+            pstmt.setInt(10, project.getId());
 
+            pstmt.setString(9, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
         }
     }
@@ -133,7 +137,7 @@ public class ProjectDAO {
             UPDATE projects
             SET deleted_at = datetime('now'),
                 updated_at = datetime('now'),
-                last_modified_by = 'system',
+                last_modified_by = ?,
                 sync_status = 'PENDING',
                 sync_version = sync_version + 1
             WHERE id = ?
@@ -142,7 +146,8 @@ public class ProjectDAO {
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setInt(1, id);
+            pstmt.setInt(2, id);
+            pstmt.setString(1, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
         }
     }

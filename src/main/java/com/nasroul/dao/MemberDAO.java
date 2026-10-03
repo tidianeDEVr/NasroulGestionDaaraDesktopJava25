@@ -2,6 +2,8 @@ package com.nasroul.dao;
 
 import com.nasroul.model.Member;
 
+import com.nasroul.util.DeviceIdGenerator;
+
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -50,7 +52,7 @@ public class MemberDAO {
             }
 
             // Sync metadata
-            pstmt.setString(12, member.getLastModifiedBy() != null ? member.getLastModifiedBy() : "system");
+            pstmt.setString(12, DeviceIdGenerator.getDeviceId());
 
             pstmt.executeUpdate();
 
@@ -174,7 +176,7 @@ public class MemberDAO {
             }
 
             // Sync metadata
-            pstmt.setString(12, member.getLastModifiedBy() != null ? member.getLastModifiedBy() : "system");
+            pstmt.setString(12, DeviceIdGenerator.getDeviceId());
             pstmt.setInt(13, member.getId());
 
             pstmt.executeUpdate();
@@ -191,14 +193,15 @@ public class MemberDAO {
         // Soft delete - mark as deleted instead of physical deletion
         String sql = """
             UPDATE members
-            SET deleted_at = datetime('now'), sync_status = 'PENDING', sync_version = sync_version + 1
+            SET deleted_at = datetime('now'), updated_at = datetime('now'), last_modified_by = ?, sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
 
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setInt(1, id);
+            pstmt.setInt(2, id);
+            pstmt.setString(1, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
         }
     }

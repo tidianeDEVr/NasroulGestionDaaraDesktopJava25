@@ -37,3 +37,6 @@ association.db
 dist/
 launch4j.generated.xml
 jpackage-output.log
+
+# Secrets de la passerelle de synchronisation
+server/api.config.php

@@ -1,117 +1,115 @@
 package com.nasroul.dao;
 
+import com.nasroul.sync.SyncValues;
+
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * DAO for sync_metadata table
- * Tracks synchronization state for each record
+ * DAO de la table locale sync_metadata : pour chaque ligne synchronisée,
+ * l'id distant (mapping local ↔ MySQL), la version et le hash du contenu
+ * lors de la dernière synchronisation (base de la fusion à trois voies).
+ *
+ * Toutes les opérations existent en deux variantes : avec une Connection
+ * fournie (utilisée par SyncManager dans sa transaction de session) ou sans
+ * (ouverture/fermeture d'une connexion locale à chaque appel).
  */
 public class SyncMetadataDAO {
-    private final DatabaseManager dbManager;
+
+    /** Fournisseur de connexion locale (SQLite). */
+    @FunctionalInterface
+    public interface ConnectionSource {
+        Connection open() throws SQLException;
+    }
+
+    private final ConnectionSource local;
 
     public SyncMetadataDAO() {
-        this.dbManager = DatabaseManager.getInstance();
+        this(() -> DatabaseManager.getInstance().getSQLiteConnection());
     }
+
+    public SyncMetadataDAO(ConnectionSource local) {
+        this.local = local;
+    }
+
+    // ------------------------------------------------------------------ save
 
     /**
-     * Save or update sync metadata for a record
+     * Enregistre (upsert) l'état de sync d'une ligne. Un remoteId null ne
+     * supprime jamais un mapping existant.
      */
-    public void save(String tableName, int recordId, int syncVersion,
-                     String localHash, String remoteHash, String syncStatus) throws SQLException {
-
-        // Check if exists
-        if (exists(tableName, recordId)) {
-            update(tableName, recordId, syncVersion, localHash, remoteHash, syncStatus);
-        } else {
-            insert(tableName, recordId, syncVersion, localHash, remoteHash, syncStatus);
-        }
-    }
-
-    private void insert(String tableName, int recordId, int syncVersion,
-                       String localHash, String remoteHash, String syncStatus) throws SQLException {
+    public void save(Connection conn, String tableName, int recordId, Integer remoteId,
+                     int syncVersion, String contentHash, String syncStatus) throws SQLException {
         String sql = """
             INSERT INTO sync_metadata
-            (table_name, record_id, sync_version, local_hash, remote_hash,
-             last_sync_at, sync_status, conflict_resolution)
-            VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?)
+                (table_name, record_id, remote_id, sync_version, local_hash, remote_hash,
+                 last_sync_at, sync_status, conflict_resolution)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
+            ON CONFLICT(table_name, record_id) DO UPDATE SET
+                remote_id = COALESCE(excluded.remote_id, sync_metadata.remote_id),
+                sync_version = excluded.sync_version,
+                local_hash = excluded.local_hash,
+                remote_hash = excluded.remote_hash,
+                last_sync_at = excluded.last_sync_at,
+                sync_status = excluded.sync_status
             """;
-
-        try (Connection conn = dbManager.getSQLiteConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, tableName);
             pstmt.setInt(2, recordId);
-            pstmt.setInt(3, syncVersion);
-            pstmt.setString(4, localHash);
-            pstmt.setString(5, remoteHash);
-            pstmt.setString(6, syncStatus);
-            pstmt.setString(7, null); // conflict_resolution
-
+            if (remoteId != null) pstmt.setInt(3, remoteId); else pstmt.setNull(3, Types.INTEGER);
+            pstmt.setInt(4, syncVersion);
+            pstmt.setString(5, contentHash);
+            pstmt.setString(6, contentHash);
+            pstmt.setString(7, SyncValues.nowUtc());
+            pstmt.setString(8, syncStatus);
             pstmt.executeUpdate();
         }
     }
 
-    private void update(String tableName, int recordId, int syncVersion,
-                       String localHash, String remoteHash, String syncStatus) throws SQLException {
-        String sql = """
-            UPDATE sync_metadata
-            SET sync_version = ?, local_hash = ?, remote_hash = ?,
-                last_sync_at = datetime('now'), sync_status = ?
-            WHERE table_name = ? AND record_id = ?
-            """;
+    /** Variante historique (sans remoteId, connexion autonome). */
+    public void save(String tableName, int recordId, int syncVersion,
+                     String localHash, String remoteHash, String syncStatus) throws SQLException {
+        try (Connection conn = local.open()) {
+            save(conn, tableName, recordId, null, syncVersion, localHash, syncStatus);
+        }
+    }
 
-        try (Connection conn = dbManager.getSQLiteConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, syncVersion);
-            pstmt.setString(2, localHash);
-            pstmt.setString(3, remoteHash);
-            pstmt.setString(4, syncStatus);
-            pstmt.setString(5, tableName);
-            pstmt.setInt(6, recordId);
-
+    public void delete(Connection conn, String tableName, int recordId) throws SQLException {
+        try (PreparedStatement pstmt = conn.prepareStatement(
+                "DELETE FROM sync_metadata WHERE table_name = ? AND record_id = ?")) {
+            pstmt.setString(1, tableName);
+            pstmt.setInt(2, recordId);
             pstmt.executeUpdate();
         }
     }
+
+    // ------------------------------------------------------------------ read
 
     public boolean exists(String tableName, int recordId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM sync_metadata WHERE table_name = ? AND record_id = ?";
-
-        try (Connection conn = dbManager.getSQLiteConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, tableName);
-            pstmt.setInt(2, recordId);
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                return rs.next() && rs.getInt(1) > 0;
-            }
+        try (Connection conn = local.open()) {
+            return get(conn, tableName, recordId) != null;
         }
     }
 
-    /**
-     * Get sync metadata for a specific record
-     */
     public SyncMetadata get(String tableName, int recordId) throws SQLException {
+        try (Connection conn = local.open()) {
+            return get(conn, tableName, recordId);
+        }
+    }
+
+    public SyncMetadata get(Connection conn, String tableName, int recordId) throws SQLException {
         String sql = "SELECT * FROM sync_metadata WHERE table_name = ? AND record_id = ?";
-
-        try (Connection conn = dbManager.getSQLiteConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, tableName);
             pstmt.setInt(2, recordId);
-
             try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return extractSyncMetadata(rs);
-                }
+                return rs.next() ? extractSyncMetadata(rs) : null;
             }
         }
-
-        return null;
     }
 
     /**
@@ -120,16 +118,13 @@ public class SyncMetadataDAO {
     public List<SyncMetadata> getPendingSync() throws SQLException {
         List<SyncMetadata> pending = new ArrayList<>();
         String sql = "SELECT * FROM sync_metadata WHERE sync_status IN ('PENDING', 'CONFLICT')";
-
-        try (Connection conn = dbManager.getSQLiteConnection();
+        try (Connection conn = local.open();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
-
             while (rs.next()) {
                 pending.add(extractSyncMetadata(rs));
             }
         }
-
         return pending;
     }
 
@@ -137,212 +132,64 @@ public class SyncMetadataDAO {
      * Mark conflict resolution
      */
     public void markConflictResolved(String tableName, int recordId, String resolution) throws SQLException {
+        try (Connection conn = local.open()) {
+            markConflictResolved(conn, tableName, recordId, resolution);
+        }
+    }
+
+    public void markConflictResolved(Connection conn, String tableName, int recordId, String resolution)
+            throws SQLException {
         String sql = """
             UPDATE sync_metadata
-            SET conflict_resolution = ?, sync_status = 'SYNCED', last_sync_at = datetime('now')
+            SET conflict_resolution = ?, sync_status = 'SYNCED', last_sync_at = ?
             WHERE table_name = ? AND record_id = ?
             """;
-
-        try (Connection conn = dbManager.getSQLiteConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, resolution);
-            pstmt.setString(2, tableName);
-            pstmt.setInt(3, recordId);
-
+            pstmt.setString(2, SyncValues.nowUtc());
+            pstmt.setString(3, tableName);
+            pstmt.setInt(4, recordId);
             pstmt.executeUpdate();
         }
     }
 
-    /**
-     * Save metadata to MySQL server (for cross-device sync)
-     */
-    public void saveMySQLMetadata(String tableName, int recordId, int syncVersion,
-                                  String localHash, String remoteHash, String syncStatus) throws SQLException {
-        // Check if MySQL is available
-        if (!dbManager.isMySQLAvailable()) {
-            return; // Skip if MySQL not available
-        }
-
-        // Check if exists in MySQL
-        if (existsMySQL(tableName, recordId)) {
-            updateMySQL(tableName, recordId, syncVersion, localHash, remoteHash, syncStatus);
-        } else {
-            insertMySQL(tableName, recordId, syncVersion, localHash, remoteHash, syncStatus);
-        }
-    }
-
-    private boolean existsMySQL(String tableName, int recordId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM sync_metadata WHERE table_name = ? AND record_id = ?";
-
-        try (Connection conn = dbManager.getMySQLConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, tableName);
-            pstmt.setInt(2, recordId);
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                return rs.next() && rs.getInt(1) > 0;
-            }
-        }
-    }
-
-    private void insertMySQL(String tableName, int recordId, int syncVersion,
-                            String localHash, String remoteHash, String syncStatus) throws SQLException {
-        String sql = """
-            INSERT INTO sync_metadata
-            (table_name, record_id, sync_version, local_hash, remote_hash,
-             last_sync_at, sync_status, conflict_resolution)
-            VALUES (?, ?, ?, ?, ?, NOW(), ?, ?)
-            """;
-
-        try (Connection conn = dbManager.getMySQLConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, tableName);
-            pstmt.setInt(2, recordId);
-            pstmt.setInt(3, syncVersion);
-            pstmt.setString(4, localHash);
-            pstmt.setString(5, remoteHash);
-            pstmt.setString(6, syncStatus);
-            pstmt.setString(7, null); // conflict_resolution
-
-            pstmt.executeUpdate();
-        }
-    }
-
-    private void updateMySQL(String tableName, int recordId, int syncVersion,
-                            String localHash, String remoteHash, String syncStatus) throws SQLException {
-        String sql = """
-            UPDATE sync_metadata
-            SET sync_version = ?, local_hash = ?, remote_hash = ?,
-                last_sync_at = NOW(), sync_status = ?
-            WHERE table_name = ? AND record_id = ?
-            """;
-
-        try (Connection conn = dbManager.getMySQLConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, syncVersion);
-            pstmt.setString(2, localHash);
-            pstmt.setString(3, remoteHash);
-            pstmt.setString(4, syncStatus);
-            pstmt.setString(5, tableName);
-            pstmt.setInt(6, recordId);
-
-            pstmt.executeUpdate();
-        }
-    }
+    // --------------------------------------------------------------- mapping
 
     /**
-     * Get sync metadata from MySQL server
-     */
-    public SyncMetadata getMySQLMetadata(String tableName, int recordId) throws SQLException {
-        if (!dbManager.isMySQLAvailable()) {
-            return null;
-        }
-
-        String sql = "SELECT * FROM sync_metadata WHERE table_name = ? AND record_id = ?";
-
-        try (Connection conn = dbManager.getMySQLConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, tableName);
-            pstmt.setInt(2, recordId);
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return extractSyncMetadataMySQL(rs);
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private SyncMetadata extractSyncMetadataMySQL(ResultSet rs) throws SQLException {
-        SyncMetadata meta = new SyncMetadata();
-        meta.setTableName(rs.getString("table_name"));
-        meta.setRecordId(rs.getInt("record_id"));
-
-        // Extract remote_id (can be null)
-        int remoteId = rs.getInt("remote_id");
-        meta.setRemoteId(rs.wasNull() ? null : remoteId);
-
-        meta.setSyncVersion(rs.getInt("sync_version"));
-        meta.setLocalHash(rs.getString("local_hash"));
-        meta.setRemoteHash(rs.getString("remote_hash"));
-
-        // MySQL stores DATETIME properly - use getTimestamp
-        Timestamp lastSync = rs.getTimestamp("last_sync_at");
-        if (lastSync != null) {
-            meta.setLastSyncAt(lastSync.toLocalDateTime());
-        }
-
-        meta.setSyncStatus(rs.getString("sync_status"));
-        meta.setConflictResolution(rs.getString("conflict_resolution"));
-
-        return meta;
-    }
-
-    private SyncMetadata extractSyncMetadata(ResultSet rs) throws SQLException {
-        SyncMetadata meta = new SyncMetadata();
-        meta.setTableName(rs.getString("table_name"));
-        meta.setRecordId(rs.getInt("record_id"));
-
-        // Extract remote_id (can be null)
-        int remoteId = rs.getInt("remote_id");
-        meta.setRemoteId(rs.wasNull() ? null : remoteId);
-
-        meta.setSyncVersion(rs.getInt("sync_version"));
-        meta.setLocalHash(rs.getString("local_hash"));
-        meta.setRemoteHash(rs.getString("remote_hash"));
-
-        // SQLite stores datetime as TEXT - parse manually
-        String lastSyncStr = rs.getString("last_sync_at");
-        if (lastSyncStr != null && !lastSyncStr.isEmpty()) {
-            try {
-                meta.setLastSyncAt(LocalDateTime.parse(lastSyncStr.replace(" ", "T")));
-            } catch (Exception e) {
-                // Ignore parsing errors
-            }
-        }
-
-        meta.setSyncStatus(rs.getString("sync_status"));
-        meta.setConflictResolution(rs.getString("conflict_resolution"));
-
-        return meta;
-    }
-
-    /**
-     * Set the remote ID for a local record
+     * Associe une ligne locale à son id distant (upsert : la ligne de
+     * métadonnées est créée si elle n'existe pas encore).
      */
     public void setRemoteId(String tableName, int localId, int remoteId) throws SQLException {
-        String sql = "UPDATE sync_metadata SET remote_id = ? WHERE table_name = ? AND record_id = ?";
+        try (Connection conn = local.open()) {
+            setRemoteId(conn, tableName, localId, remoteId);
+        }
+    }
 
-        try (Connection conn = dbManager.getSQLiteConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, remoteId);
-            pstmt.setString(2, tableName);
-            pstmt.setInt(3, localId);
-
+    public void setRemoteId(Connection conn, String tableName, int localId, int remoteId) throws SQLException {
+        String sql = """
+            INSERT INTO sync_metadata (table_name, record_id, remote_id, sync_version, sync_status)
+            VALUES (?, ?, ?, 1, 'PENDING')
+            ON CONFLICT(table_name, record_id) DO UPDATE SET remote_id = excluded.remote_id
+            """;
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, tableName);
+            pstmt.setInt(2, localId);
+            pstmt.setInt(3, remoteId);
             pstmt.executeUpdate();
         }
     }
 
-    /**
-     * Get remote ID for a local record
-     */
     public Integer getRemoteId(String tableName, int localId) throws SQLException {
+        try (Connection conn = local.open()) {
+            return getRemoteId(conn, tableName, localId);
+        }
+    }
+
+    public Integer getRemoteId(Connection conn, String tableName, int localId) throws SQLException {
         String sql = "SELECT remote_id FROM sync_metadata WHERE table_name = ? AND record_id = ?";
-
-        try (Connection conn = dbManager.getSQLiteConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, tableName);
             pstmt.setInt(2, localId);
-
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     int remoteId = rs.getInt("remote_id");
@@ -350,30 +197,58 @@ public class SyncMetadataDAO {
                 }
             }
         }
-
         return null;
     }
 
-    /**
-     * Get local ID for a remote record
-     */
     public Integer getLocalIdByRemoteId(String tableName, int remoteId) throws SQLException {
-        String sql = "SELECT record_id FROM sync_metadata WHERE table_name = ? AND remote_id = ?";
+        try (Connection conn = local.open()) {
+            return getLocalIdByRemoteId(conn, tableName, remoteId);
+        }
+    }
 
-        try (Connection conn = dbManager.getSQLiteConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+    public Integer getLocalIdByRemoteId(Connection conn, String tableName, int remoteId) throws SQLException {
+        String sql = "SELECT record_id FROM sync_metadata WHERE table_name = ? AND remote_id = ? ORDER BY record_id";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, tableName);
             pstmt.setInt(2, remoteId);
-
             try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("record_id");
+                return rs.next() ? rs.getInt("record_id") : null;
+            }
+        }
+    }
+
+    /** Tous les mappings d'une table : id local → id distant. */
+    public Map<Integer, Integer> getLocalToRemoteMap(Connection conn, String tableName) throws SQLException {
+        Map<Integer, Integer> map = new HashMap<>();
+        String sql = "SELECT record_id, remote_id FROM sync_metadata WHERE table_name = ? AND remote_id IS NOT NULL";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, tableName);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    map.put(rs.getInt("record_id"), rs.getInt("remote_id"));
                 }
             }
         }
+        return map;
+    }
 
-        return null;
+    // --------------------------------------------------------------- extract
+
+    private SyncMetadata extractSyncMetadata(ResultSet rs) throws SQLException {
+        SyncMetadata meta = new SyncMetadata();
+        meta.setTableName(rs.getString("table_name"));
+        meta.setRecordId(rs.getInt("record_id"));
+
+        int remoteId = rs.getInt("remote_id");
+        meta.setRemoteId(rs.wasNull() ? null : remoteId);
+
+        meta.setSyncVersion(rs.getInt("sync_version"));
+        meta.setLocalHash(rs.getString("local_hash"));
+        meta.setRemoteHash(rs.getString("remote_hash"));
+        meta.setLastSyncAt(SyncValues.parseDateTime(rs.getString("last_sync_at")));
+        meta.setSyncStatus(rs.getString("sync_status"));
+        meta.setConflictResolution(rs.getString("conflict_resolution"));
+        return meta;
     }
 
     /**
@@ -390,7 +265,6 @@ public class SyncMetadataDAO {
         private String syncStatus;
         private String conflictResolution;
 
-        // Getters and setters
         public String getTableName() { return tableName; }
         public void setTableName(String tableName) { this.tableName = tableName; }
 

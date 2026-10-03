@@ -2,6 +2,8 @@ package com.nasroul.dao;
 
 import com.nasroul.model.PaymentGroup;
 
+import com.nasroul.util.DeviceIdGenerator;
+
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +18,7 @@ public class PaymentGroupDAO {
     public void create(PaymentGroup paymentGroup) throws SQLException {
         String sql = """
             INSERT INTO payment_groups (group_id, entity_type, entity_id, amount, created_at, updated_at, last_modified_by, sync_status, sync_version)
-            VALUES (?, ?, ?, ?, datetime('now'), datetime('now'), 'system', 'PENDING', 1)
+            VALUES (?, ?, ?, ?, datetime('now'), datetime('now'), ?, 'PENDING', 1)
             """;
 
         try (Connection conn = dbManager.getConnection();
@@ -27,6 +29,7 @@ public class PaymentGroupDAO {
             pstmt.setInt(3, paymentGroup.getEntityId());
             pstmt.setDouble(4, paymentGroup.getAmount());
 
+            pstmt.setString(5, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
 
             // Get generated ID using last_insert_rowid() for SQLite compatibility
@@ -158,7 +161,7 @@ public class PaymentGroupDAO {
         String sql = """
             UPDATE payment_groups
             SET group_id = ?, entity_type = ?, entity_id = ?, amount = ?,
-                updated_at = datetime('now'), last_modified_by = 'system', sync_status = 'PENDING', sync_version = sync_version + 1
+                updated_at = datetime('now'), last_modified_by = ?, sync_status = 'PENDING', sync_version = sync_version + 1
             WHERE id = ?
             """;
 
@@ -169,8 +172,9 @@ public class PaymentGroupDAO {
             pstmt.setString(2, paymentGroup.getEntityType());
             pstmt.setInt(3, paymentGroup.getEntityId());
             pstmt.setDouble(4, paymentGroup.getAmount());
-            pstmt.setInt(5, paymentGroup.getId());
+            pstmt.setInt(6, paymentGroup.getId());
 
+            pstmt.setString(5, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
         }
     }
@@ -180,7 +184,7 @@ public class PaymentGroupDAO {
             UPDATE payment_groups
             SET deleted_at = datetime('now'),
                 updated_at = datetime('now'),
-                last_modified_by = 'system',
+                last_modified_by = ?,
                 sync_status = 'PENDING',
                 sync_version = sync_version + 1
             WHERE id = ?
@@ -189,7 +193,8 @@ public class PaymentGroupDAO {
         try (Connection conn = dbManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setInt(1, id);
+            pstmt.setInt(2, id);
+            pstmt.setString(1, DeviceIdGenerator.getDeviceId()); // last_modified_by
             pstmt.executeUpdate();
         }
     }

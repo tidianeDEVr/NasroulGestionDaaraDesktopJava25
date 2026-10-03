@@ -68,6 +68,13 @@
       <version>5.2.5</version>
     </dependency>
 
+    <!-- Gson : JSON de la passerelle de synchronisation api.php -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.10</version>
+    </dependency>
+
     <!-- Unirest for HTTP requests -->
     <dependency>
       <groupId>com.konghq</groupId>
