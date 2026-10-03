@@ -13,7 +13,7 @@
 <launch4jConfig>
   <dontWrapJar>false</dontWrapJar>
   <headerType>gui</headerType>
-  <jar>target\AssociationManager-2.0.0.jar</jar>
+  <jar>target\AssociationManager-2.2.0.jar</jar>
   <outfile>dist\NasroulGestion.exe</outfile>
   <errTitle>NasroulGestion</errTitle>
   <cmdLine></cmdLine>
@@ -37,12 +37,12 @@
   </jre>
 
   <versionInfo>
-    <fileVersion>2.0.0.0</fileVersion>
-    <txtFileVersion>2.0.0</txtFileVersion>
+    <fileVersion>2.2.0.0</fileVersion>
+    <txtFileVersion>2.2.0</txtFileVersion>
     <fileDescription>Gestionnaire d'Association Nasroul</fileDescription>
     <copyright>Nasroul</copyright>
-    <productVersion>2.0.0.0</productVersion>
-    <txtProductVersion>2.0.0</txtProductVersion>
+    <productVersion>2.2.0.0</productVersion>
+    <txtProductVersion>2.2.0</txtProductVersion>
     <productName>NasroulGestion</productName>
     <companyName>Nasroul</companyName>
     <internalName>NasroulGestion</internalName>

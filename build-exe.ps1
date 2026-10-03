@@ -3,7 +3,7 @@
 #          .\build-exe.ps1 -AppVersion 2.0.1
 #          .\build-exe.ps1 -Portable      (dossier portable, sans WiX)
 param(
-    [string]$AppVersion = '2.0.0',
+    [string]$AppVersion = '2.2.0',
     # -Portable : produit une application portable (dossier) au lieu d'un installateur.
     #             Ne necessite pas WiX, mais pas de raccourcis ni de mise a jour automatique.
     [switch]$Portable

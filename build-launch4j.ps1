@@ -8,7 +8,7 @@
 #            (ou zipper le dossier dist).
 
 param(
-    [string]$AppVersion = '2.0.0',
+    [string]$AppVersion = '2.2.0',
     [switch]$SkipRuntime
 )
 

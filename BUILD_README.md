@@ -25,7 +25,7 @@ Ce guide explique comment créer un fichier .exe pour l'application NasroulGesti
      ```
      `build-exe.ps1` détecte `C:\wix314` automatiquement.
    - WiX 3.14 peut cohabiter avec une version 4+ déjà installée.
-   - **Sans WiX** : `build-exe.bat 2.0.0 portable` produit une application portable (dossier).
+   - **Sans WiX** : `build-exe.bat 2.2.0 portable` produit une application portable (dossier).
 
 ## Génération de l'Exécutable
 
@@ -48,10 +48,10 @@ Ce guide explique comment créer un fichier .exe pour l'application NasroulGesti
 
    Sans WiX (application portable dans `dist\NasroulGestion\`, pas d'installateur) :
    ```batch
-   build-exe.bat 2.0.0 portable
+   build-exe.bat 2.2.0 portable
    ```
 
-3. L'exécutable sera créé dans le dossier `dist/` avec le nom `NasroulGestion-2.0.0.exe`
+3. L'exécutable sera créé dans le dossier `dist/` avec le nom `NasroulGestion-2.2.0.exe`
 
 Le script utilise automatiquement `mvnw.cmd` s'il est présent, sinon `mvn` du PATH.
 
@@ -69,7 +69,7 @@ Si vous préférez exécuter les commandes manuellement :
    ```batch
    jpackage --input target ^
        --name NasroulGestion ^
-       --main-jar AssociationManager-2.0.0.jar ^
+       --main-jar AssociationManager-2.2.0.jar ^
        --main-class com.nasroul.Launcher ^
        --type exe ^
        --icon src/main/resources/images/icon.ico ^
@@ -77,7 +77,7 @@ Si vous préférez exécuter les commandes manuellement :
        --win-shortcut ^
        --win-menu ^
        --win-upgrade-uuid 8a4f3c7b-1d2e-4f6a-9b8c-3e5d7a1c9f4b ^
-       --app-version 2.0.0 ^
+       --app-version 2.2.0 ^
        --vendor "Nasroul" ^
        --description "Gestionnaire d'Association Nasroul" ^
        --java-options "--enable-native-access=javafx.graphics,ALL-UNNAMED"
@@ -156,7 +156,7 @@ la mise à jour automatique d'une installation existante.
 ## Résultat
 
 Le script génère :
-- **Un installateur EXE** : `dist/NasroulGestion-2.0.0.exe`
+- **Un installateur EXE** : `dist/NasroulGestion-2.2.0.exe`
 - **Des raccourcis automatiques** dans le Menu Démarrer
 - **Option de raccourci** sur le Bureau lors de l'installation
 
@@ -168,11 +168,11 @@ Remplacer `--type exe` par `--type msi` dans la commande jpackage (nécessite Wi
 
 ### Personnaliser la Version (IMPORTANT pour les mises à jour)
 
-La version courante est **2.0.0**. Elle est définie à trois endroits qui doivent rester cohérents :
+La version courante est **2.2.0**. Elle est définie à trois endroits qui doivent rester cohérents :
 
 | Endroit | Rôle |
 |---|---|
-| `pom.xml` → `<version>` | nom du JAR produit (`AssociationManager-2.0.0.jar`) |
+| `pom.xml` → `<version>` | nom du JAR produit (`AssociationManager-2.2.0.jar`) |
 | `build-exe.ps1` → `-AppVersion` | version de l'installateur Windows |
 | `src/main/resources/fxml/MainView.fxml` | version affichée dans l'application |
 
@@ -181,7 +181,7 @@ le nouvel installateur a un **numéro de version strictement supérieur** à cel
 **et** le même `--win-upgrade-uuid` (`8a4f3c7b-1d2e-4f6a-9b8c-3e5d7a1c9f4b`, à ne jamais modifier).
 Si vous rediffusez un EXE avec la même version, l'installation existante n'est pas remplacée.
 
-Donc à chaque livraison : incrémentez la version (2.0.0 → 2.0.1 → 2.1.0 …) avant de builder.
+Donc à chaque livraison : incrémentez la version (2.2.0 → 2.0.1 → 2.2.0 …) avant de builder.
 Format imposé par Windows : `majeur.mineur.correctif` en chiffres uniquement (pas de `-SNAPSHOT`,
 majeur ≤ 255).
 
@@ -198,7 +198,7 @@ Modifier `--java-options` pour ajouter des paramètres comme :
 
 WiX 4/5/7 est installé, mais jpackage exige **WiX 3.x**. Voir les [Prérequis](#prérequis) :
 installez `wix314-binaries.zip` dans `C:\wix314`, ou générez une application portable avec
-`build-exe.bat 2.0.0 portable`.
+`build-exe.bat 2.2.0 portable`.
 
 ### Erreur : "jpackage n'est pas reconnu" alors que java et javac fonctionnent
 
@@ -243,7 +243,7 @@ Ajoutez le goal : `mvnw.cmd clean package -P windows`.
 ## Distribution
 
 Une fois l'exécutable créé, vous pouvez :
-1. Distribuer directement le fichier `NasroulGestion-2.0.0.exe`
+1. Distribuer directement le fichier `NasroulGestion-2.2.0.exe`
 2. Les utilisateurs l'exécutent pour installer l'application
 3. L'application sera installée dans `C:\Program Files\NasroulGestion\`
 4. Un raccourci sera créé dans le Menu Démarrer

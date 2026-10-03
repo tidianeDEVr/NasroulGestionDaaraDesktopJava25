@@ -213,7 +213,7 @@ mvn javafx:run
 Ou exécuter le JAR généré :
 
 ```bash
-java -jar target/AssociationManager-2.0.0.jar
+java -jar target/AssociationManager-2.2.0.jar
 ```
 
 ---

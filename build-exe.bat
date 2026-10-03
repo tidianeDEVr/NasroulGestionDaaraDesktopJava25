@@ -6,7 +6,7 @@ REM          build-exe.bat 2.0.1 portable  (application portable, sans WiX)
 
 setlocal
 set "APPVER=%~1"
-if "%APPVER%"=="" set "APPVER=2.0.0"
+if "%APPVER%"=="" set "APPVER=2.2.0"
 
 set "EXTRA="
 if /i "%~2"=="portable" set "EXTRA=-Portable"
