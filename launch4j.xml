@@ -16,14 +16,11 @@
   <jar>target\AssociationManager-2.2.0.jar</jar>
   <outfile>dist\NasroulGestion.exe</outfile>
   <errTitle>NasroulGestion</errTitle>
-  <cmdLine></cmdLine>
   <chdir>.</chdir>
   <priority>normal</priority>
   <downloadUrl>https://adoptium.net/</downloadUrl>
-  <supportUrl></supportUrl>
   <stayAlive>false</stayAlive>
   <restartOnCrash>false</restartOnCrash>
-  <manifest></manifest>
   <icon>src\main\resources\images\icon.ico</icon>
 
   <jre>

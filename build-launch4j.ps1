@@ -130,6 +130,12 @@ $cfgSrc = Join-Path $root 'launch4j.xml'
 if (-not (Test-Path $cfgSrc)) { Write-Error "ERREUR: launch4j.xml introuvable."; exit 1 }
 
 [xml]$cfg = Get-Content $cfgSrc -Encoding UTF8
+# Les elements vides (manifest, cmdLine, supportUrl) sont pris par Launch4j pour
+# des chemins de fichiers : on les retire s'ils sont presents et vides.
+foreach ($name in @('manifest', 'cmdLine', 'supportUrl')) {
+    $node = $cfg.launch4jConfig.SelectSingleNode($name)
+    if ($node -and [string]::IsNullOrWhiteSpace($node.InnerText)) { [void]$cfg.launch4jConfig.RemoveChild($node) }
+}
 $cfg.launch4jConfig.jar     = "target\$($jar.Name)"
 $cfg.launch4jConfig.outfile = "dist\NasroulGestion.exe"
 if ($SkipRuntime) {
