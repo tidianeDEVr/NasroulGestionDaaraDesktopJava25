@@ -87,7 +87,9 @@ if ($SkipRuntime) {
     if (-not $jlinkPath) {
         # Le java du PATH connait son vrai dossier d'installation (java.home) :
         # on y cherche jlink, meme sans JAVA_HOME et meme via le raccourci javapath.
-        $props = & java -XshowSettings:properties -version 2>&1 | Out-String
+        # java ecrit ces proprietes sur stderr : la fusion est faite par cmd, sinon
+        # PowerShell (ErrorActionPreference=Stop) transforme chaque ligne en erreur fatale.
+        $props = (& cmd /c "java -XshowSettings:properties -version 2>&1") -join "`n"
         if ($props -match 'java\.home\s*=\s*(.+)') {
             $javaHome = $Matches[1].Trim()
             $candidate = Join-Path $javaHome 'bin\jlink.exe'
