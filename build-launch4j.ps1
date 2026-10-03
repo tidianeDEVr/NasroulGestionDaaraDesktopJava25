@@ -33,12 +33,15 @@ java --version
 # --- Launch4j (launch4jc.exe) ---
 $l4j = Get-Command launch4jc -ErrorAction SilentlyContinue
 if (-not $l4j) {
-    $candidates = @(
+    # @(...) force un tableau : avec un seul resultat, PowerShell renverrait une
+    # chaine et [0] en prendrait la premiere lettre ("C").
+    $candidates = @(@(
         'C:\Program Files (x86)\Launch4j\launch4jc.exe',
-        'C:\Program Files\Launch4j\launch4jc.exe'
-    ) | Where-Object { Test-Path $_ }
-    if ($candidates) {
-        $l4jPath = $candidates[0]
+        'C:\Program Files\Launch4j\launch4jc.exe',
+        "$env:LOCALAPPDATA\Programs\Launch4j\launch4jc.exe"
+    ) | Where-Object { Test-Path $_ })
+    if ($candidates.Count -gt 0) {
+        $l4jPath = [string]$candidates[0]
     } else {
         Write-Error "ERREUR: launch4jc.exe introuvable. Installez Launch4j ou ajoutez-le au PATH."
         exit 1
