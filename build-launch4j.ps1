@@ -85,10 +85,32 @@ if ($SkipRuntime) {
         if (Test-Path $candidate) { $jlinkPath = $candidate }
     }
     if (-not $jlinkPath) {
-        Write-Error "ERREUR: jlink introuvable. Il faut un JDK 17+ complet (pas un JRE) et JAVA_HOME correctement defini."
+        # Le java du PATH connait son vrai dossier d'installation (java.home) :
+        # on y cherche jlink, meme sans JAVA_HOME et meme via le raccourci javapath.
+        $props = & java -XshowSettings:properties -version 2>&1 | Out-String
+        if ($props -match 'java\.home\s*=\s*(.+)') {
+            $javaHome = $Matches[1].Trim()
+            $candidate = Join-Path $javaHome 'bin\jlink.exe'
+            if (Test-Path $candidate) { $jlinkPath = $candidate }
+        }
+    }
+    if (-not $jlinkPath) {
+        # Dernier recours : les JDK installes aux emplacements habituels
+        $roots = @("$env:ProgramFiles\Java", "$env:ProgramFiles\Eclipse Adoptium", "$env:ProgramFiles\Microsoft",
+                   "$env:ProgramFiles\Amazon Corretto", "$env:ProgramFiles\Zulu", "${env:ProgramFiles(x86)}\Java")
+        $found = foreach ($r in $roots) {
+            if (Test-Path $r) { Get-ChildItem -Path $r -Directory -ErrorAction SilentlyContinue |
+                ForEach-Object { Join-Path $_.FullName 'bin\jlink.exe' } | Where-Object { Test-Path $_ } }
+        }
+        if ($found) { $jlinkPath = @($found | Sort-Object -Descending)[0] }
+    }
+    if (-not $jlinkPath) {
+        Write-Error ("ERREUR: jlink introuvable. Il faut un JDK 17+ complet (pas un JRE). " +
+                     "Definissez JAVA_HOME sur le dossier du JDK, ex. : `$env:JAVA_HOME = 'C:\Program Files\Java\jdk-21'")
         exit 1
     }
     Write-Output "jlink: $jlinkPath"
+    $env:JAVA_HOME = Split-Path -Parent (Split-Path -Parent $jlinkPath)
     & $jlinkPath `
       --add-modules java.se,jdk.unsupported,jdk.crypto.ec,jdk.charsets,jdk.localedata `
       --output $runtime `
